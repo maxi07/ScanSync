@@ -23,7 +23,7 @@ services:
     volumes:
       - ./ocr-service:/ocr-service
       - scans:/mnt/scans
-      - ./shared_logging:/ocr-service/shared_logging
+      - ./shared:/ocr-service/shared
     working_dir: /ocr-service
     networks:
       - app-network
@@ -39,7 +39,8 @@ services:
     volumes:
       - ./detection-service:/detection-service
       - scans:/mnt/scans
-      - ./shared_logging:/detection-service/shared_logging
+      - ./shared:/detection-service/shared
+      - preview-images:/shared/preview-images
     working_dir: /detection-service
     networks:
       - app-network
@@ -56,7 +57,8 @@ services:
     volumes:
       - ./web-service:/web-service
       - scans:/mnt/scans
-      - ./shared_logging:/web-service/src/shared_logging
+      - ./shared:/web-service/src/shared
+      - preview-images:/app/src/static/images
 
   rabbitmq:
     image: "rabbitmq:4.0.7-management"
@@ -74,7 +76,8 @@ services:
 
 volumes:
   scans:
-  shared_logging:
+  shared:
+  preview-images:
 
 networks:
   app-network:

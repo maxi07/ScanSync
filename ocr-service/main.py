@@ -1,5 +1,5 @@
 import pika
-from shared_logging.logging import logger
+from shared.logging import logger
 import time
 import socket
 

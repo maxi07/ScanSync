@@ -5,7 +5,7 @@ from flask import Flask, redirect, request, session, url_for
 from dotenv import load_dotenv
 import sys
 sys.path.append('/web-service/src')
-from shared_logging.logging import logger
+from shared.logging import logger
 
 logger.info("Starting web service...")
 

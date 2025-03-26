@@ -6,5 +6,5 @@ cov-report/
 .coverage
 .DS_Store
 .env
-*/shared_logging
-*/*/shared_logging
+*/shared
+*/*/shared

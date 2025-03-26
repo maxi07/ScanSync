@@ -1,0 +1,7 @@
+{
+    "version": "0.1",
+    "db": {
+        "path": "shared/db/scansync.db",
+        "schema": "shares/db/schema.sql"
+    }
+}
