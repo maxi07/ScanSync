@@ -29,6 +29,7 @@ services:
       - app-network
     depends_on:
       - smb-server
+      - rabbitmq
     command: ["python", "main.py"]
 
   detection-service:
@@ -44,6 +45,7 @@ services:
       - app-network
     depends_on:
       - smb-server
+      - rabbitmq
     command: ["python", "main.py"]
   
   web-service:
@@ -55,6 +57,20 @@ services:
       - ./web-service:/web-service
       - scans:/mnt/scans
       - ./shared_logging:/web-service/src/shared_logging
+
+  rabbitmq:
+    image: "rabbitmq:4.0.7-management"
+    container_name: "rabbitmq"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
 
 volumes:
   scans:
