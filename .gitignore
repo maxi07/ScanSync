@@ -1,0 +1,10 @@
+/.venv
+__pycache__/
+flask_session/
+.pytest_cache/
+cov-report/
+.coverage
+.DS_Store
+.env
+*/shared_logging
+*/*/shared_logging

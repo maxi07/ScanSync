@@ -1,0 +1,64 @@
+services:
+  smb-server:
+    image: dockurr/samba
+    container_name: smb-server
+    restart: unless-stopped
+    environment:
+      TZ: 'Europe/Berlin'
+      NAME: "Scans"
+      USER: "ocr"
+      PASS: "ocr"
+    volumes:
+      - scans:/storage
+    ports:
+      - "139:139"
+      - "445:445"
+    networks:
+      - app-network
+
+  ocr-service:
+    build: ./ocr-service
+    container_name: ocr-service
+    restart: unless-stopped
+    volumes:
+      - ./ocr-service:/ocr-service
+      - scans:/mnt/scans
+      - ./shared_logging:/ocr-service/shared_logging
+    working_dir: /ocr-service
+    networks:
+      - app-network
+    depends_on:
+      - smb-server
+    command: ["python", "main.py"]
+
+  detection-service:
+    build: ./detection-service
+    container_name: detection-service
+    restart: unless-stopped
+    volumes:
+      - ./detection-service:/detection-service
+      - scans:/mnt/scans
+      - ./shared_logging:/detection-service/shared_logging
+    working_dir: /detection-service
+    networks:
+      - app-network
+    depends_on:
+      - smb-server
+    command: ["python", "main.py"]
+  
+  web-service:
+    image: web-service
+    build: ./web-service
+    ports:
+      - 5001:5001
+    volumes:
+      - ./web-service:/web-service
+      - scans:/mnt/scans
+      - ./shared_logging:/web-service/src/shared_logging
+
+volumes:
+  scans:
+  shared_logging:
+
+networks:
+  app-network:
