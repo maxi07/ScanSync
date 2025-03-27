@@ -35,9 +35,7 @@ def connect_rabbitmq():
     exit(2)
 
 
-def on_created(filename: str):
-    filepath = os.path.join(SCAN_DIR, filename)
-
+def on_created(filepath: str):
     # Test for valid path
     if os.path.exists(filepath) and os.path.isdir(filepath):
         logger.warning(f"Given path is a directory, will skip: {filepath}")
@@ -53,7 +51,7 @@ def on_created(filename: str):
         return
 
     # Ignore hidden files
-    if filename.startswith((".", "_")):
+    if os.path.basename(filepath).startswith((".", "_")):
         logger.info(f"Ignoring hidden file at {filepath}")
         return
 
@@ -165,19 +163,26 @@ def pdf_to_jpeg(pdf_path: str, output_path: str, target_height=128, compression_
     pdf_document.close()
 
 
+def get_all_files(directory):
+    """Rekursiv alle Dateien in einem Verzeichnis und Unterverzeichnissen abrufen"""
+    all_files = set()
+    for root, _, files in os.walk(directory):
+        for file in files:
+            all_files.add(os.path.join(root, file))
+    return all_files
+
+
 connection, channel = connect_rabbitmq()
 logger.debug(f"Connected to RabbitMQ on {channel.channel_number}")
 channel.queue_declare(queue=RABBITQUEUE, durable=True)
 logger.debug(f"Connected to queue {RABBITQUEUE}")
 
 logger.info(f"Scanning {SCAN_DIR} for new files...")
-
-known_files = set(os.listdir(SCAN_DIR))
+known_files = get_all_files(SCAN_DIR)
 
 while True:
     try:
-        connection.process_data_events(1)
-        current_files = set(os.listdir(SCAN_DIR))
+        current_files = get_all_files(SCAN_DIR)
 
         new_files = current_files - known_files
         if new_files:
