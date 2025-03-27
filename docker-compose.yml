@@ -55,10 +55,9 @@ services:
     ports:
       - 5001:5001
     volumes:
-      - ./web-service:/web-service
       - scans:/mnt/scans
-      - ./shared:/web-service/src/shared
-      - preview-images:/app/src/static/images
+      - ./shared:/app/src/shared
+      - preview-images:/app/src/static/images/pdfpreview
 
   rabbitmq:
     image: "rabbitmq:4.0.7-management"

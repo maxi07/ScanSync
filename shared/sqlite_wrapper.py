@@ -64,13 +64,12 @@ def update_scanneddata_database(id: int, update_values: dict):
             set_clause = ', '.join(f'{key} = ?' for key in update_values.keys())
 
             # Update the scanneddata table
-            query = f'UPDATE {config.get("sql.db_pdf_table")} SET {set_clause}, modified = CURRENT_TIMESTAMP WHERE id = ?'
+            query = f'UPDATE scanneddata SET {set_clause}, modified = CURRENT_TIMESTAMP WHERE id = ?'
             cursor.execute(query, (*update_values.values(), id))
-            logger.debug(f"Updated database {config.get('sql.db_location')} for id {id} with values {update_values}")
+            logger.debug(f"Updated database scanneddata for id {id} with values {update_values}")
 
             # Commit the changes and close the connection
             connection.commit()
-            connection.close()
     except Exception:
         logger.exception(f"Error updating database for id {id}.")
 

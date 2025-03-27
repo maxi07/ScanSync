@@ -2,13 +2,22 @@ import pika
 from shared.logging import logger
 import time
 import socket
+from shared.ProcessItem import ProcessItem
+import pickle
 
 logger.info("Starting OCR service...")
 
 
 def callback(ch, method, properties, body):
-    logger.info(f"Received message: {body}")
-    ch.basic_ack(delivery_tag=method.delivery_tag)
+    try:
+        item: ProcessItem = pickle.loads(body)
+        if not isinstance(item, ProcessItem):
+            logger.warning("Received object, that is not of type ProcessItem. Skipping.")
+            return
+        logger.info(f"Received PDF for OCR: {item.filename}")
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+    except Exception:
+        logger.exception(f"Failed processing {body}.")
 
 
 # Connect to RabbitMQ

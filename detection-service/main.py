@@ -7,9 +7,9 @@ from shared.ProcessItem import ItemType, ProcessItem, ProcessStatus
 from PIL import Image
 from pypdf import PdfReader
 import pika
-from shared.config import config
 from shared.sqlite_wrapper import execute_query, update_scanneddata_database
 import pymupdf
+import pickle
 
 SCAN_DIR = "/mnt/scans"
 RABBITQUEUE = "ocr_queue"
@@ -36,7 +36,7 @@ def connect_rabbitmq():
 
 
 def on_created(filename: str):
-    filepath = SCAN_DIR + filename
+    filepath = os.path.join(SCAN_DIR, filename)
 
     # Test for valid path
     if os.path.exists(filepath) and os.path.isdir(filepath):
@@ -45,7 +45,7 @@ def on_created(filename: str):
 
     # Test for security files
     if ":Zone.Identifier" in filepath:
-        logger.debug(f"Ignoring Windows Security File file at {filepath}")
+        logger.info(f"Ignoring Windows Security File file at {filepath}")
         try:
             os.remove(filepath)
         except OSError:
@@ -54,7 +54,7 @@ def on_created(filename: str):
 
     # Ignore hidden files
     if filename.startswith((".", "_")):
-        logger.debug(f"Ignoring hidden file at {filepath}")
+        logger.info(f"Ignoring hidden file at {filepath}")
         return
 
     # Test if file is PDF or image. if neither can be opened, wait five seconds and try again.
@@ -78,12 +78,12 @@ def on_created(filename: str):
                 return
 
     # Add pdf to database
-    item.db_id = execute_query('INSERT INTO scanneddata (file_name, local_filepath) VALUES (?, ?)', (item.filename, item.local_directory_above))
+    item.db_id = execute_query('INSERT INTO scanneddata (file_name, local_filepath) VALUES (?, ?)', (item.filename, item.local_directory_above), return_last_id=True)
     logger.debug(f"Added {filepath} to database with id {item.db_id}")
 
     # Generate preview image
     try:
-        preview_folder = "/shared/preview-images"
+        preview_folder = "/shared/preview-images/"
         logger.debug(f"Checking if {preview_folder} exists")
         if not os.path.exists(preview_folder):
             logger.debug(f"Creating folder {preview_folder}")
@@ -110,13 +110,13 @@ def on_created(filename: str):
     channel.basic_publish(
                     exchange="",
                     routing_key="ocr_queue",
-                    body=item,
+                    body=pickle.dumps(item),
                     properties=pika.BasicProperties(delivery_mode=2)
                 )
     logger.info(f"Added {item.local_file_path} to OCR queue")
 
 
-def is_image(self, file_path) -> bool:
+def is_image(file_path) -> bool:
     try:
         with Image.open(file_path):
             logger.debug(f"File {file_path} is an image file.")
@@ -125,7 +125,7 @@ def is_image(self, file_path) -> bool:
         return False
 
 
-def is_pdf(self, file_path):
+def is_pdf(file_path):
     try:
         with open(file_path, "rb") as file:
             r = PdfReader(file)
@@ -138,7 +138,7 @@ def is_pdf(self, file_path):
         return False
 
 
-def pdf_to_jpeg(self, pdf_path: str, output_path: str, target_height=128, compression_quality=50):
+def pdf_to_jpeg(pdf_path: str, output_path: str, target_height=128, compression_quality=50):
     logger.debug(f"Creating JPEG preview image from {pdf_path} to {output_path}")
     # Open the PDF file
     pdf_document = pymupdf.open(pdf_path)
