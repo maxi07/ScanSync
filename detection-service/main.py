@@ -55,6 +55,11 @@ def on_created(filepath: str):
         logger.info(f"Ignoring hidden file at {filepath}")
         return
 
+    # Ignore OCR files
+    if "_OCR.pdf" in filepath:
+        logger.debug(f"Ignoring working _OCR file at {filepath}")
+        return
+
     # Test if file is PDF or image. if neither can be opened, wait five seconds and try again.
     # Repeat this process until a maximum timeout of three minutes is reached
     timeout = 180
@@ -182,6 +187,7 @@ known_files = get_all_files(SCAN_DIR)
 
 while True:
     try:
+        connection.process_data_events(1)
         current_files = get_all_files(SCAN_DIR)
 
         new_files = current_files - known_files

@@ -99,6 +99,7 @@ class ProcessItem:
         self.time_finished = None
         self.item_type = item_type
         self.ocr_status = OCRStatus.UNKNOWN
+        self.ocr_file = self.local_directory + "/" + self.filename_without_extension + "_OCR.pdf"
         self.db_id = None
 
         # PDF Status
