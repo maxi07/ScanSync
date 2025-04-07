@@ -18,7 +18,8 @@ COPY requirements.txt .
 RUN apt-get update && apt-get install -y --no-install-recommends sqlite3 && rm -rf /var/lib/apt/lists/*
 RUN python -m pip install -r requirements.txt
 COPY . /app
-RUN chown -R appuser /app
-USER appuser
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+USER root
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "src.main:app"]
+ENTRYPOINT ["/entrypoint.sh"]

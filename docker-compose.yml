@@ -49,6 +49,22 @@ services:
       - rabbitmq
     command: ["python", "main.py"]
   
+  upload-service:
+    build: ./upload-service
+    container_name: upload-service
+    restart: unless-stopped
+    volumes:
+      - ./upload-service:/upload-service
+      - scans:/mnt/scans
+      - ./shared:/upload-service/shared
+    working_dir: /upload-service
+    networks:
+      - app-network
+    depends_on:
+      - smb-server
+      - rabbitmq
+    command: ["python", "main.py"]
+  
   web-service:
     image: web-service
     restart: unless-stopped
@@ -57,6 +73,7 @@ services:
       - 5001:5001
     volumes:
       - scans:/mnt/scans
+      - data:/app/data
       - ./shared:/app/src/shared
       - preview-images:/app/src/static/images/pdfpreview
 
@@ -79,6 +96,7 @@ volumes:
   scans:
   shared:
   preview-images:
+  data:
 
 networks:
   app-network:

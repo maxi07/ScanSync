@@ -4,6 +4,7 @@ import time
 import socket
 from shared.ProcessItem import ProcessItem, ProcessStatus, OCRStatus
 from shared.sqlite_wrapper import update_scanneddata_database
+from shared.helpers import connect_rabbitmq
 import pickle
 import ocrmypdf
 from datetime import datetime
@@ -24,20 +25,6 @@ def callback(ch, method, properties, body):
     except Exception:
         logger.exception(f"Failed processing {body}.")
         item.ocr_status = OCRStatus.FAILED
-
-
-# Connect to RabbitMQ
-def connect_rabbitmq():
-    for i in range(10):
-        try:
-            connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitmq", heartbeat=30))
-            channel = connection.channel()
-            channel.queue_declare(queue="ocr_queue", durable=True)
-            return connection, channel
-        except (socket.gaierror, pika.exceptions.AMQPConnectionError):
-            time.sleep(2)
-    logger.critical("Couldn't connect to RabbitMQ.")
-    exit(2)
 
 
 def start_processing(item: ProcessItem):
@@ -78,9 +65,11 @@ def start_processing(item: ProcessItem):
         return item
 
 
-connection, channel = connect_rabbitmq()
-channel = connection.channel()
-
+try:
+    connection, channel = connect_rabbitmq("ocr_queue")
+except Exception as e:
+    logger.critical(f"Couldn't connect to RabbitMQ: {e}")
+    exit(1)
 channel.queue_declare(queue="ocr_queue", durable=True)
 channel.basic_consume(queue="ocr_queue", on_message_callback=callback)
 logger.info("OCR service ready!")

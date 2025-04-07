@@ -1,6 +1,5 @@
 import os
 import time
-import socket
 import pika.exceptions
 from shared.logging import logger
 from shared.ProcessItem import ItemType, ProcessItem, ProcessStatus
@@ -8,6 +7,7 @@ from PIL import Image
 from pypdf import PdfReader
 import pika
 from shared.sqlite_wrapper import execute_query, update_scanneddata_database
+from shared.helpers import connect_rabbitmq
 import pymupdf
 import pickle
 
@@ -18,21 +18,6 @@ logger.info("Starting detection service...")
 if not os.path.exists(SCAN_DIR):
     logger.critical(f"{SCAN_DIR} does not exist!")
     exit(1)
-
-
-# Connect to RabbitMQ
-def connect_rabbitmq():
-    for i in range(10):
-        try:
-            logger.debug(f"({i}/10) Connecting to RabbitMQ")
-            connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitmq", heartbeat=30))
-            channel = connection.channel()
-            channel.queue_declare(queue="ocr_queue", durable=True)
-            return connection, channel
-        except (socket.gaierror, pika.exceptions.AMQPConnectionError):
-            time.sleep(2)
-    logger.critical("Couldn't connect to RabbitMQ.")
-    exit(2)
 
 
 def on_created(filepath: str):
@@ -177,7 +162,11 @@ def get_all_files(directory):
     return all_files
 
 
-connection, channel = connect_rabbitmq()
+try:
+    connection, channel = connect_rabbitmq("ocr_queue")
+except Exception as e:
+    logger.critical(f"Failed to connect to RabbitMQ: {e}")
+    exit(1)
 logger.debug(f"Connected to RabbitMQ on {channel.channel_number}")
 channel.queue_declare(queue=RABBITQUEUE, durable=True)
 logger.debug(f"Connected to queue {RABBITQUEUE}")
