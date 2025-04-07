@@ -1,6 +1,5 @@
 import os
 import time
-import pika.exceptions
 from shared.logging import logger
 from shared.ProcessItem import ItemType, ProcessItem, ProcessStatus
 from PIL import Image

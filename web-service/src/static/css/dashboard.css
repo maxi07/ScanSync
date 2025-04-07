@@ -1,0 +1,18 @@
+.dashboard-widget-icon {
+    font-size: 8rem;
+    opacity: 0.3;
+    top: -20px;
+}
+
+.card-footer {
+    border: none;
+}
+
+.dashboard-widget {
+    overflow: hidden;
+    border: none;
+}
+
+.card {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1); /* Add a light drop shadow */
+}

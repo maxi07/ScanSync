@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import Any
 from os.path import expanduser, join
 from shared.logging import logger
@@ -78,5 +79,6 @@ class Config:
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
 
-config = Config('shared/config.json')
+CONFIG_PATH = Path(__file__).resolve().parent.parent / 'shared' / 'config.json'
+config = Config(str(CONFIG_PATH))
 logger.debug(f"Loaded {__name__} module")

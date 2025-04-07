@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>ScanSync</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <link rel="stylesheet" type="text/css" href="/static/css/base.css">
+        <link rel="icon" href="/static/images/PySyncOCR_logos_white.ico" media="(prefers-color-scheme: dark)">
+        <link rel="icon" href="/static/images/PySyncOCR_logos_black.ico" media="(prefers-color-scheme: light)">
+    </head>
+
+    <body>
+        <div class="content-wrapper">
+            <nav class="navbar navbar-expand-lg border-body bg-dark" data-bs-theme="dark">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="/"><img
+                            src="/static/images/PySyncOCR_logos_white.png" alt="PySyncOCR logo" height="30"></a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <li class="nav-item">
+                                <a class="nav-link active" aria-current="page"
+                                    href="/">Dashboard</a>
+                            </li>
+                            <li class="nav-item position-relative">
+                                <a class="nav-link" href="/sync">Sync
+                                    {% if (failed_documents is defined and failed_documents > 0) or mapping_error %}
+                                    <span
+                                        class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                        <i class="bi bi-exclamation-triangle"></i> {{ failed_documents }}
+                                        <span class="visually-hidden">pathmapping error</span>
+                                    </span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                            <li class="nav-item position-relative">
+                                <a class="nav-link" href="/smb">SMB</a>
+                                {% if smb_error %}
+                                <span
+                                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    <span class="visually-hidden">smb error</span>
+                                </span>
+                                {% endif %}
+                            </li>
+                            <li class="nav-item position-relative">
+                                <a class="nav-link" href="/settings">Settings</a>
+                            </li>
+                        </ul>
+                        <span class="navbar-text">
+                            by Maximilian Krause<br>
+                        </span>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="content">
+                <div class="container">
+                    <br>
+                    {% block content %}
+                    {% endblock %}
+                    <br>
+                </div>
+                <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+            </div>
+
+            <footer class="footer text-light rounded-top p-2">
+                <div class="container">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            Version {{ version }}
+                        </div>
+                        <div class="col-auto">
+                            <a href="https://github.com/maxi07" style="color: white; font-size: 1.5rem;"><i class="bi bi-github"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", (event) => {
+                // Get the current page URL without any parameters
+                var currentPage = window.location.href.split('?')[0];
+
+                // Remove the active class from all navigation links
+                $("#navbarSupportedContent a").removeClass("active");
+
+                // Check each navigation link and set the active class accordingly
+                $("#navbarSupportedContent a").each(function () {
+                    var linkHref = $(this).attr("href");
+
+                    // Check if the current page URL ends with the linkHref
+                    if (currentPage.endsWith(linkHref)) {
+                        $(this).closest("a").addClass("active");
+                    }
+                });
+            });        
+        </script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.9.2/umd/popper.min.js"
+            crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" integrity="sha384-k6d4wzSIapyDyv1kpU366/PK5hCdSbCRGRCMv+eplOQJWyd1fbcAu9OCUj5zNLiq" crossorigin="anonymous"></script>
+        <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
+            integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
+        <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
+    </body>
+</html>

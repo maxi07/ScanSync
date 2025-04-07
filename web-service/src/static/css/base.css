@@ -1,0 +1,59 @@
+h1:not(.modal-title),
+h2,
+h3,
+p,
+a {
+    color: white;
+}
+
+.card p {
+    color: initial;
+}
+
+.modal p, a {
+    color: initial;
+}
+
+.list-group p {
+    color: initial;
+}
+
+.modal {
+    color:initial
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+.content-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.navbar {
+    flex: 0 0 auto;
+    /* Fixed height for the navbar */
+}
+
+.content {
+    flex: 1;
+    /* Expand to fill remaining height */
+    background: linear-gradient(133deg, rgba(2, 170, 189, 1) 0%, rgb(4, 236, 186) 100%);
+    color: white;
+    padding-bottom: 70px;
+    /* Adjust to match the height of the footer */
+}
+
+.footer {
+    width: auto;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 1rem 0;
+    margin-top: -50px;
+    /* Negative margin equal to the footer height */
+    height: 50px;
+}
