@@ -239,6 +239,12 @@ def login():
     return redirect(auth_url)
 
 
+@app.route('/sync')
+def sync():
+    logger.info("Resuested sync site")
+    return render_template('sync.html')
+
+
 @app.route('/getAToken')
 def get_atoken():
     code = request.args.get('code')

@@ -71,7 +71,10 @@ services:
     build: ./web-service
     ports:
       - 5001:5001
+    environment:
+      - FLASK_ENV=development
     volumes:
+      - ./web-service:/app  # TODO: Only for development!!
       - scans:/mnt/scans
       - data:/app/data
       - ./shared:/app/src/shared
