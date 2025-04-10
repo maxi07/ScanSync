@@ -1,22 +1,19 @@
-.success-color, .failure-color {
-    transition: background-color 0.5s, border-color 0.5s;
+.nav-tabs .nav-item .nav-link.active{
+    color: black;
 }
 
-.success-color {
-    background-color: #28a745 !important;
-    border-color: #28a745 !important;
+.nav-tabs .nav-item .nav-link{
+    color: white;
 }
 
-.failure-color {
-    background-color: #dc3545 !important;
-    border-color: #dc3545 !important;
+.accordion-body {
+    background-color: white;
 }
 
-.disabled {
-    pointer-events: none;
+.accordion {
+    --bs-accordion-bg: transparent;
 }
 
-.collapse-info {
-    background-color: rgba(0, 0, 0, 0.3);
-    border-color: white;
+.accordion-button {
+    color: white
 }

@@ -3,12 +3,13 @@ import sqlite3
 from shared.config import config
 from shared.logging import logger
 import os
+from flask import g
 
 
 @contextmanager
 def db_connection():
     """Creates SQLite connection and closes it automatically."""
-    conn = sqlite3.connect(config.get("db.path"))
+    conn = sqlite3.connect(db_path)
     try:
         yield conn
         conn.commit()
@@ -74,9 +75,21 @@ def update_scanneddata_database(id: int, update_values: dict):
         logger.exception(f"Error updating database for id {id}.")
 
 
-if not os.path.exists(config.get("db.path")):
+def get_db():
+    if 'db' not in g:
+        g.db = sqlite3.connect(
+            db_path,
+            detect_types=sqlite3.PARSE_DECLTYPES
+        )
+        g.db.row_factory = sqlite3.Row
+
+    return g.db
+
+
+db_path = os.path.join("src", config.get("db.path"))
+if not os.path.exists(db_path):
     logger.info("Initializing database...")
     with db_connection() as conn:
-        with open(config.get("db.schema"), "r") as f:
+        with open(os.path.join("src", config.get("db.schema")), "r") as f:
             conn.executescript(f.read())
     logger.info("Database initialized successfully.")
