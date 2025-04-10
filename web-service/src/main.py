@@ -3,13 +3,14 @@ import msal
 import requests
 import json
 from flask import Flask, redirect, request, session, url_for
-from dotenv import load_dotenv
 import sys
 sys.path.append('/app/src')
 from shared.logging import logger
+from shared.onedrive_settings import onedrive_settings
 from routes.dashboard import dashboard_bp
 from routes.sync import sync_bp
 from routes.settings import settings_bp
+from routes.api import api_bp
 
 
 logger.info("Starting web service...")
@@ -19,21 +20,9 @@ app.secret_key = os.urandom(24)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(sync_bp)
 app.register_blueprint(settings_bp)
+app.register_blueprint(api_bp)
 
 TOKEN_FILE = '/app/data/token.json'
-
-# Read environment env
-try:
-    logger.debug("Loading environment variables")
-    load_dotenv()
-    CLIENT_ID = os.getenv('CLIENT_ID')
-    CLIENT_SECRET = os.getenv('CLIENT_SECRET')
-    AUTHORITY = "https://login.microsoftonline.com/consumers"
-    SCOPE = ['Files.ReadWrite', 'User.Read']
-    REDIRECT_URI = os.getenv('REDIRECT_URI')
-except Exception:
-    logger.critical("Failed loading environment variable. Please make sure to set the values inside the .env file correctly.")
-    exit(1)
 
 
 def load_token():
@@ -58,16 +47,16 @@ def get_access_token():
 
     if 'access_token' in token_data and 'expires_in' in token_data:
         msal_app = msal.ConfidentialClientApplication(
-            CLIENT_ID,
-            authority=AUTHORITY,
-            client_credential=CLIENT_SECRET
+            onedrive_settings.client_id,
+            authority=onedrive_settings.authority,
+            client_credential=onedrive_settings.client_secret
         )
         if token_data.get('expires_in') > 0:
             return token_data['access_token']
         else:
             # token has expired, refresh it
             result = msal_app.acquire_token_by_refresh_token(
-                token_data['refresh_token'], scopes=SCOPE
+                token_data['refresh_token'], scopes=onedrive_settings.scope
             )
             if "access_token" in result:
                 save_token(result)
@@ -78,11 +67,11 @@ def get_access_token():
 @app.route('/login')
 def login():
     msal_app = msal.ConfidentialClientApplication(
-        CLIENT_ID,
-        authority=AUTHORITY,
-        client_credential=CLIENT_SECRET
+        onedrive_settings.client_id,
+        authority=onedrive_settings.authority,
+        client_credential=onedrive_settings.client_secret
     )
-    auth_url = msal_app.get_authorization_request_url(SCOPE, redirect_uri=REDIRECT_URI)
+    auth_url = msal_app.get_authorization_request_url(onedrive_settings.scope, redirect_uri=onedrive_settings.redirect_uri)
     return redirect(auth_url)
 
 
@@ -90,16 +79,16 @@ def login():
 def get_atoken():
     code = request.args.get('code')
     msal_app = msal.ConfidentialClientApplication(
-        CLIENT_ID,
-        authority=AUTHORITY,
-        client_credential=CLIENT_SECRET
+        onedrive_settings.client_id,
+        authority=onedrive_settings.authority,
+        client_credential=onedrive_settings.client_secret
     )
-    result = msal_app.acquire_token_by_authorization_code(code, scopes=SCOPE, redirect_uri=REDIRECT_URI)
+    result = msal_app.acquire_token_by_authorization_code(code, scopes=onedrive_settings.scope, redirect_uri=onedrive_settings.redirect_uri)
 
     if "access_token" in result:
         save_token(result)
         session['user'] = get_user_info(result['access_token'])
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard.index'))
     return "Fehler bei der Anmeldung!"
 
 

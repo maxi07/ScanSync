@@ -44,7 +44,7 @@
             <form id="onedrive-settings-form">
                 <div class="mb-3">
                     <label for="clientID" class="form-label">Client ID</label>
-                    <input type="text" class="form-control" id="clientID" aria-describedby="clientIDHelp" required>
+                    <input type="text" class="form-control" name="clientID" id="clientID" aria-describedby="clientIDHelp" value="{{ client_id }}" required>
                     <div id="clientIDHelp" class="form-text">
                         <p>The ID of your app registration (Application ID) on <a
                                 href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">Azure</a>.
@@ -53,7 +53,7 @@
                 </div>
                 <div class="mb-3">
                     <label for="clientSecret" class="form-label">Client Secret</label>
-                    <input type="password" class="form-control" id="clientSecret" aria-describedby="clientSecretHelp" required>
+                    <input type="password" class="form-control" name="clientSecret" id="clientSecret" aria-describedby="clientSecretHelp" value="{{ client_secret }}" pattern="(?=.*[a-z])(?=.*[A-Z]).{10,}" required>
                     <div id="clientSecretHelp" class="form-text">
                         <p>The secret of your app registration on <a
                                 href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">Azure</a>.

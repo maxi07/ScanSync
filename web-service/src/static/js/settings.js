@@ -1,11 +1,16 @@
 document.getElementById('onedrive-settings-form').addEventListener('submit', async function (event) {
     event.preventDefault();
     const submitButton = this.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton.textContent;
+
     submitButton.disabled = true;
-    var submitButtonText = submitButton.textContent;
     submitButton.textContent = 'Saving...';
+
     const formData = new FormData(this);
-    const data = Object.fromEntries(formData.entries());
+    const data = {};
+    formData.forEach((value, key) => {
+        data[key] = value.trim();
+    });
 
     try {
         const response = await fetch('/api/onedrive-settings', {
@@ -16,16 +21,18 @@ document.getElementById('onedrive-settings-form').addEventListener('submit', asy
             body: JSON.stringify(data),
         });
 
-        submitButton.disabled = false;
-        submitButton.textContent = submitButtonText;
         if (response.ok) {
             const result = await response.json();
-            alert('Settings saved successfully!');
+            alert(result.message || 'Settings saved successfully.');
         } else {
-            alert('Failed to save settings.');
+            const result = await response.json().catch(() => ({}));
+            alert(result.error || 'An error occurred while saving settings.');
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('An error occurred while saving settings.');
+        alert('An unexpected error occurred. Please try again.');
+    } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = originalButtonText;
     }
 });
