@@ -129,7 +129,9 @@ function handleRemotePathClick(event) {
     
     // Update currentOneDriveSelectedPath, so we can set it to active later 
     currentOneDriveSelectedID = event.currentTarget.dataset.itemId;
-    setCurrentPathRemote(targetItem.textContent);
+    var parent = event.currentTarget.dataset.parentPath.split('root:')[1] || "";
+    currentOneDriveSelectedPath = parent + "/" + targetItem.textContent.trimStart();
+    document.getElementById("remote_path").value = currentOneDriveSelectedPath;
 }
 
 // Update handleRemotePathDoubleClick to push parent IDs to the stack
@@ -151,45 +153,4 @@ function handleRemotePathDoubleClick(event) {
         console.log("User is now in dir: " + currentOneDrivePath);
         loadOneDriveDir(targetItem.dataset.itemId, targetItem.dataset.isSharedWithMe, targetItem.dataset.driveID);
     }
-}
-
-function setCurrentPathRemote(pathToAdd) {
-    // Remove space from start and end of path
-    pathToAdd = pathToAdd.trim();
-
-    if (currentOneDriveSelectedPath.startsWith("/")) {
-        if (currentOneDriveSelectedPath.split("/").length - 2 === onedriveDirLevel) {
-            currentOneDriveSelectedPath = updateSameLevel(currentOneDriveSelectedPath, pathToAdd);
-        } else if (currentOneDriveSelectedPath.split("/").length - 2 > onedriveDirLevel) {
-            currentOneDriveSelectedPath = currentOneDriveSelectedPath.replace(/\/[^/]*\/?$/, '/') // Remove last dir
-
-        } else {
-            currentOneDriveSelectedPath = updateDeeperLevel(currentOneDriveSelectedPath, pathToAdd);
-        }
-    } else {
-        currentOneDriveSelectedPath = "/" + pathToAdd + "/";
-    }
-    document.getElementById("remote_path").value = currentOneDriveSelectedPath;
-    console.log("Current OneDrive path: " + currentOneDriveSelectedPath);
-}
-
-function updateSameLevel(path, newDir) {
-    // Remove leading and trailing slashes, then split the path into an array of directories
-    const pathArray = path.replace(/^\/|\/$/g, '').split('/');
-
-    // Remove the last element (directory) from the array
-    pathArray.pop();
-
-    // Append the new directory to the array
-    pathArray.push(newDir);
-
-    // Join the array back into a string with '/' as the separator
-    let newPath = '/' + pathArray.join('/') + '/';
-
-    return newPath;
-}
-
-function updateDeeperLevel(currentFilePath, newDirectoryName) {
-    currentFilePath += newDirectoryName + '/';
-    return currentFilePath;
 }
