@@ -6,6 +6,12 @@ a {
     color: white;
 }
 
+.accordion-body h3,
+.accordion-body p,
+.accordion-body a {
+    color: initial;
+}
+
 .card p {
     color: initial;
 }

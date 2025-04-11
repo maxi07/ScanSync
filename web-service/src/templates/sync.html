@@ -5,36 +5,5 @@
 <p>
     Set up or manage your OneDrive connections for syncing.
 </p>
-<div class="container mt-5">
-    <div>
-        <h2>OneDrive Accounts <button class="btn btn-primary" data-bs-toggle="modal"
-                data-bs-target="#addonedrivemodal"><i class="bi bi-plus-circle"></i> Add</button></h2>
-    </div>
-    {% if onedrive_configs is defined and onedrive_config.items() %}
-    <table class="table table-striped" id="onedrive-configs-table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Type</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for name, config in onedrive_configs.items() %}
-            <tr id="{{ name }}_row">
-                <td>{{ name }}</td>
-                <td>{{ config.type }}</td>
-                <td>{{ config.drive_type }}</td>
-                <td><button id="{{ name }}_delete_button" onclick="deleteOneDriveConf('{{ name }}')"
-                        class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Delete</button></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p>No connections found.</p>
-    {% endif %}
-</div>
 <script src="/static/js/sync.js"></script>
 {% endblock %}

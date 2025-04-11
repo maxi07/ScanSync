@@ -5,15 +5,3 @@
 .nav-tabs .nav-item .nav-link{
     color: white;
 }
-
-.accordion-body {
-    background-color: white;
-}
-
-.accordion {
-    --bs-accordion-bg: transparent;
-}
-
-.accordion-button {
-    color: white
-}

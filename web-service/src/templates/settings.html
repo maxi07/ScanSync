@@ -24,48 +24,90 @@
     </ul>
     <div class="tab-content pt-5" id="tab-content">
         <div class="tab-pane active" id="fill-tabpanel-0" role="tabpanel" aria-labelledby="fill-tab-0">
-            <h2>Instructions</h2>
-            <p>To connect to OneDrive, you will need to create your own app registration on Microsoft Azure. This
-                process is free of charge and only takes a few steps. After you followed the process, enter your app
-                details here.</p>
             <div class="accordion" id="accordionInstructionsAzure">
                 <div class="accordion-item">
                     <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                            Show Instructions
+                        <button class="accordion-button {% if user_name %}collapsed{% endif %}" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#collapseOne" aria-expanded="{% if user_name %}false{% else %}true{% endif %}" aria-controls="collapseOne">
+                            <i class="bi-1-circle me-1"></i>Instructions
                         </button>
                     </h2>
-                    <div id="collapseOne" class="accordion-collapse collapse"
+                    <div id="collapseOne" class="accordion-collapse collapse {% if not user_name %}show{% endif %}"
                         data-bs-parent="#accordionInstructionsAzure">
                         <div class="accordion-body">
-                            Instructions will be added soon.
+                            To connect to OneDrive, you will need to create your own app registration on Microsoft
+                            Azure. This process is free of charge and only takes a few steps. After you followed the process, enter
+                            your app details here.
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#collapseCredentials" aria-expanded="false"
+                            aria-controls="collapseCredentials">
+                            <i class="bi-2-circle me-1"></i>Enter Azure Credentials
+                        </button>
+                    </h2>
+                    <div id="collapseCredentials" class="accordion-collapse collapse"
+                        data-bs-parent="#accordionInstructionsAzure">
+                        <div class="accordion-body">
+                            <form id="onedrive-settings-form">
+                                <div class="mb-3">
+                                    <label for="clientID" class="form-label">Client ID</label>
+                                    <input type="text" class="form-control" name="clientID" id="clientID"
+                                        aria-describedby="clientIDHelp" value="{{ client_id }}" required>
+                                    <div id="clientIDHelp" class="form-text">
+                                        The ID of your app registration (Application ID) on <a
+                                            href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">Azure</a>.
+
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="clientSecret" class="form-label">Client Secret</label>
+                                    <input type="password" class="form-control" name="clientSecret" id="clientSecret"
+                                        aria-describedby="clientSecretHelp" value="{{ client_secret }}"
+                                        pattern="(?=.*[a-z])(?=.*[A-Z]).{10,}" required>
+                                    <div id="clientSecretHelp" class="form-text">
+                                        The secret of your app registration on <a
+                                            href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">Azure</a>.
+
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Submit</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button {% if not user_name %}collapsed{% endif %}" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#collapseUser" aria-expanded="{% if user_name %}true{% else %}false{% endif %}" aria-controls="collapseUser">
+                            <i class="bi-3-circle me-1"></i>Login to OneDrive
+                        </button>
+                    </h2>
+                    <div id="collapseUser" class="accordion-collapse collapse {% if user_name %}show{% endif %}"
+                        data-bs-parent="#accordionInstructionsAzure">
+                        <div class="accordion-body">
+                            {% if user_name %}
+                            <div class="text-center" id="onedrive-user-info">
+                                <img src="data:image/jpeg;base64,{{ user_picture }}" alt="Profile Picture" class="rounded-circle" style="width: 150px; height: 150px;">
+                                <h3 class="mt-3">{{ user_name or "Not Logged In" }}</h3>
+                                <p class="fw-bold">{{ user_email or "No email provided" }}</p>
+                                <a href="/logout" role="button" class="btn btn-secondary mt-3" style="color:white" disabled>Logout</a>
+                            </div>
+                            {% else %}
+                            <div class="text-center" id="onedrive-login-button">
+                                <a href="/login" class="d-inline-block">
+                                    <img src="/static/images/ms-symbollockup_signin_dark.svg" alt="Microsoft Sign-In"
+                                        class="img-fluid" style="cursor: pointer;">
+                                </a>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
-            <h2 class="mt-3">Credentials</h2>
-            <form id="onedrive-settings-form">
-                <div class="mb-3">
-                    <label for="clientID" class="form-label">Client ID</label>
-                    <input type="text" class="form-control" name="clientID" id="clientID" aria-describedby="clientIDHelp" value="{{ client_id }}" required>
-                    <div id="clientIDHelp" class="form-text">
-                        <p>The ID of your app registration (Application ID) on <a
-                                href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">Azure</a>.
-                        </p>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label for="clientSecret" class="form-label">Client Secret</label>
-                    <input type="password" class="form-control" name="clientSecret" id="clientSecret" aria-describedby="clientSecretHelp" value="{{ client_secret }}" pattern="(?=.*[a-z])(?=.*[A-Z]).{10,}" required>
-                    <div id="clientSecretHelp" class="form-text">
-                        <p>The secret of your app registration on <a
-                                href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">Azure</a>.
-                        </p>
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-primary">Submit</button>
-            </form>
         </div>
         <div class="tab-pane" id="fill-tabpanel-1" role="tabpanel" aria-labelledby="fill-tab-1">No content yet.</div>
         <div class="tab-pane" id="fill-tabpanel-2" role="tabpanel" aria-labelledby="fill-tab-2">No content yet.</div>
