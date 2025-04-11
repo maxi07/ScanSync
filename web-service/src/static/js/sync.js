@@ -2,9 +2,11 @@ const onedriveLocalListGroup = document.getElementById('onedrivelistgroup');
 var onedriveDirLevel = 1;
 var currentOneDrivePath = "/"; // The path we are currently in
 var currentOneDriveSelectedPath = ""; // The path the user actually selected
+var currentOneDriveSelectedID = ""; // The ID of the selected item
 
 // Add a stack to manage parent IDs
 const parentIDStack = [];
+
 
 document.addEventListener('DOMContentLoaded', function () {
     const remotepathselector = document.getElementById("remotepathselector");
@@ -16,15 +18,15 @@ document.addEventListener('DOMContentLoaded', function () {
 // Update the back button event listener
 document.getElementById("remoteonedrivebackbutton").addEventListener('click', function () {
     if (parentIDStack.length > 0) {
-        const previousParentID = parentIDStack.pop(); // Remove the last parent ID from the stack
+        const previous = parentIDStack.pop(); // Remove the last parent ID from the stack
         onedriveDirLevel -= 1; // Decrease directory level
         currentOneDrivePath = currentOneDrivePath.split('/').slice(0, -2).join('/') + '/'; // Adjust the path
         console.log("Navigating back to: " + currentOneDrivePath);
-        loadOneDriveDir(previousParentID);
+        loadOneDriveDir(previous.parentId, previous.isSharedWithMe, previous.driveID); // Load the previous directory
     }
 });
 
-function loadOneDriveDir(folderID = null) {
+function loadOneDriveDir(folderID = null, isSharedWithMe = false, driveID = null) {
     console.log("Loading OneDrive directory with ID: " + folderID);
     const backbuttondiv = document.getElementById("remoteonedrivebackbutton");
     const loadingAnimation = document.getElementById("waitingAnimationPathMapping");
@@ -48,11 +50,16 @@ function loadOneDriveDir(folderID = null) {
                 itemcount = 0;
                 jsonResponse.forEach(item => {
                     if (!item.folder) return;
+                    if (item.package) return;
                     itemcount++;
 
                     const listItem = document.createElement('a');
                     listItem.href = '#';
                     listItem.classList.add('list-group-item', 'list-group-item-action', 'd-flex', 'justify-content-between', 'align-items-center');
+
+                    if (item.id === currentOneDriveSelectedID) {
+                        listItem.classList.add('active');
+                    }
 
                     const icon = document.createElement('i');
                     icon.classList.add('bi', 'bi-folder');
@@ -70,6 +77,8 @@ function loadOneDriveDir(folderID = null) {
                     listItem.dataset.itemId = item.id;
                     listItem.dataset.parentId = item.parentReference?.id || '';
                     listItem.dataset.parentPath = item.parentReference?.path || '';
+                    listItem.dataset.isSharedWithMe = item.shared || false;
+                    listItem.dataset.driveID = item.parentReference?.driveId || item.remoteItem?.parentReference?.driveId; // The drive id of the shared item
 
                     // Event-Handler
                     listItem.addEventListener('click', handleRemotePathClick);
@@ -78,6 +87,11 @@ function loadOneDriveDir(folderID = null) {
                     listgroup.appendChild(listItem);
 
                 });
+
+                // Sort the list items alphabetically by their text content
+                const listItems = Array.from(listgroup.children);
+                listItems.sort((a, b) => a.textContent.trim().localeCompare(b.textContent.trim()));
+                listItems.forEach(item => listgroup.appendChild(item));
 
                 if (itemcount === 0) {
                     const noItemsMessage = document.createElement('div');
@@ -98,7 +112,7 @@ function loadOneDriveDir(folderID = null) {
             };
         };
     }
-    xhr.send(JSON.stringify({"folderID": folderID}));
+    xhr.send(JSON.stringify({"folderID": folderID, "driveID": driveID, "isSharedWithMe": isSharedWithMe, "onedriveDirLevel": onedriveDirLevel}));
 }
 
 
@@ -112,7 +126,9 @@ function handleRemotePathClick(event) {
 
     // Add 'active' class to the clicked item
     targetItem.classList.add('active');
-
+    
+    // Update currentOneDriveSelectedPath, so we can set it to active later 
+    currentOneDriveSelectedID = event.currentTarget.dataset.itemId;
     setCurrentPathRemote(targetItem.textContent);
 }
 
@@ -121,7 +137,11 @@ function handleRemotePathDoubleClick(event) {
     const targetItem = event.currentTarget;
     if (targetItem.innerHTML.includes("bi-arrow-return-right")) {
         // Push the current parent ID to the stack
-        parentIDStack.push(targetItem.dataset.parentId);
+        parentIDStack.push({
+            parentId: targetItem.dataset.parentId,
+            isSharedWithMe: targetItem.dataset.isSharedWithMe === "true",
+            driveID: targetItem.dataset.driveID
+        });
 
         // Set the new parent ID for the back button
         document.getElementById("remoteonedrivebackbutton").dataset.parentID = targetItem.dataset.parentId;
@@ -129,6 +149,47 @@ function handleRemotePathDoubleClick(event) {
         onedriveDirLevel += 1;
         currentOneDrivePath += targetItem.textContent.trim() + "/";
         console.log("User is now in dir: " + currentOneDrivePath);
-        loadOneDriveDir(targetItem.dataset.itemId);
+        loadOneDriveDir(targetItem.dataset.itemId, targetItem.dataset.isSharedWithMe, targetItem.dataset.driveID);
     }
+}
+
+function setCurrentPathRemote(pathToAdd) {
+    // Remove space from start and end of path
+    pathToAdd = pathToAdd.trim();
+
+    if (currentOneDriveSelectedPath.startsWith("/")) {
+        if (currentOneDriveSelectedPath.split("/").length - 2 === onedriveDirLevel) {
+            currentOneDriveSelectedPath = updateSameLevel(currentOneDriveSelectedPath, pathToAdd);
+        } else if (currentOneDriveSelectedPath.split("/").length - 2 > onedriveDirLevel) {
+            currentOneDriveSelectedPath = currentOneDriveSelectedPath.replace(/\/[^/]*\/?$/, '/') // Remove last dir
+
+        } else {
+            currentOneDriveSelectedPath = updateDeeperLevel(currentOneDriveSelectedPath, pathToAdd);
+        }
+    } else {
+        currentOneDriveSelectedPath = "/" + pathToAdd + "/";
+    }
+    document.getElementById("remote_path").value = currentOneDriveSelectedPath;
+    console.log("Current OneDrive path: " + currentOneDriveSelectedPath);
+}
+
+function updateSameLevel(path, newDir) {
+    // Remove leading and trailing slashes, then split the path into an array of directories
+    const pathArray = path.replace(/^\/|\/$/g, '').split('/');
+
+    // Remove the last element (directory) from the array
+    pathArray.pop();
+
+    // Append the new directory to the array
+    pathArray.push(newDir);
+
+    // Join the array back into a string with '/' as the separator
+    let newPath = '/' + pathArray.join('/') + '/';
+
+    return newPath;
+}
+
+function updateDeeperLevel(currentFilePath, newDirectoryName) {
+    currentFilePath += newDirectoryName + '/';
+    return currentFilePath;
 }

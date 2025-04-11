@@ -210,35 +210,76 @@ def get_user_root_drive_id():
     return result['id']
 
 
-# def get_user_shared_with_drives_id():
-#     result =  fetch_graph_api_data(
-#         'https://graph.microsoft.com/v1.0/me/drive/sharedWithMe'
-#     )
-
-
 def get_user_drive_items(id: str):
-    return fetch_graph_api_data(
+    result = fetch_graph_api_data(
         'https://graph.microsoft.com/v1.0/me/drive/items/' + id + '/children?$select=id,name,folder,webUrl,parentReference'
     )
+    if not result:
+        logger.error("Failed to fetch drive items")
+        return None
+    for item in result["value"]:
+        item["shared"] = False
+    return result
+
+
+def get_user_shared_drive_items(driveid: str, folderid: str):
+    result = fetch_graph_api_data(
+        'https://graph.microsoft.com/v1.0/drives/' + driveid + '/items/' + folderid + '/children?$select=id,name,folder,webUrl,parentReference,remoteItem'
+    )
+    if not result:
+        logger.error("Failed to fetch shared drive items")
+        return None
+    for item in result["value"]:
+        item["shared"] = True
+    return result
 
 
 @onedrive_bp.post('/get-user-drive-items')
 def get_user_drive_items_route():
+    logger.info("Request to get user drive items")
+    logger.debug(f"Request data: {request.data}")
+    requested_root = False
     if not request.is_json:
         return jsonify({'error': 'Invalid data'}), 400
 
     data = request.get_json()
     folder_id = data.get('folderID')
+    drive_id = data.get('driveID')
+    shared = bool(data.get('isSharedWithMe'))
+    onedrive_dir_level = data.get('onedriveDirLevel', 1)
+    if onedrive_dir_level == 1:
+        requested_root = True
+
     if not folder_id:
         folder_id = get_user_root_drive_id()
+        requested_root = True
 
     if not folder_id:
         logger.error("No folderID provided")
         return jsonify({'error': 'folderID not provided'}), 400
 
-    drive_items = get_user_drive_items(folder_id)
+    if shared is True and drive_id and not requested_root:
+        # If we are in a shared drive, we need to get the items from the shared drive
+        logger.debug(f"Fetching items from shared drive with ID: {drive_id} and folder ID: {folder_id}")
+        drive_items = get_user_shared_drive_items(drive_id, folder_id)
+    else:
+        logger.debug(f"Fetching items from user drive with folder ID: {folder_id}")
+        drive_items = get_user_drive_items(folder_id)
+
+    if requested_root:
+        # If we are on root, we not only want the onedrive folders, but also the folders shared with me
+        shared_items = fetch_graph_api_data("https://graph.microsoft.com/v1.0/me/drive/sharedWithMe?$select=id,name,folder,webUrl,package,parentReference,remoteItem")
+        if not shared_items:
+            logger.error("Failed to get shared items")
+            return jsonify({'error': 'Failed to get shared items'}), 500
+        for item in shared_items["value"]:
+            item["shared"] = True
+        result = drive_items["value"] + shared_items["value"]
+    else:
+        result = drive_items["value"]
+
     if not drive_items:
         logger.error("Failed to fetch drive items")
         return jsonify({'error': 'Failed to fetch drive items'}), 500
 
-    return json.dumps(drive_items["value"]), 200, {'Content-Type': 'application/json'}
+    return json.dumps(result), 200, {'Content-Type': 'application/json'}
