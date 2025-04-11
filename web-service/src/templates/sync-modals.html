@@ -1,0 +1,68 @@
+<!-- Path Mapping Adding modal-->
+<div class="modal fade" id="pathmappingmodal" tabindex="-1" aria-labelledby="pathmappingmodal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="pathmappingmodal">Add Path Mapping</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form class="mb-3" id="pathmappingmodal_body">
+                    <div class="mb-3" id="local_path_container">
+                        <label for="local_path" class="col-form-label fw-bold">Name of SMB share</label>
+                        <input type="text" class="form-control" id="local_path" name="smb_name" placeholder="eg. Taxes 2020" aria-describedby="name_help" required>
+                        <div id="name_help" class="form-text">This folder will be accessible via SMB and later
+                            synced to the selected OneDrive destination.</div>
+                    </div>
+                    <label for="remote_path" class="col-form-label fw-bold">OneDrive path</label>
+                    <div id="remote_path_container" class="input-group">
+                        <a href="#remotepathselector" data-bs-toggle="collapse" role="button" aria-expanded="false"
+                            aria-controls="remotepathselector"><span class="input-group-text"><i
+                                    class="bi bi-folder"></i></span></a>
+                        <input type="text" class="form-control" id="remote_path" name="remote_path"
+                            placeholder="Please select a path." disabled required>
+                    </div>
+                    <br>
+                    <div class="collapse" id="remotepathselector">
+                        <div class="card card-body">
+                            <!-- Waiting animation -->
+                            <div class="text-center" id="waitingAnimationPathMapping">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Loading directories...</p>
+                            </div>
+                            <!-- Back button wrapped in a div with a specific width -->
+                            <button style="width: 100px; display:none;" id="remoteonedrivebackbutton" class="btn btn-secondary">
+                                <i class="bi bi-arrow-90deg-up"></i> Back
+                            </button>
+                            <br>
+                            <div class="list-group" id="onedrivelistgroup">
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- Waiting animation when form is sent -->
+                    <div class="text-center" id="waitingAnimationPathMappingSent" style="display: none;">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Creating mapping...</p>
+                    </div>
+                    <div class="text-center" id="finalPathMappingStatus" style="display: none;">
+                        <i class="bi bi-check-circle-fill text-success" style="font-size: 2rem;"
+                            id="finalPathMappingStatusSuccess"></i>
+                        <i class="bi bi-exclamation-circle-fill text-danger" style="font-size: 2rem;"
+                            id="finalPathMappingStatusError"></i>
+                        <p id="finalPathMappingStatusText"></p>
+                    </div>
+                    <div class="modal-footer" id="pathmappingmodal_footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" id="add_path_mapping_button" class="btn btn-primary">Add</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

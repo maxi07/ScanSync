@@ -1,9 +1,10 @@
 import base64
 import json
 import os
+import time
 import msal
 import requests
-from flask import Blueprint, request, redirect, session, url_for
+from flask import Blueprint, jsonify, request, redirect, session, url_for
 from shared.logging import logger
 from shared.onedrive_settings import onedrive_settings
 
@@ -25,6 +26,7 @@ def load_token():
 
 def save_token(token):
     """Saves token to file"""
+    token["expires_at"] = int(time.time()) + int(token["expires_in"])
     with open(TOKEN_FILE, 'w') as file:
         json.dump(token, file)
     logger.debug("Token saved to file")
@@ -43,17 +45,23 @@ def get_access_token():
             authority=onedrive_settings.authority,
             client_credential=onedrive_settings.client_secret
         )
-        if token_data.get('expires_in') > 0:
-            return token_data['access_token']
+
+    expires_at = token_data.get("expires_at", 0)
+    now = int(time.time())
+
+    if token_data.get("access_token") and now < expires_at:
+        return token_data["access_token"]
+    elif token_data.get("refresh_token"):
+        logger.debug("Microsoft Token expired, refreshing token")
+        result = msal_app.acquire_token_by_refresh_token(
+            token_data["refresh_token"],
+            scopes=onedrive_settings.scope
+        )
+        if "access_token" in result:
+            save_token(result)
+            return result["access_token"]
         else:
-            # token has expired, refresh it
-            logger.debug("Microsoft Token expired, refreshing token")
-            result = msal_app.acquire_token_by_refresh_token(
-                token_data['refresh_token'], scopes=onedrive_settings.scope
-            )
-            if "access_token" in result:
-                save_token(result)
-                return result['access_token']
+            logger.error(f"Failed to refresh Microsoft token: {result}")
     return None
 
 
@@ -109,6 +117,9 @@ def get_user_info(refresh=False):
         return user_info
     else:
         logger.error(f"Failed to get user info: {response.status_code} - {response.text}")
+        if os.path.exists(USER_PROFILE_FILE):
+            os.remove(USER_PROFILE_FILE)
+            logger.debug("User profile file deleted")
         return None
 
 
@@ -135,6 +146,9 @@ def get_user_photo(refresh=False):
         return image_base64
     else:
         logger.error(f"Failed to get user photo: {response.status_code} - {response.text}")
+        if os.path.exists(USER_IMAGE_FILE):
+            os.remove(USER_IMAGE_FILE)
+            logger.debug("User profile file deleted")
         return None
 
 
@@ -160,3 +174,71 @@ def upload():
             return f"Datei {file_name} wurde erfolgreich hochgeladen!"
         else:
             return f"Fehler beim Hochladen der Datei: {response.text}"
+
+
+def fetch_graph_api_data(endpoint):
+    try:
+        access_token = get_access_token()
+        if not access_token:
+            logger.error(f"No access token available to fetch data from {endpoint}")
+            return None
+
+        headers = {'Authorization': 'Bearer ' + access_token}
+        response = requests.get(endpoint, headers=headers)
+        logger.debug(f"Fetching data from {endpoint}")
+        if response.status_code == 200:
+            logger.debug(f"Data retrieved successfully from {endpoint}")
+            return response.json()
+        else:
+            logger.error(f"Failed to get data from {endpoint}: {response.status_code} - {response.text}")
+            return None
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request exception occurred while fetching data from {endpoint}: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while fetching data from {endpoint}: {str(e)}")
+        return None
+
+
+def get_user_root_drive_id():
+    result: json = fetch_graph_api_data(
+        'https://graph.microsoft.com/v1.0/me/drive/root/?$select=id'
+    )
+    if not result or 'id' not in result:
+        logger.error(f"Failed reading root id of onedrive. {result}")
+        return None
+    return result['id']
+
+
+# def get_user_shared_with_drives_id():
+#     result =  fetch_graph_api_data(
+#         'https://graph.microsoft.com/v1.0/me/drive/sharedWithMe'
+#     )
+
+
+def get_user_drive_items(id: str):
+    return fetch_graph_api_data(
+        'https://graph.microsoft.com/v1.0/me/drive/items/' + id + '/children?$select=id,name,folder,webUrl,parentReference'
+    )
+
+
+@onedrive_bp.post('/get-user-drive-items')
+def get_user_drive_items_route():
+    if not request.is_json:
+        return jsonify({'error': 'Invalid data'}), 400
+
+    data = request.get_json()
+    folder_id = data.get('folderID')
+    if not folder_id:
+        folder_id = get_user_root_drive_id()
+
+    if not folder_id:
+        logger.error("No folderID provided")
+        return jsonify({'error': 'folderID not provided'}), 400
+
+    drive_items = get_user_drive_items(folder_id)
+    if not drive_items:
+        logger.error("Failed to fetch drive items")
+        return jsonify({'error': 'Failed to fetch drive items'}), 500
+
+    return json.dumps(drive_items["value"]), 200, {'Content-Type': 'application/json'}

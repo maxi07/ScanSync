@@ -7,7 +7,7 @@ settings_bp = Blueprint('settings', __name__)
 
 
 @settings_bp.route('/settings')
-def settings():
+def index():
     logger.info("Requested settings site")
 
     client_id = ""

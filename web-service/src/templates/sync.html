@@ -1,9 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
+{% include "sync-modals.html" %}
 <link rel="stylesheet" type="text/css" href="/static/css/sync.css">
 <h1>Sync</h1>
 <p>
     Set up or manage your OneDrive connections for syncing.
 </p>
+<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#pathmappingmodal">
+   Add
+</button>
 <script src="/static/js/sync.js"></script>
 {% endblock %}
