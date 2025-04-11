@@ -10,6 +10,8 @@ from shared.onedrive_settings import onedrive_settings
 onedrive_bp = Blueprint('onedrive', __name__)
 
 TOKEN_FILE = '/app/data/token.json'
+USER_PROFILE_FILE = '/app/data/user_profile.json'
+USER_IMAGE_FILE = '/app/data/user_image.jpeg'
 
 
 def load_token():
@@ -84,26 +86,51 @@ def get_atoken():
     return "Fehler bei der Anmeldung!"
 
 
-def get_user_info():
+def get_user_info(refresh=False):
+    if not refresh and os.path.exists(USER_PROFILE_FILE):
+        with open(USER_PROFILE_FILE, 'r') as file:
+            logger.debug("User info file found, loading cached user info")
+            return json.load(file)
+
     access_token = get_access_token()
+    if not access_token:
+        logger.error("No access token available to fetch user info")
+        return None
+
     graph_api_url = 'https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail'
     headers = {'Authorization': 'Bearer ' + access_token}
     response = requests.get(graph_api_url, headers=headers)
+
     if response.status_code == 200:
         logger.debug("User info retrieved successfully")
+        user_info = response.json()
+        with open(USER_PROFILE_FILE, 'w') as file:
+            json.dump(user_info, file)
+        return user_info
     else:
         logger.error(f"Failed to get user info: {response.status_code} - {response.text}")
         return None
-    return response.json()
 
 
-def get_user_photo():
+def get_user_photo(refresh=False):
+    if not refresh and os.path.exists(USER_IMAGE_FILE):
+        logger.debug("User photo file found, loading cached photo")
+        with open(USER_IMAGE_FILE, 'rb') as file:
+            image_base64 = base64.b64encode(file.read()).decode("utf-8")
+            return image_base64
+
     access_token = get_access_token()
+    if not access_token:
+        logger.error("No access token available to fetch user photo")
+        return None
+
     graph_api_url = 'https://graph.microsoft.com/v1.0/me/photo/$value'
     headers = {'Authorization': 'Bearer ' + access_token}
     response = requests.get(graph_api_url, headers=headers)
     if response.status_code == 200:
         logger.debug("User photo retrieved successfully")
+        with open(USER_IMAGE_FILE, 'wb') as file:
+            file.write(response.content)
         image_base64 = base64.b64encode(response.content).decode("utf-8")
         return image_base64
     else:
