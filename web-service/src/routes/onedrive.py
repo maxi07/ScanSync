@@ -6,6 +6,7 @@ import msal
 import requests
 from flask import Blueprint, jsonify, request, redirect, session, url_for
 from shared.logging import logger
+from shared.helpers import to_bool
 from shared.onedrive_settings import onedrive_settings
 
 onedrive_bp = Blueprint('onedrive', __name__)
@@ -245,7 +246,7 @@ def get_user_drive_items_route():
     data = request.get_json()
     folder_id = data.get('folderID')
     drive_id = data.get('driveID')
-    shared = bool(data.get('isSharedWithMe'))
+    shared = to_bool(data.get('isSharedWithMe'))
     onedrive_dir_level = data.get('onedriveDirLevel', 1)
     if onedrive_dir_level == 1:
         requested_root = True

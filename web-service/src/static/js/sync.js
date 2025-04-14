@@ -62,7 +62,12 @@ function loadOneDriveDir(folderID = null, isSharedWithMe = false, driveID = null
                     }
 
                     const icon = document.createElement('i');
-                    icon.classList.add('bi', 'bi-folder');
+                    if (item.shared) {
+                        icon.classList.add('bi', 'bi-folder-symlink');
+                    } else {
+                        icon.classList.add('bi', 'bi-folder');
+                    }
+                    
 
                     const span = document.createElement('span');
                     span.appendChild(icon);

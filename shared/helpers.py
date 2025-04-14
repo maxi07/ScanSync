@@ -79,3 +79,11 @@ def format_time_difference(timestamp: str) -> str:
     else:
         years = time_difference.days // 365
         return f"{years} {'year' if years == 1 else 'years'} ago"
+
+
+def to_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() == "true"
+    return bool(value)
