@@ -33,7 +33,7 @@ def execute_query(query: str, params=(), fetchone=False, fetchall=False, return_
     try:
         logger.debug(f"Executing SQL query: {query} with params {params}")
         with db_connection() as conn:
-            conn.row_factory = sqlite3.Row  # ermöglicht dict-artigen Zugriff
+            conn.row_factory = sqlite3.Row  # Use Row factory to return rows as dictionaries
             cursor = conn.cursor()
             cursor.execute(query, params)
 
@@ -46,6 +46,8 @@ def execute_query(query: str, params=(), fetchone=False, fetchall=False, return_
             elif return_last_id:
                 logger.debug(f"Returning last row id: {cursor.lastrowid}")
                 return cursor.lastrowid
+            else:
+                return True
     except Exception:
         logger.exception("Failed executing SQL query.")
 

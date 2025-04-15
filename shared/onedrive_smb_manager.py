@@ -25,6 +25,50 @@ def add(smb_name: str, drive_id: str, folder_id: str, onedrive_path: str, web_ur
     return db_id
 
 
+def edit(smb_id: int, smb_name: str, drive_id: str, folder_id: str, onedrive_path: str, web_url: str) -> bool:
+    logger.info(f"Editing SMB share with ID {smb_id} in database")
+
+    # get old smb name
+    query = "SELECT smb_name FROM smb_onedrive WHERE id = ?"
+    old_smb_name = execute_query(query, (smb_id,), fetchone=True)
+    if old_smb_name is None:
+        logger.error("Failed to get old SMB name from database")
+        return False
+    old_smb_name = old_smb_name.get("smb_name")
+    logger.debug(f"Old SMB name: {old_smb_name}")
+
+    # Check if the new SMB name is different from the old one
+    if smb_name != old_smb_name:
+        # Rename the folder on the filesystem
+        old_smb_folder = os.path.join(config.get("smb.path"), old_smb_name)
+        new_smb_folder = os.path.join(config.get("smb.path"), smb_name)
+
+        if os.path.exists(old_smb_folder):
+            os.rename(old_smb_folder, new_smb_folder)
+            logger.info(f"Renamed SMB folder from {old_smb_folder} to {new_smb_folder}")
+        else:
+            logger.warning(f"Old SMB folder does not exist: {old_smb_folder}")
+            # Create the new folder if it doesn't exist
+            if not os.path.exists(new_smb_folder):
+                os.makedirs(new_smb_folder, mode=777)
+                logger.info(f"Created new SMB folder at {new_smb_folder}")
+            else:
+                logger.warning(f"New SMB folder already exists: {new_smb_folder}")
+    else:
+        logger.debug("SMB name has not changed, no need to rename folder")
+
+    # Update the SMB share in the database
+    query = "UPDATE smb_onedrive SET smb_name = ?, drive_id = ?, folder_id = ?, onedrive_path = ?, web_url = ? WHERE id = ?"
+    result = execute_query(query, (smb_name, drive_id, folder_id, onedrive_path, web_url, smb_id))
+
+    if result is not True:
+        logger.error("Failed to edit SMB share in database")
+        return False
+
+    logger.debug(f"SMB share with ID {smb_id} edited successfully")
+    return True
+
+
 def get_all():
     logger.info("Getting all SMB shares from database")
     query = "SELECT * FROM smb_onedrive"

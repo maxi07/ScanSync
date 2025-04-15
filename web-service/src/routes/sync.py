@@ -28,14 +28,29 @@ def add_path_mapping():
     drive_id = request.form.get('drive_id')
     folder_id = request.form.get('folder_id')
     web_url = request.form.get('web_url')
+    old_smb_id = request.form.get('old_smb_id', -1)
+    if old_smb_id == '' or old_smb_id is None:
+        old_smb_id = -1
+    else:
+        old_smb_id = int(old_smb_id)
 
     if not smb_name or not onedrive_path or not drive_id or not folder_id:
         logger.error("Missing required form data")
         return jsonify({'error': 'Missing required data'}), 400
 
-    db_id = onedrive_smb_manager.add(smb_name, drive_id, folder_id, onedrive_path, web_url)
-    if db_id == -1:
-        logger.error("Failed to add SMB share to database")
-        return jsonify({'error': 'Failed to add SMB share to database'}), 500
-    logger.info(f"SMB share added to database with ID: {db_id}")
+    if old_smb_id != -1:
+        logger.debug(f"Editing existing SMB share with ID {old_smb_id}")
+        success = onedrive_smb_manager.edit(old_smb_id, smb_name, drive_id, folder_id, onedrive_path, web_url)
+        if not success:
+            logger.error("Failed to edit SMB share in database")
+            return jsonify({'error': 'Failed to edit SMB share in database'}), 500
+        logger.info(f"SMB share edited successfully with ID: {old_smb_id}")
+        return jsonify({'success': True}), 200
+    else:
+        logger.debug("Adding new SMB share")
+        db_id = onedrive_smb_manager.add(smb_name, drive_id, folder_id, onedrive_path, web_url)
+        if db_id == -1:
+            logger.error("Failed to add SMB share to database")
+            return jsonify({'error': 'Failed to add SMB share to database'}), 500
+        logger.info(f"SMB share added to database with ID: {db_id}")
     return jsonify({'success': True, 'smb_id': db_id}), 200

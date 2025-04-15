@@ -46,6 +46,9 @@ document.getElementById("pathmappingmodal").addEventListener('show.bs.modal', fu
     console.log("Resetting form fields");
 });
 
+document.getElementById("add_path_mapping_button").addEventListener('click', function () {
+    document.getElementById("add_path_mapping_button").innerText = "Add";
+});
 
 // Update the back button event listener
 document.getElementById("remoteonedrivebackbutton").addEventListener('click', function () {
@@ -194,4 +197,11 @@ function handleRemotePathDoubleClick(event) {
         console.log("User is now in dir: " + currentOneDrivePath);
         loadOneDriveDir(targetItem.dataset.itemId, targetItem.dataset.isSharedWithMe, targetItem.dataset.driveID);
     }
+}
+
+function editPathMapping(id) {
+    var smb_title = document.getElementById(id + "_smb_path").innerText;
+    document.getElementById("local_path").value = smb_title.trim();
+    document.getElementById("add_path_mapping_button").innerText = "Edit";
+    document.getElementById("old_smb_id").value = id;
 }

@@ -1,8 +1,8 @@
 CREATE TABLE IF NOT EXISTS scanneddata (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     file_name TEXT NOT NULL,
-    created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    modified DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created DATETIME NOT NULL DEFAULT (DATETIME('now', 'localtime')),
+    modified DATETIME NOT NULL DEFAULT (DATETIME('now', 'localtime')),
     file_status TEXT NOT NULL DEFAULT 'Pending',
     previewimage_path TEXT,
     local_filepath TEXT,
@@ -14,9 +14,10 @@ CREATE TABLE IF NOT EXISTS scanneddata (
 
 CREATE TABLE IF NOT EXISTS smb_onedrive (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    smb_name TEXT NOT NULL,
+    smb_name TEXT NOT NULL UNIQUE,
     onedrive_path TEXT NOT NULL,
     drive_id TEXT NOT NULL,
     folder_id TEXT NOT NULL,
-    created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-)
+    web_url TEXT,
+    created DATETIME NOT NULL DEFAULT (DATETIME('now', 'localtime'))
+);
