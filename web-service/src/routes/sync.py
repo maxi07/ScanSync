@@ -1,6 +1,10 @@
-from flask import Blueprint, render_template, request, jsonify
+import os
+from flask import Blueprint, render_template, request, jsonify, send_file
 import shared.onedrive_smb_manager as onedrive_smb_manager
 from shared.logging import logger
+import math
+from shared.sqlite_wrapper import execute_query
+from shared.config import config
 
 sync_bp = Blueprint('sync', __name__)
 
@@ -11,7 +15,29 @@ def sync():
 
     # Get all SMB shares from the database
     smb_shares = onedrive_smb_manager.get_all()
-    return render_template('sync.html', smb_shares=smb_shares)
+
+    # Get all failed uploads
+    try:
+        page_failed_pdfs = request.args.get('page_failed_pdfs', 1, type=int)  # Get pageination from url args
+        failed_query_count = 'SELECT COUNT(*) AS count FROM scanneddata WHERE LOWER(file_status) LIKE "%failed%"'
+        total_entries = execute_query(failed_query_count, fetchone=True).get('count', 0)
+        entries_per_page = 20
+        total_pages_failed_pdfs = math.ceil(total_entries / entries_per_page)
+        offset = (page_failed_pdfs - 1) * entries_per_page
+        failed_pdfs = execute_query(
+            'SELECT *, DATETIME(created, "localtime") AS local_created, DATETIME(modified, "localtime") AS local_modified FROM scanneddata '
+            'WHERE LOWER(file_status) LIKE "%failed%" '
+            'ORDER BY created DESC '
+            'LIMIT ? OFFSET ?',
+            (entries_per_page, offset), fetchall=True)
+    except Exception:
+        logger.exception("Failed retrieving failed pdfs.")
+        failed_pdfs = []
+    return render_template('sync.html',
+                           smb_shares=smb_shares,
+                           failed_pdfs=failed_pdfs,
+                           total_pages_failed_pdfs=total_pages_failed_pdfs,
+                           page_failed_pdfs=page_failed_pdfs)
 
 
 @sync_bp.post('/add-path-mapping')
@@ -78,3 +104,81 @@ def delete_path_mapping():
 
     logger.info(f"SMB share deleted successfully with ID: {smb_id}")
     return jsonify({'success': True}), 200
+
+
+@sync_bp.get("/failedpdf")
+def downloadFailedPDF():
+    """Downloads a failed PDF file for the given id from the failed PDF directory.
+    Returns the file if it exists, handles invalid ids and other errors.
+
+    Returns:
+        File if it exists or error message
+    """
+    try:
+        download_id = int(request.args.get('download_id'))
+        if download_id is None or download_id <= 0:
+            logger.warning(f"Downloading failed PDF with id {download_id}, invalid id")
+            return "Invalid download id", 400
+        logger.info(f"Downloading failed PDF with id {download_id}")
+
+        # Get name in os from sql db
+        item_name = execute_query('SELECT file_name FROM scanneddata WHERE id = ?', (download_id,), fetchone=True).get('file_name')
+
+        # Check if file exists
+        file_path = os.path.join(config.get("smb.path"), config.get("failedDir"), item_name)
+        logger.debug(f"Checking if failed file exists: {file_path}")
+        if not os.path.isfile(file_path):
+            logger.warning(f"Downloading failed PDF with id {download_id}, file does not exist")
+            return "File does not exist", 404
+        else:
+            logger.info(f"Downloading failed PDF with id {download_id}, file exists")
+            return send_file(file_path, as_attachment=True)
+    except ValueError:
+        logger.warning(f"Downloading failed PDF with id {download_id}, invalid id")
+        return "Invalid download id", 400
+    except Exception as ex:
+        logger.exception(f"Failed downloading PDF: {ex}")
+        return "Failed downloading PDF", 500
+
+
+@sync_bp.delete("/failedpdf")
+def deleteFailedPDF():
+    """Deletes a failed PDF file from the failed PDF directory.
+
+    Expects a JSON request with the ID of the failed PDF to delete.
+    Looks up the file name for the ID, deletes the file,
+    and updates the database.
+
+    Returns a success or error message.
+    """
+    try:
+        json_data = request.get_json()
+        if not json_data:
+            logger.warning("No data received!")
+            return "No data received!", 400
+        else:
+            logger.info(f"Received data to delete: {json_data}")
+
+            if not json_data.get('id'):
+                logger.warning("No ID provided!")
+                return "No ID provided!", 400
+
+            item_name = execute_query('SELECT file_name FROM scanneddata WHERE id = ?', (json_data['id'],), fetchone=True).get('file_name')
+            file_path = os.path.join(config.get("smb.path"), config.get("failedDir"), item_name)
+            logger.info(f"Removing {file_path}")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            else:
+                logger.warning(f"File {item_name} does not exist in failed directory!")
+
+            # Update the database
+            delete_query = 'UPDATE scanneddata SET file_status = ?, modified = CURRENT_TIMESTAMP WHERE id = ?'
+            db = execute_query(delete_query, ("Deleted", json_data['id']))
+            if db is None:
+                logger.error("Failed to update database")
+                return "Failed to update database", 500
+            logger.info(f"Updated database for {item_name}")
+            return f"Success deleting {item_name}", 200
+    except Exception as ex:
+        logger.exception(f"Error deleting file: {ex}")
+        return "Failed deleting requested item", 500

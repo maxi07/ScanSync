@@ -30,25 +30,14 @@
                                     href="/">Dashboard</a>
                             </li>
                             <li class="nav-item position-relative">
-                                <a class="nav-link" href="/sync">Sync
-                                    {% if (failed_documents is defined and failed_documents > 0) or mapping_error %}
-                                    <span
-                                        class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                        <i class="bi bi-exclamation-triangle"></i> {{ failed_documents }}
+                                <a class="nav-link d-flex align-items-center" href="/sync">Sync
+                                    {% if (failed_document_count is defined and failed_document_count > 0) or mapping_error %}
+                                    <span class="ms-2 badge rounded-pill bg-danger">
+                                        <i class="bi bi-exclamation-triangle"></i> {{ failed_document_count }}
                                         <span class="visually-hidden">pathmapping error</span>
                                     </span>
                                     {% endif %}
                                 </a>
-                            </li>
-                            <li class="nav-item position-relative">
-                                <a class="nav-link" href="/smb">SMB</a>
-                                {% if smb_error %}
-                                <span
-                                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                    <i class="bi bi-exclamation-triangle"></i>
-                                    <span class="visually-hidden">smb error</span>
-                                </span>
-                                {% endif %}
                             </li>
                             <li class="nav-item position-relative">
                                 <a class="nav-link" href="/settings">Settings</a>

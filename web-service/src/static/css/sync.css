@@ -21,3 +21,8 @@
 #remote_path {
     cursor: pointer;
 }
+
+.img-fluid:hover {
+    transform: scale(5.0);
+    transition: transform 0.2s;
+}

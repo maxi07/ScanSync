@@ -257,3 +257,33 @@ function isValidSmbName(name) {
       !/^[. ]+$/.test(name)
     );
 }
+
+function downloadFailedSync(id) {
+    window.open("/failedpdf?download_id=" + id);
+}
+
+function deleteFailedSync(id) {
+    const xhr = new XMLHttpRequest();
+    xhr.open('DELETE', '/failedpdf', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status !== 200) {
+                console.error(xhr.responseText);
+                alert(xhr.responseText);
+            } else {
+                console.log(xhr.responseText);
+                const row = document.getElementById(id + '_failedpdf_row');
+                // Fade animation
+                row.style.transition = 'opacity 1.5s';
+                row.style.opacity = 0;
+
+                // Remove after fade
+                setTimeout(() => {
+                    row.remove();
+                }, 500);
+            };
+        };
+    }
+    xhr.send(JSON.stringify({ "id": id }));
+}

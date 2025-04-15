@@ -1,5 +1,6 @@
 {
     "version": "0.1",
+    "failedDir": "failed-documents",
     "db": {
         "path": "shared/db/scansync.db",
         "schema": "shared/db/schema.sql"
