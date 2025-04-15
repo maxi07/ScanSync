@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template
 from shared.logging import logger
 from shared.onedrive_settings import onedrive_settings
-from routes.onedrive import get_user_info, get_user_photo
+from shared.onedrive_api import get_user_info, get_user_photo
 
 settings_bp = Blueprint('settings', __name__)
 

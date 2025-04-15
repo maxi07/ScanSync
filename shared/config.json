@@ -5,6 +5,10 @@
         "schema": "shared/db/schema.sql"
     },
     "smb": {
-        "path": "/mnt/scans"
+        "path": "/mnt/scans",
+        "keepOriginals": false
+    },
+    "openai": {
+        "enabled": false        
     }
 }

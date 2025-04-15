@@ -101,6 +101,8 @@ class ProcessItem:
         self.ocr_status = OCRStatus.UNKNOWN
         self.ocr_file = self.local_directory + "/" + self.filename_without_extension + "_OCR.pdf"
         self.db_id = None
+        self.remote_folder_id = None
+        self.remote_drive_id = None
 
         # PDF Status
         self.pdf_pages = 0

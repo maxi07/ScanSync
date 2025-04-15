@@ -50,7 +50,7 @@ def on_created(filepath: str):
     timeout = 180
     start_time = time.time()
 
-    logger.info(f"Gahtering info about new file at {filepath}")
+    logger.info(f"Gathering info about new file at {filepath}")
     for i in range(timeout):
         if is_pdf(filepath):
             item = ProcessItem(filepath, ItemType.PDF)
@@ -83,7 +83,17 @@ def on_created(filepath: str):
         logger.exception(f"Error adding preview image to database: {e}")
 
     # Match a remote destination
-    # TODO: Match a remote destination
+    query = "SELECT onedrive_path, folder_id, drive_id FROM smb_onedrive WHERE smb_name = ?"
+    params = (item.local_directory_above,)
+    result = execute_query(query, params, fetchone=True)
+    if result:
+        logger.debug(f"Found remote destination for {item.local_directory_above}: {result}")
+        item.remote_file_path = result.get("onedrive_path")
+        item.remote_folder_id = result.get("folder_id")
+        item.remote_drive_id = result.get("drive_id")
+    else:
+        logger.warning(f"Could not find remote destination for {item.local_directory_above}")
+    update_scanneddata_database(item.db_id, {'remote_filepath': item.remote_file_path})
 
     # Read PDF file properties
     if item.item_type == ItemType.PDF:
@@ -95,6 +105,7 @@ def on_created(filepath: str):
         except Exception:
             logger.exception(f"Error reading PDF file: {item.local_file_path}")
     item.status = ProcessStatus.OCR_PENDING
+    update_scanneddata_database(item.db_id, {"file_status": item.status.value})
     channel.basic_publish(
                     exchange="",
                     routing_key="ocr_queue",

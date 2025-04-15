@@ -54,6 +54,7 @@ services:
       - ./upload-service:/upload-service
       - scans:/mnt/scans
       - ./shared:/upload-service/shared
+      - data:/app/data
     working_dir: /upload-service
     networks:
       - app-network
@@ -74,7 +75,7 @@ services:
       - ./web-service:/app  # TODO: Only for development!!
       - scans:/mnt/scans
       - data:/app/data
-      - ./shared:/app/src/shared
+      - ./shared:/app/shared
       - preview-images:/app/src/static/images/pdfpreview
 
   rabbitmq:

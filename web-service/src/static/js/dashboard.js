@@ -158,11 +158,26 @@ function addPdfCard(pdfData) {
 
     var cloudText = document.createElement('span');
     cloudText.innerHTML = `<i class="bi bi-cloud"></i><strong> Cloud:</strong> `;
-    var cloudSpan = document.createElement('span');
-    cloudSpan.id = pdfData.id + '_pdf_cloud';
-    cloudSpan.textContent = pdfData.remote_filepath;
-    cloudSpan.innerHTML += brElement;
-    cloudText.appendChild(cloudSpan);
+
+    if (pdfData.web_url) {
+        var cloudLink = document.createElement('a');
+        cloudLink.id = pdfData.id + '_pdf_cloud';
+        cloudLink.href = pdfData.web_url;
+        cloudLink.textContent = pdfData.remote_filepath;
+        cloudLink.innerHTML += brElement;
+        cloudLink.target = '_blank'; // Open link in a new tab
+        cloudText.appendChild(cloudLink);
+    } else {
+        var cloudSpan = document.createElement('span');
+        cloudSpan.id = pdfData.id + '_pdf_cloud';
+        if (pdfData.remote_filepath == null) {
+            cloudSpan.textContent = "Not available";
+        } else {
+            cloudSpan.textContent = pdfData.remote_filepath;
+        }
+        cloudSpan.innerHTML += brElement;
+        cloudText.appendChild(cloudSpan);
+    }
 
     var statusText = document.createElement('span');
     statusText.innerHTML = `<i class="bi bi-hourglass"></i><strong> Status:</strong> `;

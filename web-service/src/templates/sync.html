@@ -15,11 +15,11 @@
 
     {% for item in smb_shares %}
     <div class="col" id="{{ item.id }}_pathmappingcard">
-        <div class="card shadow-sm">
+        <div class="card shadow-sm h-100">
             <div class="card-header bg-light">
                 <strong>{{ item.smb_name }} → OneDrive</strong>
             </div>
-            <div class="card-body">
+            <div class="card-body d-flex flex-column">
     
                 <div class="mb-3">
                     <div class="fw-bold mb-1">
@@ -51,8 +51,8 @@
                 </div>
                 {% endif %}
     
-                <hr>
-                <div class="text-muted small">
+                <div class="text-muted small mt-auto">
+                    <hr>
                     Created: {{ item.created }}
                 </div>
             </div>

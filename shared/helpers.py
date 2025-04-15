@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta
+import pickle
 import pika
 import socket
 import time
+from shared.ProcessItem import ProcessItem
 import pika.exceptions
 from shared.logging import logger
 
@@ -36,6 +38,21 @@ def connect_rabbitmq(queue_name: str):
             time.sleep(2)
     logger.critical("Couldn't connect to RabbitMQ.")
     return None
+
+
+def forward_to_rabbitmq(queue_name: str, item: ProcessItem):
+    try:
+        connection, channel = connect_rabbitmq(queue_name)
+        channel.basic_publish(
+            exchange='',
+            routing_key=queue_name,
+            body=pickle.dumps(item),
+            properties=pika.BasicProperties(delivery_mode=2)  # Make message persistent
+        )
+        logger.info(f"Item {item.filename} forwarded to {queue_name}.")
+        connection.close()
+    except Exception as e:
+        logger.error(f"Failed to forward item {item.filename} to RabbitMQ queue {queue_name}: {e}")
 
 
 def parse_timestamp(timestamp: str) -> datetime:

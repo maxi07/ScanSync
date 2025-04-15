@@ -92,10 +92,10 @@ def get_db():
     return g.db
 
 
-db_path = os.path.join("src", config.get("db.path"))
+db_path = config.get("db.path")
 if not os.path.exists(db_path):
     logger.info("Initializing database...")
     with db_connection() as conn:
-        with open(os.path.join("src", config.get("db.schema")), "r") as f:
+        with open(config.get("db.schema"), "r") as f:
             conn.executescript(f.read())
     logger.info("Database initialized successfully.")

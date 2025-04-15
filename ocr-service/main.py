@@ -1,10 +1,8 @@
-import pika
 from shared.logging import logger
-import time
-import socket
 from shared.ProcessItem import ProcessItem, ProcessStatus, OCRStatus
 from shared.sqlite_wrapper import update_scanneddata_database
-from shared.helpers import connect_rabbitmq
+from shared.helpers import connect_rabbitmq, forward_to_rabbitmq
+from shared.config import config
 import pickle
 import ocrmypdf
 from datetime import datetime
@@ -19,9 +17,8 @@ def callback(ch, method, properties, body):
             logger.warning("Received object, that is not of type ProcessItem. Skipping.")
             return
         logger.info(f"Received PDF for OCR: {item.filename}")
-        result = start_processing(item)
+        start_processing(item)
         ch.basic_ack(delivery_tag=method.delivery_tag)
-        # TODO: Send to naming service
     except Exception:
         logger.exception(f"Failed processing {body}.")
         item.ocr_status = OCRStatus.FAILED
@@ -62,6 +59,21 @@ def start_processing(item: ProcessItem):
         item.time_ocr_finished = datetime.now()
         item.status = ProcessStatus.SYNC_PENDING
         update_scanneddata_database(item.db_id, {"file_status": item.status.value, "file_name": item.filename})
+
+        try:
+            if config.get("openai.enabled", False):
+                logger.info(f"Forwarding item {item.filename} to OpenAI service.")
+                item.status = ProcessStatus.FILENAME_PENDING
+                forward_to_rabbitmq("openai_queue", item)
+            else:
+                logger.info(f"Forwarding item {item.filename} to Upload service.")
+                item.status = ProcessStatus.SYNC_PENDING
+                forward_to_rabbitmq("upload_queue", item)
+        except Exception as e:
+            logger.error(f"Failed to forward item {item.filename} to the next service: {e}")
+            item.status = ProcessStatus.FAILED
+        finally:
+            update_scanneddata_database(item.db_id, {"file_status": item.status.value})
         return item
 
 
