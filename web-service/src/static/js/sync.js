@@ -17,6 +17,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Add event listener for smb form submit
 document.getElementById("pathmappingmodal_add_smb_form").addEventListener('submit', async function (event) {
+    // Validate for invalid chars
+    const input = document.getElementById("local_path");
+    const error = document.getElementById("error_message_local_path");
+    const name = input.value;
+
+    if (!isValidSmbName(name)) {
+      event.preventDefault(); // Verhindert das Absenden
+      error.textContent = "Invalid SMB name: Avoid < > : \" / \\ | ? * or reserved names.";
+      error.style.display = "block";
+      return;
+    } else {
+      error.style.display = "none";
+    }
+
     console.log("Submitting SMB form");
     event.preventDefault();
     const form = event.target;
@@ -223,4 +237,23 @@ function deletePathMapping(id) {
         };
         xhr.send(JSON.stringify({ smb_id: id }));
     }
+}
+
+function isValidSmbName(name) {
+    const reservedNames = [
+      "CON", "PRN", "AUX", "NUL",
+      "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+      "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+    ];
+    const forbiddenChars = /[<>:"/\\|?*\x00-\x1F]/;
+    const endsWithDotOrSpace = /[. ]$/;
+
+    return (
+      name.length > 0 &&
+      name.length <= 255 &&
+      !reservedNames.includes(name.toUpperCase()) &&
+      !forbiddenChars.test(name) &&
+      !endsWithDotOrSpace.test(name) &&
+      !/^[. ]+$/.test(name)
+    );
 }

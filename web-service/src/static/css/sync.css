@@ -17,3 +17,7 @@
     overflow-x: auto; /* Enable horizontal scrolling */
     scrollbar-color: white transparent; /* Remove scrollbar background */
 }
+
+#remote_path {
+    cursor: pointer;
+}

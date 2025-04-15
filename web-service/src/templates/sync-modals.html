@@ -10,7 +10,8 @@
                 <form class="mb-3" id="pathmappingmodal_add_smb_form">
                     <div class="mb-3" id="local_path_container">
                         <label for="local_path" class="col-form-label fw-bold">Name of SMB share</label>
-                        <input type="text" class="form-control" id="local_path" name="smb_name" placeholder="eg. Taxes 2020" aria-describedby="name_help" required>
+                        <input type="text" class="form-control" id="local_path" name="smb_name" placeholder="eg. Taxes 2020" aria-describedby="name_help" pattern='^[^<>:\"/\\|?*\x00-\x1F]+$' required>
+                        <div id="error_message_local_path" class="form-text" style="color: red; display: none;"></div>
                         <div id="name_help" class="form-text">This folder will be accessible via SMB and later
                             synced to the selected OneDrive destination.</div>
                     </div>
@@ -20,7 +21,7 @@
                             aria-controls="remotepathselector"><span class="input-group-text"><i
                                     class="bi bi-folder"></i></span></a>
                         <input type="text" class="form-control" id="remote_path" name="remote_path"
-                            placeholder="Please select a path." readonly required>
+                            placeholder="Please select a path." readonly required href="#remotepathselector" data-bs-toggle="collapse">
                         <input type="hidden" name="folder_id" id="folder_id_input" required>
                         <input type="hidden" name="drive_id" id="drive_id_input" required>
                         <input type="hidden" name="web_url" id="web_url_input" required>
