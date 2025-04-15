@@ -1,18 +1,15 @@
-services:
-  smb-server:
-    image: dockurr/samba
-    container_name: smb-server
-    restart: unless-stopped
-    environment:
-      TZ: 'Europe/Berlin'
-      NAME: "Scans"
-      USER: "ocr"
-      PASS: "ocr"
-    volumes:
-      - scans:/storage
+services:    
+  smb-service:
+    build: ./smb-service
+    container_name: smb-service
     ports:
+      - "137:137/udp"
+      - "138:138/udp"
       - "139:139"
       - "445:445"
+    volumes:
+      - scans:/shares/Scans
+    restart: unless-stopped
     networks:
       - app-network
 
@@ -28,7 +25,7 @@ services:
     networks:
       - app-network
     depends_on:
-      - smb-server
+      - smb-service
       - rabbitmq
     command: ["python", "main.py"]
 
@@ -45,7 +42,7 @@ services:
     networks:
       - app-network
     depends_on:
-      - smb-server
+      - smb-service
       - rabbitmq
     command: ["python", "main.py"]
   
@@ -61,7 +58,7 @@ services:
     networks:
       - app-network
     depends_on:
-      - smb-server
+      - smb-service
       - rabbitmq
     command: ["python", "main.py"]
   
