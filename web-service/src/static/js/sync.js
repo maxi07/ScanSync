@@ -21,7 +21,7 @@ document.getElementById("pathmappingmodal_add_smb_form").addEventListener('submi
     event.preventDefault();
     const form = event.target;
     const formData = new FormData(form);
-    const response = await fetch(form.action || window.location.pathname, {
+    const response = await fetch("/add-path-mapping" || window.location.pathname, {
         method: 'POST',
         body: formData
     });
@@ -47,7 +47,7 @@ document.getElementById("pathmappingmodal").addEventListener('show.bs.modal', fu
 });
 
 document.getElementById("add_path_mapping_button").addEventListener('click', function () {
-    document.getElementById("add_path_mapping_button").innerText = "Add";
+    document.getElementById("submit_form_path_mapping_button").innerText = "Add";
 });
 
 // Update the back button event listener
