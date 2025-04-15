@@ -15,6 +15,38 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
+// Add event listener for smb form submit
+document.getElementById("pathmappingmodal_add_smb_form").addEventListener('submit', async function (event) {
+    console.log("Submitting SMB form");
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const response = await fetch(form.action || window.location.pathname, {
+        method: 'POST',
+        body: formData
+    });
+
+    if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+            window.location.href = '/sync';
+        } else {
+            alert(data.error || 'Unknown error while submitting');
+        }
+    } else {
+        const data = await response.json().catch(() => ({}));
+        alert(data.error || 'Unknwon error while submitting');
+    }
+});
+
+// Reset form when opening
+document.getElementById("pathmappingmodal").addEventListener('show.bs.modal', function () {
+    const form = document.getElementById("pathmappingmodal_add_smb_form");
+    form.reset(); // Reset the form fields
+    console.log("Resetting form fields");
+});
+
+
 // Update the back button event listener
 document.getElementById("remoteonedrivebackbutton").addEventListener('click', function () {
     if (parentIDStack.length > 0) {
@@ -83,6 +115,7 @@ function loadOneDriveDir(folderID = null, isSharedWithMe = false, driveID = null
                     listItem.dataset.parentId = item.parentReference?.id || '';
                     listItem.dataset.parentPath = item.parentReference?.path || '';
                     listItem.dataset.isSharedWithMe = item.shared || false;
+                    listItem.dataset.webUrl = item.webUrl || '';
                     listItem.dataset.driveID = item.parentReference?.driveId || item.remoteItem?.parentReference?.driveId; // The drive id of the shared item
 
                     // Event-Handler
@@ -137,6 +170,9 @@ function handleRemotePathClick(event) {
     var parent = event.currentTarget.dataset.parentPath.split('root:')[1] || "";
     currentOneDriveSelectedPath = parent + "/" + targetItem.textContent.trimStart();
     document.getElementById("remote_path").value = currentOneDriveSelectedPath;
+    document.getElementById("folder_id_input").value = targetItem.dataset.itemId;
+    document.getElementById("drive_id_input").value = targetItem.dataset.driveID;
+    document.getElementById("web_url_input").value = targetItem.dataset.webUrl;
 }
 
 // Update handleRemotePathDoubleClick to push parent IDs to the stack

@@ -7,7 +7,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form class="mb-3" id="pathmappingmodal_body">
+                <form class="mb-3" id="pathmappingmodal_add_smb_form" action="/add_path_mapping">
                     <div class="mb-3" id="local_path_container">
                         <label for="local_path" class="col-form-label fw-bold">Name of SMB share</label>
                         <input type="text" class="form-control" id="local_path" name="smb_name" placeholder="eg. Taxes 2020" aria-describedby="name_help" required>
@@ -20,7 +20,10 @@
                             aria-controls="remotepathselector"><span class="input-group-text"><i
                                     class="bi bi-folder"></i></span></a>
                         <input type="text" class="form-control" id="remote_path" name="remote_path"
-                            placeholder="Please select a path." disabled required>
+                            placeholder="Please select a path." readonly required>
+                        <input type="hidden" name="folder_id" id="folder_id_input" required>
+                        <input type="hidden" name="drive_id" id="drive_id_input" required>
+                        <input type="hidden" name="web_url" id="web_url_input" required>
                     </div>
                     <br>
                     <div class="collapse" id="remotepathselector">

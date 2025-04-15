@@ -21,29 +21,33 @@ def execute_query(query: str, params=(), fetchone=False, fetchall=False, return_
     """Executes a SQLite3 query and handles cursor.
 
     Args:
-        query (str): The SQL Query, eg. 'SELECT * FROM users WHERE id = ?'
-        params (tuple, optional): _description_. Defaults to ().
-        fetchone (bool, optional): _description_. Defaults to False.
-        fetchall (bool, optional): _description_. Defaults to False.
-        return_last_id (bool, optional:) __description__. Returns the id of the just added row.
+        query (str): The SQL Query, e.g. 'SELECT * FROM users WHERE id = ?'
+        params (tuple, optional): Query parameters. Defaults to ().
+        fetchone (bool, optional): Return one result as dict. Defaults to False.
+        fetchall (bool, optional): Return all results as list of dicts. Defaults to False.
+        return_last_id (bool, optional): Return the last inserted row ID.
 
     Returns:
         Query result or None if not fetching.
     """
     try:
+        logger.debug(f"Executing SQL query: {query} with params {params}")
         with db_connection() as conn:
+            conn.row_factory = sqlite3.Row  # ermöglicht dict-artigen Zugriff
             cursor = conn.cursor()
             cursor.execute(query, params)
 
             if fetchone:
-                return cursor.fetchone()
+                row = cursor.fetchone()
+                return dict(row) if row else None
             elif fetchall:
-                return cursor.fetchall()
+                rows = cursor.fetchall()
+                return [dict(row) for row in rows]
             elif return_last_id:
+                logger.debug(f"Returning last row id: {cursor.lastrowid}")
                 return cursor.lastrowid
-
     except Exception:
-        logger.exception("Faild sending SQL query.")
+        logger.exception("Failed executing SQL query.")
 
 
 def update_scanneddata_database(id: int, update_values: dict):

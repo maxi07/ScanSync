@@ -3,5 +3,8 @@
     "db": {
         "path": "shared/db/scansync.db",
         "schema": "shared/db/schema.sql"
+    },
+    "smb": {
+        "path": "/mnt/scans"
     }
 }

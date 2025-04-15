@@ -9,3 +9,4 @@ cov-report/
 */shared
 */*/shared
 shared/db/scansync.db
+*/data

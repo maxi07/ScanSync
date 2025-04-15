@@ -6,8 +6,70 @@
 <p>
     Set up or manage your OneDrive connections for syncing.
 </p>
-<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#pathmappingmodal">
+<button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#pathmappingmodal">
    Add
 </button>
+<div class="row row-cols-1 row-cols-md-2 g-4" id="pathmappingscontainer">
+    {% if smb_shares %}
+
+    {% for item in smb_shares %}
+    <div class="col" id="{{ item.id }}_pathmappingcard">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <strong>{{ item.smb_name }} → OneDrive</strong>
+            </div>
+            <div class="card-body">
+    
+                <div class="mb-3">
+                    <div class="fw-bold mb-1">
+                        <i class="bi bi-hdd-stack text-primary"></i> SMB
+                    </div>
+                    <div style="word-break: break-all;">
+                        <i class="bi bi-folder"></i> {{ item.smb_name }}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="fw-bold mb-1">
+                        <i class="bi bi-cloud-arrow-up text-success"></i> OneDrive
+                    </div>
+                    <div style="word-break: break-all;">
+                        <i class="bi bi-folder"></i>
+                        {% if item.web_url %}
+                        <a href="{{ item.web_url }}" target="_blank" id="{{ item.id }}_remote_pathmapping">{{ item.onedrive_path }}</a>
+                        {% else %}
+                        <span id="{{ item.id }}_remote_pathmapping">{{ item.onedrive_path }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+    
+                {% if item.remote_doesnt_exist %}
+                <div class="alert alert-danger mt-2" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i> <strong>Warning:</strong><br>
+                    The configured OneDrive remote does not exist and will cause sync errors.
+                </div>
+                {% endif %}
+    
+                <hr>
+                <div class="text-muted small">
+                    Created: {{ item.created }}
+                </div>
+            </div>
+    
+            <div class="card-footer">
+                <button id="{{ item.id }}_edit_button" onclick="editPathMapping('{{ item.id }}')"
+                    class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#pathmappingmodal">
+                    <i class="bi bi-pencil"></i> Edit
+                </button>
+                <button id="{{ item.id }}_delete_button" onclick="deletePathMapping('{{ item.id }}')"
+                    class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
 <script src="/static/js/sync.js"></script>
 {% endblock %}

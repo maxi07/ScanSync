@@ -7,10 +7,11 @@ from pypdf import PdfReader
 import pika
 from shared.sqlite_wrapper import execute_query, update_scanneddata_database
 from shared.helpers import connect_rabbitmq
+from shared.config import config
 import pymupdf
 import pickle
 
-SCAN_DIR = "/mnt/scans"
+SCAN_DIR = config.get("smb.path")
 RABBITQUEUE = "ocr_queue"
 
 logger.info("Starting detection service...")
