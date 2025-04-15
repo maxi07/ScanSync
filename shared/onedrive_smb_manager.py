@@ -18,7 +18,7 @@ def add(smb_name: str, drive_id: str, folder_id: str, onedrive_path: str, web_ur
     # Create the smb folder if it doesn't exist
     smb_folder = os.path.join(config.get("smb.path"), smb_name)
     if not os.path.exists(smb_folder):
-        os.makedirs(smb_folder, mode=777)
+        os.makedirs(smb_folder, mode=0o777)
         logger.info(f"Created SMB folder at {smb_folder}")
     else:
         logger.warning(f"SMB folder already exists at {smb_folder}")
@@ -50,7 +50,7 @@ def edit(smb_id: int, smb_name: str, drive_id: str, folder_id: str, onedrive_pat
             logger.warning(f"Old SMB folder does not exist: {old_smb_folder}")
             # Create the new folder if it doesn't exist
             if not os.path.exists(new_smb_folder):
-                os.makedirs(new_smb_folder, mode=777)
+                os.makedirs(new_smb_folder, mode=0o777)
                 logger.info(f"Created new SMB folder at {new_smb_folder}")
             else:
                 logger.warning(f"New SMB folder already exists: {new_smb_folder}")
@@ -66,6 +66,37 @@ def edit(smb_id: int, smb_name: str, drive_id: str, folder_id: str, onedrive_pat
         return False
 
     logger.debug(f"SMB share with ID {smb_id} edited successfully")
+    return True
+
+
+def delete(smb_id: int) -> bool:
+    logger.info(f"Deleting SMB share with ID {smb_id} from database")
+
+    # Get the SMB name to delete the folder
+    query = "SELECT smb_name FROM smb_onedrive WHERE id = ?"
+    smb_name = execute_query(query, (smb_id,), fetchone=True)
+    if smb_name is None:
+        logger.error("Failed to get SMB name from database")
+        return False
+    smb_name = smb_name.get("smb_name")
+
+    # Delete the folder from the filesystem
+    smb_folder = os.path.join(config.get("smb.path"), smb_name)
+    if os.path.exists(smb_folder):
+        os.rmdir(smb_folder)
+        logger.info(f"Deleted SMB folder at {smb_folder}")
+    else:
+        logger.warning(f"SMB folder does not exist: {smb_folder}")
+
+    # Delete the SMB share from the database
+    query = "DELETE FROM smb_onedrive WHERE id = ?"
+    result = execute_query(query, (smb_id,))
+
+    if result is not True:
+        logger.error("Failed to delete SMB share from database")
+        return False
+
+    logger.debug(f"SMB share with ID {smb_id} deleted successfully")
     return True
 
 

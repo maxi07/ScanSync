@@ -205,3 +205,22 @@ function editPathMapping(id) {
     document.getElementById("add_path_mapping_button").innerText = "Edit";
     document.getElementById("old_smb_id").value = id;
 }
+
+function deletePathMapping(id) {
+    if (confirm("Are you sure you want to delete this path mapping?")) {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/delete-path-mapping', true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    window.location.reload();
+                } else {
+                    const response = JSON.parse(xhr.responseText);
+                    alert("Error deleting path mapping: " + (response.error || "Unknown error"));
+                }
+            }
+        };
+        xhr.send(JSON.stringify({ smb_id: id }));
+    }
+}

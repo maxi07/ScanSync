@@ -14,7 +14,7 @@ def sync():
     return render_template('sync.html', smb_shares=smb_shares)
 
 
-@sync_bp.post('/add_path_mapping')
+@sync_bp.post('/add-path-mapping')
 def add_path_mapping():
     logger.info("Request to add path mapping")
 
@@ -54,3 +54,27 @@ def add_path_mapping():
             return jsonify({'error': 'Failed to add SMB share to database'}), 500
         logger.info(f"SMB share added to database with ID: {db_id}")
     return jsonify({'success': True, 'smb_id': db_id}), 200
+
+
+@sync_bp.post('/delete-path-mapping')
+def delete_path_mapping():
+    logger.info("Request to delete path mapping")
+
+    if not request.json:
+        logger.error("No JSON data provided")
+        return jsonify({'error': 'Invalid data'}), 400
+    logger.debug(f"Request data: {request.json}")
+
+    smb_id = request.json.get('smb_id')
+    if not smb_id:
+        logger.error("Missing SMB ID")
+        return jsonify({'error': 'Missing SMB ID'}), 400
+
+    smb_id = int(smb_id)
+    success = onedrive_smb_manager.delete(smb_id)
+    if not success:
+        logger.error("Failed to delete SMB share from database")
+        return jsonify({'error': 'Failed to delete SMB share from database'}), 500
+
+    logger.info(f"SMB share deleted successfully with ID: {smb_id}")
+    return jsonify({'success': True}), 200
