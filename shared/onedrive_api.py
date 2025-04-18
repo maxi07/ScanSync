@@ -35,34 +35,40 @@ def save_token(token):
 
 def get_access_token():
     """Returns token and renews it if necessary"""
-    token_data = load_token()
-    if not token_data:
-        logger.debug("No microsoft token found")
+    try:
+        token_data = load_token()
+        if not token_data:
+            logger.debug("No microsoft token found")
+            return None
+
+        if 'access_token' in token_data and 'expires_in' in token_data:
+            msal_app = msal.ConfidentialClientApplication(
+                onedrive_settings.client_id,
+                authority=onedrive_settings.authority,
+                client_credential=onedrive_settings.client_secret
+            )
+
+        expires_at = token_data.get("expires_at", 0)
+        now = int(time.time())
+
+        if token_data.get("access_token") and now < expires_at:
+            return token_data["access_token"]
+        elif token_data.get("refresh_token"):
+            logger.debug("Microsoft Token expired, refreshing token")
+            result = msal_app.acquire_token_by_refresh_token(
+                token_data["refresh_token"],
+                scopes=onedrive_settings.scope
+            )
+            if "access_token" in result:
+                save_token(result)
+                return result["access_token"]
+            else:
+                logger.error(f"Failed to refresh Microsoft token: {result}")
         return None
-
-    if 'access_token' in token_data and 'expires_in' in token_data:
-        msal_app = msal.ConfidentialClientApplication(
-            onedrive_settings.client_id,
-            authority=onedrive_settings.authority,
-            client_credential=onedrive_settings.client_secret
-        )
-
-    expires_at = token_data.get("expires_at", 0)
-    now = int(time.time())
-
-    if token_data.get("access_token") and now < expires_at:
-        return token_data["access_token"]
-    elif token_data.get("refresh_token"):
-        logger.debug("Microsoft Token expired, refreshing token")
-        result = msal_app.acquire_token_by_refresh_token(
-            token_data["refresh_token"],
-            scopes=onedrive_settings.scope
-        )
-        if "access_token" in result:
-            save_token(result)
-            return result["access_token"]
-        else:
-            logger.error(f"Failed to refresh Microsoft token: {result}")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error occurred while getting access token: {str(e)}")
+    except Exception as e:
+        logger.exception(f"An unexpected error occurred in get_access_token: {str(e)}")
     return None
 
 
@@ -183,81 +189,94 @@ def get_user_shared_drive_items(driveid: str, folderid: str):
 
 
 def upload(item: ProcessItem) -> bool:
-    logger.info(f"Uploading file {item.ocr_file} to OneDrive")
-    access_token = get_access_token()
-    if not access_token:
-        logger.error("No access token available to upload file")
-        return False
-
-    file_size = os.path.getsize(item.ocr_file)
-    upload_session_url = f"https://graph.microsoft.com/v1.0/drives/{item.remote_drive_id}/items/{item.remote_folder_id}:/{item.filename}:/createUploadSession"
-
-    # Create an upload session
-    logger.debug(f"Creating upload session for {item.ocr_file} to {upload_session_url}")
-    session_response = requests.post(
-        upload_session_url,
-        headers={'Authorization': 'Bearer ' + access_token},
-        json={"item": {"@microsoft.graph.conflictBehavior": "rename"}}
-    )
-
-    if session_response.status_code != 200:
-        logger.error(f"Failed to create upload session: {session_response.status_code} - {session_response.text}")
-        return False
-
-    upload_url = session_response.json().get("uploadUrl")
-    if not upload_url:
-        logger.error("No upload URL returned in session response")
-        return False
-    short_url = upload_url[:20] + "..."
-    logger.debug(f"Upload session created successfully, upload URL: {short_url}")
-
-    # Upload the file in chunks
-    chunk_size = 3276800  # 3.2 MB
-    with open(item.ocr_file, 'rb') as file:
-        for start in range(0, file_size, chunk_size):
-            end = min(start + chunk_size - 1, file_size - 1)
-            file.seek(start)
-            chunk_data = file.read(end - start + 1)
-
-            # Validate and refresh token if necessary
-            access_token = get_access_token()
-            if not access_token:
-                logger.error("Access token expired or invalid during chunk upload")
-                return False
-
-            headers = {
-                'Content-Range': f"bytes {start}-{end}/{file_size}"
-            }
-            percentage = (end + 1) / file_size * 100
-            logger.debug(f"Uploading {item.filename} chunk {start}-{end} of {file_size} bytes ({percentage:.2f}%)")
-            chunk_response = requests.put(upload_url, headers=headers, data=chunk_data)
-
-            if chunk_response.status_code not in (200, 201, 202):
-                logger.error(f"Failed to upload chunk: {chunk_response.status_code} - {chunk_response.text}")
-                return False
-            if chunk_response.status_code == 201:
-                logger.debug("Upload completed successfully")
-                logger.debug(f"Response: {chunk_response.json()}")
-                webUrl = chunk_response.json().get("webUrl")
-                if webUrl:
-                    logger.debug(f"File is accessible at {webUrl}")
-                    update_scanneddata_database(item.db_id, {"web_url": webUrl, "remote_filepath": item.remote_file_path})
-
-    logger.info(f"File {item.ocr_file} uploaded successfully to {item.remote_file_path}")
-
-    # Delete ocr file
     try:
-        os.remove(item.ocr_file)
-        logger.debug(f"Deleted local file {item.ocr_file}")
-    except Exception:
-        logger.exception(f"Failed to delete local file {item.ocr_file}")
+        logger.info(f"Uploading file {item.ocr_file} to OneDrive")
+        access_token = get_access_token()
+        if not access_token:
+            logger.error("No access token available to upload file")
+            return False
 
-    # delete original file
-    try:
-        if config.get("smb.keepOriginals", False) is False:
-            os.remove(item.local_file_path)
-            logger.debug(f"Deleted original file {item.local_file_path}")
-    except Exception:
-        logger.exception(f"Failed to delete original file {item.local_file_path}")
-    item.status = ProcessStatus.COMPLETED
-    return True
+        file_size = os.path.getsize(item.ocr_file)
+        upload_session_url = f"https://graph.microsoft.com/v1.0/drives/{item.remote_drive_id}/items/{item.remote_folder_id}:/{item.filename}:/createUploadSession"
+
+        # Create an upload session
+        logger.debug(f"Creating upload session for {item.ocr_file} to {upload_session_url}")
+        session_response = requests.post(
+            upload_session_url,
+            headers={'Authorization': 'Bearer ' + access_token},
+            json={"item": {"@microsoft.graph.conflictBehavior": "rename"}}
+        )
+
+        if session_response.status_code != 200:
+            logger.error(f"Failed to create upload session: {session_response.status_code} - {session_response.text}")
+            return False
+
+        upload_url = session_response.json().get("uploadUrl")
+        if not upload_url:
+            logger.error("No upload URL returned in session response")
+            return False
+        short_url = upload_url[:20] + "..."
+        logger.debug(f"Upload session created successfully, upload URL: {short_url}")
+
+        # Upload the file in chunks
+        chunk_size = 3276800  # 3.2 MB
+        with open(item.ocr_file, 'rb') as file:
+            for start in range(0, file_size, chunk_size):
+                end = min(start + chunk_size - 1, file_size - 1)
+                file.seek(start)
+                chunk_data = file.read(end - start + 1)
+
+                # Validate and refresh token if necessary
+                access_token = get_access_token()
+                if not access_token:
+                    logger.error("Access token expired or invalid during chunk upload")
+                    return False
+
+                headers = {
+                    'Authorization': 'Bearer ' + access_token,
+                    'Content-Range': f"bytes {start}-{end}/{file_size}"
+                }
+                percentage = (end + 1) / file_size * 100
+                logger.debug(f"Uploading {item.filename} chunk {start}-{end} of {file_size} bytes ({percentage:.2f}%)")
+                try:
+                    chunk_response = requests.put(upload_url, headers=headers, data=chunk_data)
+                except requests.exceptions.RequestException as e:
+                    logger.error(f"Request exception during chunk upload: {str(e)}")
+                    return False
+
+                if chunk_response.status_code not in (200, 201, 202):
+                    logger.error(f"Failed to upload chunk: {chunk_response.status_code} - {chunk_response.text}")
+                    return False
+                if chunk_response.status_code == 201:
+                    logger.debug("Upload completed successfully")
+                    logger.debug(f"Response: {chunk_response.json()}")
+                    webUrl = chunk_response.json().get("webUrl")
+                    if webUrl:
+                        logger.debug(f"File is accessible at {webUrl}")
+                        update_scanneddata_database(item.db_id, {"web_url": webUrl, "remote_filepath": item.remote_file_path})
+
+        logger.info(f"File {item.ocr_file} uploaded successfully to {item.remote_file_path}")
+
+        # Delete ocr file
+        try:
+            os.remove(item.ocr_file)
+            logger.debug(f"Deleted local file {item.ocr_file}")
+        except Exception:
+            logger.exception(f"Failed to delete local file {item.ocr_file}")
+
+        # Delete original file
+        try:
+            if config.get("smb.keepOriginals", False) is False:
+                os.remove(item.local_file_path)
+                logger.debug(f"Deleted original file {item.local_file_path}")
+        except Exception:
+            logger.exception(f"Failed to delete original file {item.local_file_path}")
+
+        item.status = ProcessStatus.COMPLETED
+        return True
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request exception occurred during upload: {str(e)}")
+    except Exception as e:
+        logger.exception(f"An unexpected error occurred during upload: {str(e)}")
+    return False
