@@ -208,7 +208,8 @@ def upload(item: ProcessItem) -> bool:
     if not upload_url:
         logger.error("No upload URL returned in session response")
         return False
-    logger.debug(f"Upload session created successfully, upload URL: {upload_url}")
+    short_url = upload_url[:20] + "..."
+    logger.debug(f"Upload session created successfully, upload URL: {short_url}")
 
     # Upload the file in chunks
     chunk_size = 3276800  # 3.2 MB
@@ -240,7 +241,7 @@ def upload(item: ProcessItem) -> bool:
                 webUrl = chunk_response.json().get("webUrl")
                 if webUrl:
                     logger.debug(f"File is accessible at {webUrl}")
-                    update_scanneddata_database(item.db_id, {"web_url": webUrl})
+                    update_scanneddata_database(item.db_id, {"web_url": webUrl, "remote_filepath": item.remote_file_path})
 
     logger.info(f"File {item.ocr_file} uploaded successfully to {item.remote_file_path}")
 

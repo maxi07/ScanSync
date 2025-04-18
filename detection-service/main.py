@@ -68,6 +68,7 @@ def on_created(filepath: str):
     # Add pdf to database
     item.db_id = execute_query('INSERT INTO scanneddata (file_name, local_filepath) VALUES (?, ?)', (item.filename, item.local_directory_above), return_last_id=True)
     logger.debug(f"Added {filepath} to database with id {item.db_id}")
+    update_scanneddata_database(item.db_id, {"file_status": item.status.value, "local_filepath": item.local_directory_above, "file_name": item.filename})
 
     # Generate preview image
     try:

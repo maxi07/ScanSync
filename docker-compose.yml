@@ -77,6 +77,8 @@ services:
       - data:/app/data
       - ./shared:/app/shared
       - preview-images:/app/src/static/images/pdfpreview
+    networks:
+      - app-network
 
   rabbitmq:
     image: "rabbitmq:4.0.7-management"

@@ -1,9 +1,17 @@
 from contextlib import contextmanager
+import json
 import sqlite3
+
+import pika.exceptions
 from shared.config import config
 from shared.logging import logger
 import os
 from flask import g
+import pika
+
+# Initialize RabbitMQ connection and channel globally
+rabbit_connection = None
+rabbit_channel = None
 
 
 @contextmanager
@@ -77,8 +85,42 @@ def update_scanneddata_database(id: int, update_values: dict):
 
             # Commit the changes and close the connection
             connection.commit()
+            notify_sse_clients({'id': id, 'updated_fields': update_values})
     except Exception:
         logger.exception(f"Error updating database for id {id}.")
+
+
+def initialize_rabbitmq():
+    global rabbit_connection, rabbit_channel
+    try:
+        rabbit_connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
+        rabbit_channel = rabbit_connection.channel()
+        # Declare the fanout exchange (idempotent)
+        rabbit_channel.exchange_declare(exchange='sse_updates_fanout', exchange_type='fanout')
+        logger.info("RabbitMQ connection initialized successfully.")
+    except Exception:
+        logger.exception("Failed to initialize RabbitMQ connection.")
+
+
+def notify_sse_clients(payload: dict, retry_count=0, max_retries=3):
+    try:
+        if rabbit_channel is None or rabbit_connection is None or rabbit_connection.is_closed:
+            initialize_rabbitmq()
+        rabbit_channel.basic_publish(
+            exchange='sse_updates_fanout',
+            routing_key='',  # fanout ignores this
+            body=json.dumps(payload)
+        )
+        logger.debug(f"Sent update to SSE exchange: {payload}")
+    except pika.exceptions.StreamLostError:
+        if retry_count < max_retries:
+            logger.warning(f"RabbitMQ connection lost. Retrying... Attempt {retry_count + 1}/{max_retries}")
+            initialize_rabbitmq()
+            notify_sse_clients(payload, retry_count=retry_count + 1, max_retries=max_retries)
+        else:
+            logger.error("Max retries reached. Failed to send update to SSE queue.")
+    except Exception:
+        logger.exception("Error sending update to SSE queue.")
 
 
 def get_db():

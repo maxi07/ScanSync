@@ -10,7 +10,20 @@ document.addEventListener('DOMContentLoaded', function () {
     pdfsData.forEach(function (pdfData) {
         addPdfCard(pdfData);
     });
+
+    eventSource = new EventSource("http://localhost:5001/stream");
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        console.log("Received data:", data);
+        updateCard(data);
+    };
+    
+    eventSource.onerror = function(err) {
+        console.error("SSE error", err);
+    };
 });
+
+
 
 function updateDashboard(data) {
     console.log("Updating dashboard");
@@ -25,50 +38,92 @@ function updateDashboard(data) {
     timestamp_processed.innerText = data.processed_pdfs_latest_timestamp;
 }
 
-function updatePDFCard(pdfData) {
-    console.log("Updating card id " + pdfData.id);
-    // Find pdfcard suing id
-    var pdfCard = document.getElementById(pdfData.id + '_pdf_card');
-    // Update the title
-    pdfCard.getElementsByClassName('card-title')[0].innerHTML = pdfData.file_name;
-    // Update the badge
-    pdfCard.getElementsByClassName('badge')[0].innerHTML = pdfData.pdf_pages;
+function updateCard(updateData) {
+    const cardId = updateData.id + '_pdf_card';
+    const cardElement = document.getElementById(cardId);
 
-    // Now update the pdf info
-    var pdfModified = document.getElementById(pdfData.id + '_pdf_modified');
-    pdfModified.innerHTML = pdfData.local_modified + "<br>";
+    if (!cardElement) {
+        console.warn(`Card with ID ${cardId} not found.`);
+        const existingCards = document.querySelectorAll('[id$="_pdf_card"]');
+        let highestId = 0;
 
-    var pdfSMB = document.getElementById(pdfData.id + '_pdf_smb');
-    pdfSMB.innerHTML = pdfData.local_filepath + "<br>";
+        existingCards.forEach(card => {
+            const cardId = parseInt(card.dataset.id, 10);
+            if (!isNaN(cardId) && cardId > highestId) {
+            highestId = cardId;
+            }
+        });
 
-    var pdfCloud = document.getElementById(pdfData.id + '_pdf_cloud');
-    pdfCloud.innerHTML = pdfData.remote_filepath + "<br>";
+        if (updateData.id > highestId) {
+            console.log(`New card with ID ${updateData.id} is higher than the current highest ID ${highestId}. Adding new card.`);
+            const data = { id: updateData.id, ...updateData.updated_fields };
+            addPdfCard(updateData);
+        }
+    }
 
-    var pdfStatus = document.getElementById(pdfData.id + '_pdf_status');
-    pdfStatus.innerHTML = pdfData.file_status + "<br>";
+    const fieldsMap = {
+        file_name: '_pdf_title',
+        file_status: '_pdf_status',
+        pdf_pages: '_pdf_pages_badge',
+        remote_filepath: '_pdf_cloud',
+        web_url: '_pdf_cloud',
+        local_filepath: '_pdf_smb',
+        previewimage_path: '_pdf_card_image',
+    };
 
-    // When previewimage_path of the pdfdata starts with "/static" then remove the current svg and add the image
-    if (pdfData.previewimage_path.startsWith("/static")) {
-        // Remove the svg
-        try {
-            var imgcontainer = document.getElementById(pdfData.id + '_pdf_card_image');
-            var svg = imgcontainer.getElementsByTagName('svg')[0];
-            svg.remove();
-        } catch (err) {
+    Object.entries(updateData.updated_fields).forEach(([key, value]) => {
+        const elementId = updateData.id + fieldsMap[key];
+        const element = document.getElementById(elementId);
+
+        if (!element) {
+            console.warn(`Element with ID ${elementId} not found for key ${key}.`);
             return;
         }
 
-        // Add the image
-        var image = document.createElement('img');
-        image.id = pdfData.id + '_pdf_preview_image';
-        image.classList.add('card-img-top', 'mx-auto');
-        image.src = pdfData.previewimage_path;
-        image.style.width = 'auto';
-        image.style.height = '128px';
-        imgcontainer.appendChild(image);
-    }
-}
+        if (key === 'previewimage_path') {
+            const imageDiv = document.getElementById(updateData.id + '_pdf_card_image');
+            if (!imageDiv) {
+                console.warn(`Image container with ID ${updateData.id}_pdf_card_image not found.`);
+                return;
+            }
 
+            const existingImg = imageDiv.querySelector('img');
+            const existingSvg = imageDiv.querySelector('svg');
+
+            if (existingSvg) imageDiv.removeChild(existingSvg);
+            if (!existingImg) {
+                const imgElement = document.createElement('img');
+                imgElement.id = updateData.id + '_pdf_preview_image';
+                imgElement.classList.add('card-img-top', 'mx-auto');
+                imgElement.style.height = '128px';
+                imgElement.style.width = 'auto';
+                imgElement.alt = 'pdf preview';
+                imageDiv.appendChild(imgElement);
+            }
+            document.getElementById(updateData.id + '_pdf_preview_image').src = value;
+        } else if (key === 'web_url') {
+            const parent = element.parentElement;
+            if (parent && parent.tagName === 'SPAN') {
+                const cloudLink = document.createElement('a');
+                cloudLink.id = updateData.id + '_pdf_cloud';
+                cloudLink.href = value;
+                cloudLink.textContent = updateData.updated_fields.remote_filepath || "Link";
+                cloudLink.target = '_blank';
+                const brElement = document.createElement('br');
+                cloudLink.appendChild(brElement);
+                parent.replaceChild(cloudLink, element);
+            }
+        } else if (key === 'local_filepath') {
+            element.textContent = value;
+            element.innerHTML += "<br>";
+        } else if (key === 'remote_filepath') {
+            element.textContent = value;
+            element.innerHTML += "<br>";
+        } else {
+            element.textContent = value;
+        }
+    });
+}
 
 // Function to add a new PDF card
 function addPdfCard(pdfData) {
@@ -79,6 +134,7 @@ function addPdfCard(pdfData) {
 
     var cardDiv = document.createElement('div');
     cardDiv.id = pdfData.id + '_pdf_card';
+    cardDiv.dataset.id = pdfData.id;
     cardDiv.classList.add('card', 'rounded', 'h-100');
 
     var imageDiv = document.createElement('div');
@@ -91,7 +147,7 @@ function addPdfCard(pdfData) {
     badgeSpan.classList.add('position-absolute', 'top-0', 'end-0', 'badge', 'bg-secondary');
     badgeSpan.style.marginTop = '10px';
     badgeSpan.style.marginRight = '10px';
-    badgeSpan.textContent = pdfData.pdf_pages;
+    badgeSpan.textContent = pdfData.pdf_pages ? pdfData.pdf_pages : "N/A";
 
     var imgElement = document.createElement('img');
     imgElement.id = pdfData.id + '_pdf_preview_image';
@@ -135,7 +191,7 @@ function addPdfCard(pdfData) {
     var titleElement = document.createElement('h5');
     titleElement.id = pdfData.id + '_pdf_title';
     titleElement.classList.add('card-title');
-    titleElement.textContent = pdfData.file_name;
+    titleElement.textContent = pdfData.file_name || "N/A";
 
     var infoParagraph = document.createElement('p');
     infoParagraph.classList.add('pdf-info');
@@ -146,14 +202,17 @@ function addPdfCard(pdfData) {
     modifiedText.innerHTML = `<i class="bi bi-clock"></i><strong> Updated:</strong> `;
     var modifiedSpan = document.createElement('span');
     modifiedSpan.id = pdfData.id + '_pdf_modified';
-    modifiedSpan.textContent = pdfData.local_modified;
+    const now = new Date();
+    const formattedDate = now.toLocaleDateString('de-DE').replace(/\./g, '.');
+    const formattedTime = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    modifiedSpan.textContent = pdfData.local_modified || `${formattedDate} ${formattedTime}`;
     modifiedSpan.innerHTML += brElement;
 
     var smbText = document.createElement('span');
     smbText.innerHTML = `<i class="bi bi-folder"></i><strong> SMB:</strong> `;
     var smbSpan = document.createElement('span');
     smbSpan.id = pdfData.id + '_pdf_smb';
-    smbSpan.textContent = pdfData.local_filepath;
+    smbSpan.textContent = pdfData.local_filepath || "N/A";
     smbSpan.innerHTML += brElement;
 
     var cloudText = document.createElement('span');
@@ -170,11 +229,7 @@ function addPdfCard(pdfData) {
     } else {
         var cloudSpan = document.createElement('span');
         cloudSpan.id = pdfData.id + '_pdf_cloud';
-        if (pdfData.remote_filepath == null) {
-            cloudSpan.textContent = "Not available";
-        } else {
-            cloudSpan.textContent = pdfData.remote_filepath;
-        }
+        cloudSpan.textContent = pdfData.remote_filepath || "Not available";
         cloudSpan.innerHTML += brElement;
         cloudText.appendChild(cloudSpan);
     }
@@ -183,7 +238,7 @@ function addPdfCard(pdfData) {
     statusText.innerHTML = `<i class="bi bi-hourglass"></i><strong> Status:</strong> `;
     var statusSpan = document.createElement('span');
     statusSpan.id = pdfData.id + '_pdf_status';
-    statusSpan.textContent = pdfData.file_status;
+    statusSpan.textContent = pdfData.file_status || "N/A";
     statusSpan.innerHTML += brElement;
 
     infoParagraph.appendChild(modifiedText);
@@ -212,5 +267,3 @@ function addPdfCard(pdfData) {
     var firstChild = parentElement.firstChild;
     parentElement.insertBefore(colDiv, firstChild);
 }
-
-

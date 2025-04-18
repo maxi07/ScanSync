@@ -8,7 +8,7 @@ import pika.exceptions
 from shared.logging import logger
 
 
-def connect_rabbitmq(queue_name: str):
+def connect_rabbitmq(queue_name: str = None):
     """
     Establishes a connection to a RabbitMQ server and declares a queue.
 
@@ -32,7 +32,8 @@ def connect_rabbitmq(queue_name: str):
         try:
             connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitmq", heartbeat=30))
             channel = connection.channel()
-            channel.queue_declare(queue=queue_name, durable=True)
+            if queue_name:
+                channel.queue_declare(queue=queue_name, durable=True)
             return connection, channel
         except (socket.gaierror, pika.exceptions.AMQPConnectionError):
             time.sleep(2)
