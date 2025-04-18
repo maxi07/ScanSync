@@ -123,6 +123,11 @@ function updateCard(updateData) {
             element.textContent = value;
         }
     });
+
+    // Update dashboard data
+    if (updateData.dashboard_data) {
+        updateDashboard(updateData.dashboard_data);
+    }
 }
 
 // Function to add a new PDF card

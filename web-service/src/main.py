@@ -6,7 +6,7 @@ import time
 from flask import Flask, Response
 import sys
 sys.path.append('/app/src')
-from shared.helpers import connect_rabbitmq
+from shared.helpers import connect_rabbitmq, format_time_difference
 from shared.logging import logger
 from routes.dashboard import dashboard_bp
 from routes.sync import sync_bp
@@ -76,17 +76,30 @@ def get_dashboard_info() -> dict:
         result = execute_query(query, fetchone=True)
 
         processed_pdfs = result.get('completed_count', 0)
-        queued_pdfs = result.get('pending_count', 0)
-        latest_timestamp_pending = result.get('latest_pending_timestamp', "Never")
+        pending_pdfs = result.get('pending_count', 0)
+        latest_timestamp_pending = result.get('latest_pending_timestamp', None)
         latest_timestamp_completed = result.get('latest_completed_timestamp', "Never")
+        if not latest_timestamp_pending:
+            latest_timestamp_pending = latest_timestamp_completed
+
+        # Convert timestamps into strings for web
+        if latest_timestamp_pending:
+            latest_timestamp_pending = "Updated " + format_time_difference(latest_timestamp_pending)
+        else:
+            latest_timestamp_pending = "Never"
+
+        if latest_timestamp_completed:
+            latest_timestamp_completed = "Updated " + format_time_difference(latest_timestamp_completed)
+        else:
+            latest_timestamp_completed = "Never"
 
         logger.debug(f"Dashboard data fetched: {result}")
 
         return dict(
-            completed_count=processed_pdfs,
-            pending_count=queued_pdfs,
-            latest_pending_timestamp=latest_timestamp_pending,
-            latest_completed_timestamp=latest_timestamp_completed
+            processed_pdfs=processed_pdfs,
+            pending_pdfs=pending_pdfs,
+            pending_pdfs_latest_timestamp=latest_timestamp_pending,
+            processed_pdfs_latest_timestamp=latest_timestamp_completed
         )
     except Exception:
         logger.exception("Failed fetching dashboard information.")
@@ -96,6 +109,7 @@ def get_dashboard_info() -> dict:
             latest_pending_timestamp="Unknown",
             latest_completed_timestamp="Unknown"
         )
+
 
 @app.context_processor
 def inject_config():
