@@ -133,10 +133,13 @@ def inject_config():
 def stream():
     def event_stream():
         while True:
-            data = sse_queue.get()
-            logger.debug(f"Data retrieved from SSE queue: {data}")
-            time.sleep(0.2)
-            yield f"data: {data}\n\n"
+            try:
+                data = sse_queue.get(timeout=10)
+                logger.debug(f"Data retrieved from SSE queue: {data}")
+                time.sleep(0.2)
+                yield f"data: {data}\n\n"
+            except queue.Empty:
+                yield ": keep-alive\n\n"
     return Response(event_stream(), mimetype="text/event-stream")
 
 
