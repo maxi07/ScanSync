@@ -188,6 +188,47 @@ def get_user_shared_drive_items(driveid: str, folderid: str):
     return result
 
 
+def upload_small(item: ProcessItem) -> bool:
+    try:
+        logger.info(f"Uploading file {item.ocr_file} to OneDrive")
+
+        # Check if file is smaller than 250MB
+        file_size = os.path.getsize(item.ocr_file)
+        if file_size > 250 * 1024 * 1024:
+            logger.error(f"File {item.ocr_file} is larger than 250MB, using chunked upload")
+            return upload(item)
+        file_size_kb = file_size / 1024
+        file_size_mb = file_size_kb / 1024
+        logger.debug(f"File size: {file_size} bytes ({file_size_kb:.2f} KB, {file_size_mb:.2f} MB)")
+
+        access_token = get_access_token()
+        if not access_token:
+            logger.error("No access token available to upload file")
+            return False
+
+        upload_url = f"https://graph.microsoft.com/v1.0/drives/{item.remote_drive_id}/items/{item.remote_folder_id}:/{item.filename}:/content"
+        headers = {'Authorization': 'Bearer ' + access_token}
+
+        with open(item.ocr_file, 'rb') as file:
+            response = requests.put(upload_url, headers=headers, data=file)
+
+        if response.status_code == 201:
+            logger.debug("Upload completed successfully")
+            webUrl = response.json().get("webUrl")
+            if webUrl:
+                logger.debug(f"File is accessible at {webUrl}")
+                update_scanneddata_database(item.db_id, {"web_url": webUrl, "remote_filepath": item.remote_file_path})
+            return True
+        else:
+            logger.error(f"Failed to upload file: {response.status_code} - {response.text}")
+            return False
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request exception occurred during upload: {str(e)}")
+    except Exception as e:
+        logger.exception(f"An unexpected error occurred during upload: {str(e)}")
+    return False
+
+
 def upload(item: ProcessItem) -> bool:
     try:
         logger.info(f"Uploading file {item.ocr_file} to OneDrive")
@@ -215,7 +256,7 @@ def upload(item: ProcessItem) -> bool:
         if not upload_url:
             logger.error("No upload URL returned in session response")
             return False
-        short_url = upload_url[:20] + "..."
+        short_url = upload_url[:50] + "..."
         logger.debug(f"Upload session created successfully, upload URL: {short_url}")
 
         # Upload the file in chunks
@@ -225,12 +266,6 @@ def upload(item: ProcessItem) -> bool:
                 end = min(start + chunk_size - 1, file_size - 1)
                 file.seek(start)
                 chunk_data = file.read(end - start + 1)
-
-                # Validate and refresh token if necessary
-                access_token = get_access_token()
-                if not access_token:
-                    logger.error("Access token expired or invalid during chunk upload")
-                    return False
 
                 headers = {
                     'Authorization': 'Bearer ' + access_token,

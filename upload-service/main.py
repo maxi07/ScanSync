@@ -4,7 +4,7 @@ from shared.ProcessItem import ProcessItem, ProcessStatus
 from shared.logging import logger
 from shared.helpers import connect_rabbitmq
 from shared.sqlite_wrapper import update_scanneddata_database
-from shared.onedrive_api import upload
+from shared.onedrive_api import upload_small
 from shared.config import config
 import os
 
@@ -32,7 +32,7 @@ def start_processing(item: ProcessItem):
     update_scanneddata_database(item.db_id, {"file_status": item.status.value})
     item.time_upload_started = datetime.now()
     logger.info(f"Processing file for upload: {item.local_file_path}")
-    res = upload(item)
+    res = upload_small(item)
     if res is False:
         logger.error(f"Failed to upload {item.local_file_path}")
         item.status = ProcessStatus.SYNC_FAILED
@@ -50,6 +50,14 @@ def start_processing(item: ProcessItem):
             except Exception:
                 logger.exception(f"Failed to move item {item.local_file_path} to failed directory {failedDir}")
             logger.info(f"Moved {item.local_file_path} to {failedDir}")
+
+            # Delete OCR file if present
+            if os.path.exists(item.ocr_file):
+                try:
+                    os.remove(item.ocr_file)
+                    logger.info(f"Removed OCR file {item.ocr_file}")
+                except Exception:
+                    logger.exception(f"Failed to remove OCR file {item.ocr_file}")
         else:
             logger.warning("Failed directory not set in config. Skipping move.")
     else:

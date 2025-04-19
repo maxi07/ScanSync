@@ -28,6 +28,7 @@ app.register_blueprint(api_bp)
 app.register_blueprint(onedrive_bp)
 
 sse_queue = queue.Queue()
+connected_clients = 0  # Zähler für verbundene Clients
 
 
 def start_rabbitmq_listener():
@@ -50,10 +51,14 @@ def rabbitmq_listener():
     channel.queue_bind(exchange=exchange_name, queue=queue_name)
 
     def callback(ch, method, properties, body):
-        payload = json.loads(body.decode())
-        payload["dashboard_data"] = get_dashboard_info()
-        sse_queue.put(json.dumps(payload))  # an verbundene Clients senden
-        logger.debug(f"Received update from RabbitMQ: {payload}")
+        global connected_clients
+        if connected_clients > 0:  # Nur wenn Clients verbunden sind
+            payload = json.loads(body.decode())
+            payload["dashboard_data"] = get_dashboard_info()  # Nur bei Bedarf abrufen
+            sse_queue.put(json.dumps(payload))  # An verbundene Clients senden
+            logger.debug(f"Received update from RabbitMQ: {payload}")
+        else:
+            logger.debug("No connected clients. Skipping SSE queue update.")
 
     channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
     channel.start_consuming()
@@ -131,15 +136,25 @@ def inject_config():
 
 @app.route("/stream")
 def stream():
+    global connected_clients
+
     def event_stream():
-        while True:
-            try:
-                data = sse_queue.get(timeout=10)
-                logger.debug(f"Data retrieved from SSE queue: {data}")
-                time.sleep(0.2)
-                yield f"data: {data}\n\n"
-            except queue.Empty:
-                yield ": keep-alive\n\n"
+        global connected_clients
+        connected_clients += 1
+        logger.info(f"Client connected. Total connected clients: {connected_clients}")
+        try:
+            while True:
+                try:
+                    data = sse_queue.get(timeout=10)
+                    logger.debug(f"Data retrieved from SSE queue: {data}")
+                    time.sleep(0.2)
+                    yield f"data: {data}\n\n"
+                except queue.Empty:
+                    yield ": keep-alive\n\n"
+        finally:
+            connected_clients -= 1
+            logger.info(f"Client disconnected. Total connected clients: {connected_clients}")
+
     return Response(event_stream(), mimetype="text/event-stream")
 
 

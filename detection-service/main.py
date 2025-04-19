@@ -45,6 +45,11 @@ def on_created(filepath: str):
         logger.debug(f"Ignoring working _OCR file at {filepath}")
         return
 
+    # Ignore folder failed-documents
+    if config.get("failedDir") in filepath:
+        logger.debug(f"Ignoring failed documents folder at {filepath}")
+        return
+
     # Test if file is PDF or image. if neither can be opened, wait five seconds and try again.
     # Repeat this process until a maximum timeout of three minutes is reached
     timeout = 180
