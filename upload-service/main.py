@@ -62,6 +62,24 @@ def start_processing(item: ProcessItem):
             logger.warning("Failed directory not set in config. Skipping move.")
     else:
         logger.info(f"Upload completed: {item.local_file_path}")
+
+        # Delete ocr file
+        try:
+            os.remove(item.ocr_file)
+            logger.debug(f"Deleted local file {item.ocr_file}")
+        except Exception:
+            logger.exception(f"Failed to delete local file {item.ocr_file}")
+
+        # Delete original file
+        try:
+            if config.get("smb.keepOriginals", False) is False:
+                os.remove(item.local_file_path)
+                logger.debug(f"Deleted original file {item.local_file_path}")
+        except Exception:
+            logger.exception(f"Failed to delete original file {item.local_file_path}")
+
+        item.status = ProcessStatus.COMPLETED
+        return True
         item.status = ProcessStatus.COMPLETED
     update_scanneddata_database(item.db_id, {"file_status": item.status.value})
 

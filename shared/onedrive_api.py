@@ -206,8 +206,8 @@ def upload_small(item: ProcessItem) -> bool:
             logger.error("No access token available to upload file")
             return False
 
-        upload_url = f"https://graph.microsoft.com/v1.0/drives/{item.remote_drive_id}/items/{item.remote_folder_id}:/{item.filename}:/content"
-        headers = {'Authorization': 'Bearer ' + access_token}
+        upload_url = f"https://graph.microsoft.com/v1.0/drives/{item.remote_drive_id}/items/{item.remote_folder_id}:/{item.filename}:/content?@microsoft.graph.conflictBehavior=rename"
+        headers = {'Authorization': 'Bearer ' + access_token, 'Content-Type': 'text/plain'}
 
         with open(item.ocr_file, 'rb') as file:
             response = requests.put(upload_url, headers=headers, data=file)
@@ -217,7 +217,7 @@ def upload_small(item: ProcessItem) -> bool:
             webUrl = response.json().get("webUrl")
             if webUrl:
                 logger.debug(f"File is accessible at {webUrl}")
-                update_scanneddata_database(item.db_id, {"web_url": webUrl, "remote_filepath": item.remote_file_path})
+                update_scanneddata_database(item.db_id, {"web_url": webUrl, "remote_filepath": item.remote_file_path, "file_name": response.json().get("name", item.filename)})
             return True
         else:
             logger.error(f"Failed to upload file: {response.status_code} - {response.text}")
@@ -291,25 +291,6 @@ def upload(item: ProcessItem) -> bool:
                         update_scanneddata_database(item.db_id, {"web_url": webUrl, "remote_filepath": item.remote_file_path})
 
         logger.info(f"File {item.ocr_file} uploaded successfully to {item.remote_file_path}")
-
-        # Delete ocr file
-        try:
-            os.remove(item.ocr_file)
-            logger.debug(f"Deleted local file {item.ocr_file}")
-        except Exception:
-            logger.exception(f"Failed to delete local file {item.ocr_file}")
-
-        # Delete original file
-        try:
-            if config.get("smb.keepOriginals", False) is False:
-                os.remove(item.local_file_path)
-                logger.debug(f"Deleted original file {item.local_file_path}")
-        except Exception:
-            logger.exception(f"Failed to delete original file {item.local_file_path}")
-
-        item.status = ProcessStatus.COMPLETED
-        return True
-
     except requests.exceptions.RequestException as e:
         logger.error(f"Request exception occurred during upload: {str(e)}")
     except Exception as e:
