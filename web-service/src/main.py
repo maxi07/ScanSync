@@ -71,11 +71,11 @@ def get_dashboard_info() -> dict:
             SELECT
                 (SELECT COUNT(*) FROM scanneddata WHERE file_status = "Completed") AS completed_count,
                 (SELECT COUNT(*) FROM scanneddata WHERE LOWER(file_status) LIKE "pending") AS pending_count,
-                (SELECT DATETIME(created, "localtime") FROM scanneddata 
-                 WHERE file_status = "Pending" 
+                (SELECT DATETIME(created, "localtime") FROM scanneddata
+                 WHERE file_status = "Pending"
                  ORDER BY created DESC LIMIT 1) AS latest_pending_timestamp,
-                (SELECT DATETIME(modified, "localtime") FROM scanneddata 
-                 WHERE file_status = "Completed" 
+                (SELECT DATETIME(modified, "localtime") FROM scanneddata
+                 WHERE file_status = "Completed"
                  ORDER BY modified DESC LIMIT 1) AS latest_completed_timestamp
         """
         result = execute_query(query, fetchone=True)

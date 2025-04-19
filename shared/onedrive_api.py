@@ -7,9 +7,7 @@ import msal
 import requests
 import base64
 from shared.onedrive_settings import onedrive_settings
-from shared.ProcessItem import ProcessStatus
 from shared.sqlite_wrapper import update_scanneddata_database
-from shared.config import config
 
 TOKEN_FILE = '/app/data/token.json'
 USER_PROFILE_FILE = '/app/data/user_profile.json'

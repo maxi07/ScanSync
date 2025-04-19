@@ -79,8 +79,6 @@ def start_processing(item: ProcessItem):
             logger.exception(f"Failed to delete original file {item.local_file_path}")
 
         item.status = ProcessStatus.COMPLETED
-        return True
-        item.status = ProcessStatus.COMPLETED
     update_scanneddata_database(item.db_id, {"file_status": item.status.value})
 
 
