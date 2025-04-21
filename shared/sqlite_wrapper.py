@@ -1,7 +1,6 @@
 from contextlib import contextmanager
 import json
 import sqlite3
-
 import pika.exceptions
 from shared.config import config
 from shared.logging import logger

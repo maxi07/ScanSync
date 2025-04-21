@@ -8,16 +8,16 @@ import pika.exceptions
 from shared.logging import logger
 
 
-def connect_rabbitmq(queue_name: str = None, heartbeat: int = 30):
+def connect_rabbitmq(queue_names: list = None, heartbeat: int = 30):
     """
-    Establishes a connection to a RabbitMQ server and declares a queue.
+    Establishes a connection to a RabbitMQ server and declares multiple queues.
 
     This function attempts to connect to a RabbitMQ server up to 10 times,
     with a 2-second delay between each attempt. If the connection is
-    successful, it declares a durable queue with the specified name.
+    successful, it declares durable queues with the specified names.
 
     Args:
-        queue_name (str): The name of the RabbitMQ queue to declare.
+        queue_names (list): A list of RabbitMQ queue names to declare.
         heartbeat (int): The heartbeat timeout in seconds for the RabbitMQ connection.
 
     Returns:
@@ -33,8 +33,10 @@ def connect_rabbitmq(queue_name: str = None, heartbeat: int = 30):
         try:
             connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitmq", heartbeat=heartbeat))
             channel = connection.channel()
-            if queue_name:
-                channel.queue_declare(queue=queue_name, durable=True)
+            if queue_names:
+                for queue_name in queue_names:
+                    channel.queue_declare(queue=queue_name, durable=True)
+            channel.basic_qos(prefetch_count=1)
             return connection, channel
         except (socket.gaierror, pika.exceptions.AMQPConnectionError):
             time.sleep(2)
@@ -42,9 +44,32 @@ def connect_rabbitmq(queue_name: str = None, heartbeat: int = 30):
     return None
 
 
+def setup_rabbitmq_connection(queue_name):
+    try:
+        connection, channel = connect_rabbitmq([queue_name])
+        logger.debug(f"Connected to RabbitMQ on {channel.channel_number}")
+        logger.debug(f"Connected to queue {queue_name}")
+        return connection, channel
+    except Exception as e:
+        logger.critical(f"Failed to connect to RabbitMQ: {e}")
+        exit(1)
+
+
+def reconnect_rabbitmq(queue_name):
+    while True:
+        try:
+            logger.warning("Attempting to reconnect to RabbitMQ...")
+            connection, channel = setup_rabbitmq_connection(queue_name)
+            logger.info("Reconnected to RabbitMQ successfully.")
+            return connection, channel
+        except Exception as e:
+            logger.critical(f"Failed to reconnect to RabbitMQ: {e}")
+            time.sleep(5)  # Wait before retrying
+
+
 def forward_to_rabbitmq(queue_name: str, item: ProcessItem):
     try:
-        connection, channel = connect_rabbitmq(queue_name)
+        connection, channel = connect_rabbitmq([queue_name])
         channel.basic_publish(
             exchange='',
             routing_key=queue_name,

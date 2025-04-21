@@ -83,11 +83,10 @@ def start_processing(item: ProcessItem):
 
 
 try:
-    connection, channel = connect_rabbitmq("upload_queue")
+    connection, channel = connect_rabbitmq(["upload_queue"])
 except Exception as e:
     logger.critical(f"Couldn't connect to RabbitMQ: {e}")
     exit(1)
-channel.queue_declare(queue="upload_queue", durable=True)
 channel.basic_consume(queue="upload_queue", on_message_callback=callback)
 logger.info("Upload service ready!")
 channel.start_consuming()

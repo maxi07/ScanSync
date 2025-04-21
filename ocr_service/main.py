@@ -78,11 +78,10 @@ def start_processing(item: ProcessItem):
 
 
 try:
-    connection, channel = connect_rabbitmq("ocr_queue")
+    connection, channel = connect_rabbitmq(["ocr_queue"], heartbeat=300)
 except Exception as e:
     logger.critical(f"Couldn't connect to RabbitMQ: {e}")
     exit(1)
-channel.queue_declare(queue="ocr_queue", durable=True)
 channel.basic_consume(queue="ocr_queue", on_message_callback=callback)
 logger.info("OCR service ready!")
 channel.start_consuming()
