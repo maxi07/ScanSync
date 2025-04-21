@@ -1,7 +1,7 @@
 services:    
-  smb-service:
-    build: ./smb-service
-    container_name: smb-service
+  smb_service:
+    build: ./smb_service
+    container_name: smb_service
     ports:
       - "137:137/udp"
       - "138:138/udp"
@@ -13,66 +13,66 @@ services:
     networks:
       - app-network
 
-  ocr-service:
-    build: ./ocr-service
-    container_name: ocr-service
+  ocr_service:
+    build: ./ocr_service
+    container_name: ocr_service
     restart: unless-stopped
     volumes:
-      - ./ocr-service:/ocr-service
+      - ./ocr_service:/ocr_service
       - scans:/mnt/scans
-      - ./shared:/ocr-service/shared
-    working_dir: /ocr-service
+      - ./shared:/ocr_service/shared
+    working_dir: /ocr_service
     networks:
       - app-network
     depends_on:
-      - smb-service
+      - smb_service
       - rabbitmq
     command: ["python", "main.py"]
 
-  detection-service:
-    build: ./detection-service
-    container_name: detection-service
+  detection_service:
+    build: ./detection_service
+    container_name: detection_service
     restart: unless-stopped
     volumes:
-      - ./detection-service:/detection-service
+      - ./detection_service:/detection_service
       - scans:/mnt/scans
-      - ./shared:/detection-service/shared
+      - ./shared:/detection_service/shared
       - preview-images:/shared/preview-images
-    working_dir: /detection-service
+    working_dir: /detection_service
     networks:
       - app-network
     depends_on:
-      - smb-service
+      - smb_service
       - rabbitmq
     command: ["python", "main.py"]
   
-  upload-service:
-    build: ./upload-service
-    container_name: upload-service
+  upload_service:
+    build: ./upload_service
+    container_name: upload_service
     restart: unless-stopped
     volumes:
-      - ./upload-service:/upload-service
+      - ./upload_service:/upload_service
       - scans:/mnt/scans
-      - ./shared:/upload-service/shared
+      - ./shared:/upload_service/shared
       - data:/app/data
-    working_dir: /upload-service
+    working_dir: /upload_service
     networks:
       - app-network
     depends_on:
-      - smb-service
+      - smb_service
       - rabbitmq
     command: ["python", "main.py"]
   
-  web-service:
-    image: web-service
+  web_service:
+    image: web_service
     restart: unless-stopped
-    build: ./web-service
+    build: ./web_service
     ports:
       - 5001:5001
     environment:
       - FLASK_ENV=production
     volumes:
-      - ./web-service:/app  # TODO: Only for development!!
+      - ./web_service:/app  # TODO: Only for development!!
       - scans:/mnt/scans
       - data:/app/data
       - ./shared:/app/shared

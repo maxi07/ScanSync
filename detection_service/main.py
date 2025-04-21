@@ -194,6 +194,7 @@ known_files = get_all_files(SCAN_DIR)
 while True:
     try:
         connection.process_data_events(1)
+        # TODO: Check if the connection is still alive
         current_files = get_all_files(SCAN_DIR)
 
         new_files = current_files - known_files
