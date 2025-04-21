@@ -26,6 +26,9 @@ services:
     depends_on:
       - smb_service
       - rabbitmq
+    deploy:
+      mode: replicated
+      replicas: 2
     command: ["python", "main.py"]
 
   detection_service:
