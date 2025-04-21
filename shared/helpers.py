@@ -8,7 +8,7 @@ import pika.exceptions
 from shared.logging import logger
 
 
-def connect_rabbitmq(queue_name: str = None):
+def connect_rabbitmq(queue_name: str = None, heartbeat: int = 30):
     """
     Establishes a connection to a RabbitMQ server and declares a queue.
 
@@ -18,6 +18,7 @@ def connect_rabbitmq(queue_name: str = None):
 
     Args:
         queue_name (str): The name of the RabbitMQ queue to declare.
+        heartbeat (int): The heartbeat timeout in seconds for the RabbitMQ connection.
 
     Returns:
         tuple: A tuple containing the RabbitMQ connection and channel objects 
@@ -30,7 +31,7 @@ def connect_rabbitmq(queue_name: str = None):
     """
     for i in range(10):
         try:
-            connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitmq", heartbeat=30))
+            connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitmq", heartbeat=heartbeat))
             channel = connection.channel()
             if queue_name:
                 channel.queue_declare(queue=queue_name, durable=True)

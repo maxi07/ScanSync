@@ -5,6 +5,7 @@ from shared.ProcessItem import ItemType, ProcessItem, ProcessStatus
 from PIL import Image
 from pypdf import PdfReader
 import pika
+import pika.exceptions
 from shared.sqlite_wrapper import execute_query, update_scanneddata_database
 from shared.helpers import connect_rabbitmq
 from shared.config import config
@@ -13,6 +14,7 @@ import pickle
 
 SCAN_DIR = config.get("smb.path")
 RABBITQUEUE = "ocr_queue"
+TIMEOUT_PDF_VALIDATION = 180
 
 logger.info("Starting detection service...")
 if not os.path.exists(SCAN_DIR):
@@ -51,12 +53,12 @@ def on_created(filepath: str):
         return
 
     # Test if file is PDF or image. if neither can be opened, wait five seconds and try again.
-    # Repeat this process until a maximum timeout of three minutes is reached
-    timeout = 180
+    # Repeat this process until a maximum TIMEOUT_PDF_VALIDATION of three minutes is reached
     start_time = time.time()
 
     logger.info(f"Gathering info about new file at {filepath}")
-    for i in range(timeout):
+    logger.info(f"Waiting for {filepath} to be a valid PDF or image file")
+    for i in range(TIMEOUT_PDF_VALIDATION):
         if is_pdf(filepath):
             item = ProcessItem(filepath, ItemType.PDF)
             break
@@ -64,9 +66,9 @@ def on_created(filepath: str):
             item = ProcessItem(filepath, ItemType.IMAGE)
             break
         else:
-            logger.debug(f"Waiting for {filepath} for another {int(round(timeout - (time.time() - start_time), 0))} seconds")
+            logger.debug(f"Waiting for {filepath} for another {int(round(TIMEOUT_PDF_VALIDATION - (time.time() - start_time), 0))} seconds")
             time.sleep(5)
-            if time.time() - start_time > timeout:
+            if time.time() - start_time > TIMEOUT_PDF_VALIDATION:
                 logger.warning(f"File {filepath} is neither a PDF or image file. Skipping.")
                 return
 
@@ -114,7 +116,7 @@ def on_created(filepath: str):
     update_scanneddata_database(item.db_id, {"file_status": item.status.value})
     channel.basic_publish(
                     exchange="",
-                    routing_key="ocr_queue",
+                    routing_key=RABBITQUEUE,
                     body=pickle.dumps(item),
                     properties=pika.BasicProperties(delivery_mode=2)
                 )
@@ -180,7 +182,7 @@ def get_all_files(directory):
 
 
 try:
-    connection, channel = connect_rabbitmq("ocr_queue")
+    connection, channel = connect_rabbitmq(RABBITQUEUE, heartbeat=TIMEOUT_PDF_VALIDATION)
 except Exception as e:
     logger.critical(f"Failed to connect to RabbitMQ: {e}")
     exit(1)
@@ -193,8 +195,28 @@ known_files = get_all_files(SCAN_DIR)
 
 while True:
     try:
-        connection.process_data_events(1)
-        # TODO: Check if the connection is still alive
+        try:
+            connection.process_data_events(1)
+        except (pika.exceptions.ConnectionClosedByBroker, pika.exceptions.StreamLostError, ConnectionResetError) as e:
+            logger.warning(f"RabbitMQ connection lost: {e}. Attempting to reconnect...")
+            try:
+                connection, channel = connect_rabbitmq(RABBITQUEUE, heartbeat=TIMEOUT_PDF_VALIDATION)
+                channel.queue_declare(queue=RABBITQUEUE, durable=True)
+                logger.info("Reconnected to RabbitMQ successfully.")
+            except Exception as reconnect_error:
+                logger.critical(f"Failed to reconnect to RabbitMQ: {reconnect_error}")
+                time.sleep(5)  # Wait before retrying
+        # Check if the connection is still alive
+        if connection.is_closed or channel.is_closed:
+            logger.warning("RabbitMQ connection or channel is closed. Attempting to reconnect...")
+            try:
+                connection, channel = connect_rabbitmq(RABBITQUEUE, heartbeat=TIMEOUT_PDF_VALIDATION)
+                channel.queue_declare(queue=RABBITQUEUE, durable=True)
+                logger.info("Reconnected to RabbitMQ successfully.")
+            except Exception as e:
+                logger.critical(f"Failed to reconnect to RabbitMQ: {e}")
+                time.sleep(5)  # Wait before retrying
+                continue
         current_files = get_all_files(SCAN_DIR)
 
         new_files = current_files - known_files

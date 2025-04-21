@@ -11,3 +11,4 @@ cov-report/
 shared/db/scansync.db
 */data
 logfile.log
+.vscode/settings.json
