@@ -12,8 +12,8 @@ def connect_rabbitmq(queue_name: str = None, heartbeat: int = 30):
     """
     Establishes a connection to a RabbitMQ server and declares a queue.
 
-    This function attempts to connect to a RabbitMQ server up to 10 times, 
-    with a 2-second delay between each attempt. If the connection is 
+    This function attempts to connect to a RabbitMQ server up to 10 times,
+    with a 2-second delay between each attempt. If the connection is
     successful, it declares a durable queue with the specified name.
 
     Args:
@@ -21,12 +21,12 @@ def connect_rabbitmq(queue_name: str = None, heartbeat: int = 30):
         heartbeat (int): The heartbeat timeout in seconds for the RabbitMQ connection.
 
     Returns:
-        tuple: A tuple containing the RabbitMQ connection and channel objects 
+        tuple: A tuple containing the RabbitMQ connection and channel objects
                if the connection is successful.
         None: If the connection could not be established after 10 attempts.
 
     Raises:
-        None: The function handles `socket.gaierror` and 
+        None: The function handles `socket.gaierror` and
               `pika.exceptions.AMQPConnectionError` internally.
     """
     for i in range(10):
