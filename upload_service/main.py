@@ -7,9 +7,12 @@ from shared.sqlite_wrapper import update_scanneddata_database
 from shared.onedrive_api import upload_small
 from shared.config import config
 import os
+import time
+import pika.exceptions
 
 logger.info("Starting Upload service...")
 SMB_PATH = config.get("smb.path")
+RABBITQUEUE = "upload_queue"
 
 
 def callback(ch, method, properties, body):
@@ -82,11 +85,20 @@ def start_processing(item: ProcessItem):
     update_scanneddata_database(item.db_id, {"file_status": item.status.value})
 
 
-try:
-    connection, channel = connect_rabbitmq(["upload_queue"])
-except Exception as e:
-    logger.critical(f"Couldn't connect to RabbitMQ: {e}")
-    exit(1)
-channel.basic_consume(queue="upload_queue", on_message_callback=callback)
-logger.info("Upload service ready!")
-channel.start_consuming()
+def start_consuming_with_reconnect():
+    while True:
+        try:
+            connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=600)
+            channel.basic_consume(queue=RABBITQUEUE, on_message_callback=callback)
+            logger.info("Upload service started, waiting for messages...")
+            channel.start_consuming()
+        except pika.exceptions.AMQPConnectionError as e:
+            logger.error(f"Connection lost: {e}. Reconnecting in 5 seconds...")
+            time.sleep(5)
+        except Exception as e:
+            logger.exception(f"Unexpected error: {e}. Restarting consumer...")
+            time.sleep(5)
+
+
+# Start the consumer with reconnect logic
+start_consuming_with_reconnect()

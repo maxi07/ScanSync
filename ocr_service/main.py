@@ -6,8 +6,11 @@ from shared.config import config
 import pickle
 import ocrmypdf
 from datetime import datetime
+import time
+import pika.exceptions
 
 logger.info("Starting OCR service...")
+RABBITQUEUE = "ocr_queue"
 
 
 def callback(ch, method, properties, body):
@@ -77,11 +80,20 @@ def start_processing(item: ProcessItem):
         return item
 
 
-try:
-    connection, channel = connect_rabbitmq(["ocr_queue"], heartbeat=300)
-except Exception as e:
-    logger.critical(f"Couldn't connect to RabbitMQ: {e}")
-    exit(1)
-channel.basic_consume(queue="ocr_queue", on_message_callback=callback)
-logger.info("OCR service ready!")
-channel.start_consuming()
+def start_consuming_with_reconnect():
+    while True:
+        try:
+            connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=600)
+            channel.basic_consume(queue=RABBITQUEUE, on_message_callback=callback)
+            logger.info("OCR service started, waiting for messages...")
+            channel.start_consuming()
+        except pika.exceptions.AMQPConnectionError as e:
+            logger.error(f"Connection lost: {e}. Reconnecting in 5 seconds...")
+            time.sleep(5)
+        except Exception as e:
+            logger.exception(f"Unexpected error: {e}. Restarting consumer...")
+            time.sleep(5)
+
+
+# Start the consumer with reconnect logic
+start_consuming_with_reconnect()

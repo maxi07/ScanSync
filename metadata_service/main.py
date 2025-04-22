@@ -14,7 +14,8 @@ import pymupdf
 import pickle
 
 RABBITQUEUE = "metadata_queue"
-TIMEOUT_PDF_VALIDATION = 180
+TIMEOUT_PDF_VALIDATION = 300
+channel, connection = None, None
 
 
 def on_created(filepath: str):
@@ -179,7 +180,21 @@ def callback(ch, method, properties, body):
         return
 
 
-connection, channel = connect_rabbitmq([RABBITQUEUE, "ocr_queue"], heartbeat=600)
-channel.basic_consume(queue=RABBITQUEUE, on_message_callback=callback)
-logger.info("Metadata service started, waiting for messages...")
-channel.start_consuming()
+def start_consuming_with_reconnect():
+    global channel, connection
+    while True:
+        try:
+            connection, channel = connect_rabbitmq([RABBITQUEUE, "ocr_queue"], heartbeat=600)
+            channel.basic_consume(queue=RABBITQUEUE, on_message_callback=callback)
+            logger.info("Metadata service started, waiting for messages...")
+            channel.start_consuming()
+        except pika.exceptions.AMQPConnectionError as e:
+            logger.error(f"Connection lost: {e}. Reconnecting in 5 seconds...")
+            time.sleep(5)
+        except Exception as e:
+            logger.exception(f"Unexpected error: {e}. Restarting consumer...")
+            time.sleep(5)
+
+
+# Start the consumer with reconnect logic
+start_consuming_with_reconnect()
