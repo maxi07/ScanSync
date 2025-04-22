@@ -31,4 +31,5 @@
 
 .card-img-top:hover {
     transform: scale(1.5);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
 }
