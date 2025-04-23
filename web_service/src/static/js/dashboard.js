@@ -119,6 +119,16 @@ function updateCard(updateData) {
         } else if (key === 'remote_filepath') {
             element.textContent = value;
             element.innerHTML += "<br>";
+        } else if (key === 'file_status') {
+            const status_icon = getStatusIcon(value);
+            const statusText = element.previousElementSibling;
+            if (statusText && statusText.tagName === 'SPAN') {
+                const newStatusText = `<i class="bi ${status_icon}"></i><strong> Status:</strong> `;
+                statusText.innerHTML = newStatusText;
+            } else {
+                console.warn("Parent element is not a <span> or does not exist for status icon update.");
+            }
+            element.textContent = value;
         } else {
             element.textContent = value;
         }
@@ -240,7 +250,8 @@ function addPdfCard(pdfData) {
     }
 
     var statusText = document.createElement('span');
-    statusText.innerHTML = `<i class="bi bi-hourglass"></i><strong> Status:</strong> `;
+    const status_icon = getStatusIcon(pdfData.file_status);
+    statusText.innerHTML = `<i class="bi ${status_icon}"></i><strong> Status:</strong> `;
     var statusSpan = document.createElement('span');
     statusSpan.id = pdfData.id + '_pdf_status';
     statusSpan.textContent = pdfData.file_status || "N/A";
@@ -271,4 +282,21 @@ function addPdfCard(pdfData) {
     var parentElement = document.getElementById('pdfs_grid');
     var firstChild = parentElement.firstChild;
     parentElement.insertBefore(colDiv, firstChild);
+}
+
+function getStatusIcon(file_status) {
+    const status = file_status?.toLowerCase() || "";
+    let status_icon = "bi-hourglass"; // Default icon
+
+    if (status.includes("pending")) {
+        status_icon = "bi-hourglass";
+    } else if (status.includes("processing")) {
+        status_icon = "bi-gear";
+    } else if (status.includes("completed")) {
+        status_icon = "bi-check-circle";
+    } else if (status.includes("failed")) {
+        status_icon = "bi-x-circle";
+    }
+
+    return status_icon;
 }

@@ -16,7 +16,6 @@ from routes.onedrive import onedrive_bp
 from shared.sqlite_wrapper import execute_query
 from shared.config import config
 
-
 logger.info("Starting web service...")
 
 app = Flask(__name__)

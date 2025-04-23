@@ -2,6 +2,7 @@ from flask import Blueprint, render_template
 from shared.logging import logger
 from shared.onedrive_settings import onedrive_settings
 from shared.onedrive_api import get_user_info, get_user_photo
+from shared.openai_settings import openai_settings
 
 settings_bp = Blueprint('settings', __name__)
 
@@ -16,6 +17,7 @@ def index():
     user_name = ""
     user_email = ""
     user_picture = ""
+    openai_key = ""
 
     try:
         client_id = onedrive_settings.client_id or ""
@@ -34,9 +36,20 @@ def index():
         else:
             logger.info("No user info available")
 
+    try:
+        res = openai_settings.api_key
+        if res:
+            logger.debug("Found OpenAI key")
+            openai_key = "x" * 40
+    except Exception:
+        logger.exception("Failed to retrieve OpenAI settings")
+        openai_key = ""
+        logger.info("No OpenAI key available")
+
     return render_template('settings.html',
                            client_id=client_id,
                            client_secret=client_secret,
                            user_name=user_name,
                            user_email=user_email,
-                           user_picture=user_picture,)
+                           user_picture=user_picture,
+                           openai_key=openai_key,)

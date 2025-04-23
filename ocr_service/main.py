@@ -2,7 +2,7 @@ from shared.logging import logger
 from shared.ProcessItem import ProcessItem, ProcessStatus, OCRStatus
 from shared.sqlite_wrapper import update_scanneddata_database
 from shared.helpers import connect_rabbitmq, forward_to_rabbitmq
-from shared.config import config
+from shared.openai_settings import openai_settings
 import pickle
 import ocrmypdf
 from datetime import datetime
@@ -61,10 +61,10 @@ def start_processing(item: ProcessItem):
     finally:
         item.time_ocr_finished = datetime.now()
         item.status = ProcessStatus.SYNC_PENDING
-        update_scanneddata_database(item.db_id, {"file_status": item.status.value, "file_name": item.filename})
 
         try:
-            if config.get("openai.enabled", False):
+            logger.debug(f"Checking if OpenAI key is set: {openai_settings.api_key}")
+            if openai_settings.api_key:
                 logger.info(f"Forwarding item {item.filename} to OpenAI service.")
                 item.status = ProcessStatus.FILENAME_PENDING
                 forward_to_rabbitmq("openai_queue", item)

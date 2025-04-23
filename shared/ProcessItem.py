@@ -18,7 +18,7 @@ class ProcessStatus(Enum):
     """
     OCR_PENDING = "OCR Pending"
     OCR = "OCR Processing"
-    FILENAME_PENDING = "Generating File Name"
+    FILENAME_PENDING = "Processing File Name"
     SYNC_PENDING = "Sync Pending"
     SYNC = "Syncing"
     COMPLETED = "Completed"
@@ -99,7 +99,7 @@ class ProcessItem:
         self.time_finished = None
         self.item_type = item_type
         self.ocr_status = OCRStatus.UNKNOWN
-        self.ocr_file = self.local_directory + "/" + self.filename_without_extension + "_OCR.pdf"
+        self.ocr_file = os.path.join(self.local_directory, self.filename_without_extension + "_OCR.pdf")
         self.db_id = None
         self.remote_folder_id = None
         self.remote_drive_id = None

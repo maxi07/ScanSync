@@ -6,3 +6,5 @@ msal==1.32.0
 gunicorn
 colorlog==6.9.0
 gevent
+openai==1.75.0
+pypdf==5.4.0

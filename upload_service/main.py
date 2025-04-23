@@ -34,10 +34,10 @@ def start_processing(item: ProcessItem):
     item.status = ProcessStatus.SYNC
     update_scanneddata_database(item.db_id, {"file_status": item.status.value})
     item.time_upload_started = datetime.now()
-    logger.info(f"Processing file for upload: {item.local_file_path}")
+    logger.info(f"Processing file for upload: {item.ocr_file}")
     res = upload_small(item)
     if res is False:
-        logger.error(f"Failed to upload {item.local_file_path}")
+        logger.error(f"Failed to upload {item.ocr_file}")
         item.status = ProcessStatus.SYNC_FAILED
 
         # Move failed document to failed folder

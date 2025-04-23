@@ -5,7 +5,6 @@ import pika.exceptions
 from shared.config import config
 from shared.logging import logger
 import os
-from flask import g
 import pika
 
 # Initialize RabbitMQ connection and channel globally
@@ -120,17 +119,6 @@ def notify_sse_clients(payload: dict, retry_count=0, max_retries=3):
             logger.error("Max retries reached. Failed to send update to SSE queue.")
     except Exception:
         logger.exception("Error sending update to SSE queue.")
-
-
-def get_db():
-    if 'db' not in g:
-        g.db = sqlite3.connect(
-            db_path,
-            detect_types=sqlite3.PARSE_DECLTYPES
-        )
-        g.db.row_factory = sqlite3.Row
-
-    return g.db
 
 
 db_path = config.get("db.path")

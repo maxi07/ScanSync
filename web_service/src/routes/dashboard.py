@@ -1,13 +1,26 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, g
 import math
 from shared.logging import logger
 from shared.helpers import format_time_difference
-from shared.sqlite_wrapper import get_db
 from shared.config import config
 from datetime import datetime
 import locale
+import sqlite3
+
 
 dashboard_bp = Blueprint('dashboard', __name__)
+db_path = config.get("db.path")
+
+
+def get_db():
+    if 'db' not in g:
+        g.db = sqlite3.connect(
+            db_path,
+            detect_types=sqlite3.PARSE_DECLTYPES
+        )
+        g.db.row_factory = sqlite3.Row
+
+    return g.db
 
 
 @dashboard_bp.route('/')

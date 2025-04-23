@@ -20,6 +20,7 @@ services:
       - ./ocr_service:/ocr_service
       - scans:/mnt/scans
       - ./shared:/ocr_service/shared
+      - data:/app/data
     working_dir: /ocr_service
     networks:
       - app-network
@@ -29,6 +30,25 @@ services:
     deploy:
       mode: replicated
       replicas: 2
+    command: ["python", "main.py"]
+
+  openai_service:
+    build: ./openai_service
+    restart: unless-stopped
+    volumes:
+      - ./openai_service:/openai_service
+      - scans:/mnt/scans
+      - ./shared:/openai_service/shared
+      - data:/app/data
+    working_dir: /openai_service
+    networks:
+      - app-network
+    depends_on:
+      - smb_service
+      - rabbitmq
+    deploy:
+      mode: replicated
+      replicas: 1
     command: ["python", "main.py"]
 
   detection_service:
@@ -90,7 +110,7 @@ services:
     ports:
       - 5001:5001
     environment:
-      - FLASK_ENV=production
+      - FLASK_ENV=development
     volumes:
       - ./web_service:/app  # TODO: Only for development!!
       - scans:/mnt/scans

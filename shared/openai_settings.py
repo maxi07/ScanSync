@@ -18,8 +18,10 @@ class OpenAISettings:
                     return cls(
                         settings.get('api_key')
                     )
+            else:
+                logger.warning("OpenAISettings file does not exist!")
         except Exception:
-            logger.exception("Error loading OneDriveSettings from file")
+            logger.exception("Error loading OpenAISettings from file")
         return cls()
 
     def save(self):
@@ -29,9 +31,23 @@ class OpenAISettings:
             }
             with open(OPENAI_SETTINGS_FILE, 'w') as file:
                 json.dump(settings, file)
-            logger.info("OneDriveSettings saved successfully")
+            logger.info("OpenAISettings saved successfully")
         except Exception:
-            logger.exception("Error saving OneDriveSettings")
+            logger.exception("Error saving OpenAISettings")
+
+    def delete(self):
+        try:
+            self.api_key = None
+            if os.path.exists(OPENAI_SETTINGS_FILE):
+                os.remove(OPENAI_SETTINGS_FILE)
+                logger.info("OpenAISettings deleted successfully")
+                return True
+            else:
+                logger.warning("OpenAISettings file does not exist")
+                return False
+        except Exception:
+            logger.exception("Error deleting OpenAISettings")
+            return False
 
 
 openai_settings = OpenAISettings.from_file()
