@@ -4,6 +4,7 @@ from shared.logging import logger
 from pypdf import PdfReader
 from shared.openai_settings import openai_settings
 import re
+from tenacity import Retrying, RetryError, stop_after_attempt, wait_random_exponential, retry_if_exception_type
 
 
 OPENAI_MODEL = "gpt-4.1-nano"
@@ -79,11 +80,22 @@ def generate_filename(item: ProcessItem) -> str:
     )
 
     try:
-        openai_filename = client.responses.create(
-            model=OPENAI_MODEL,
-            instructions="Identify a suitable filename for the following pdf content. Keep the language of the file name in the original language and do not add any other language. Avoid special characters. Do not add a file extension. Seperate words with a underscore. Have a maximum filename length of 50 characters.",
-            input=pdf_text,
+        # Retry logic for OpenAI API calls
+        retry_strategy = Retrying(
+            stop=stop_after_attempt(6),
+            wait=wait_random_exponential(multiplier=10, min=10, max=120),
+            retry=retry_if_exception_type(RateLimitError),
+            after=lambda retry_state: logger.warning(
+                f"Attempt nr {retry_state.attempt_number} failed with exception: {retry_state.outcome.exception()}, waited {round(retry_state.upcoming_sleep, 1)} seconds"
+            ),
         )
+        for attempt in retry_strategy:
+            with attempt:
+                openai_filename = client.responses.create(
+                    model=OPENAI_MODEL,
+                    instructions="Identify a suitable filename for the following pdf content. Keep the language of the file name in the original language and do not add any other language. Make the filename safe for SMB. Do not add a file extension. Seperate words with a underscore. Have a maximum filename length of 50 characters.",
+                    input=pdf_text,
+                )
         if openai_filename:
             logger.debug(f"Received OpenAI filename: {openai_filename.output_text}")
             sanitized_filename = validate_smb_filename(openai_filename.output_text)
@@ -95,8 +107,8 @@ def generate_filename(item: ProcessItem) -> str:
     except AuthenticationError:
         logger.warning("OpenAI key is invalid or wrong permissions set.")
         return item.filename_without_extension
-    except RateLimitError:
-        logger.warning("OpenAI rate limit reached! Either not enough credits or too many requests.")
+    except RetryError as retryerr:
+        logger.warning(f"OpenAI rate limit reached! Either not enough credits or too many requests. Tried {retryerr.last_attempt.attempt_number} times.")
         return item.filename_without_extension
     except Exception:
         logger.exception("An error occurred while creating a file name.")

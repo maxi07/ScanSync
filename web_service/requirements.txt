@@ -8,3 +8,4 @@ colorlog==6.9.0
 gevent
 openai==1.75.0
 pypdf==5.4.0
+tenacity==9.1.2
