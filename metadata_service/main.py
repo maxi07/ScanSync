@@ -53,26 +53,30 @@ def on_created(filepath: str):
     start_time = time.time()
 
     logger.info(f"Gathering info about new file at {filepath}")
+    item = ProcessItem(filepath, ItemType.UNKNOWN)
+    item.db_id = execute_query('INSERT INTO scanneddata (file_name, local_filepath) VALUES (?, ?)', (item.filename, item.local_directory_above), return_last_id=True)
+    logger.debug(f"Added {filepath} to database with id {item.db_id}")
+    update_scanneddata_database(item, {"file_status": item.status.value, "local_filepath": item.local_directory_above, "file_name": item.filename})
+
     logger.info(f"Waiting for {filepath} to be a valid PDF or image file")
     for i in range(TIMEOUT_PDF_VALIDATION):
         if is_pdf(filepath):
-            item = ProcessItem(filepath, ItemType.PDF)
+            item.item_type = ItemType.PDF
             break
         elif is_image(filepath):
-            item = ProcessItem(filepath, ItemType.IMAGE)
+            item.item_type = ItemType.IMAGE
             break
         else:
             logger.debug(f"Waiting for {filepath} for another {int(round(TIMEOUT_PDF_VALIDATION - (time.time() - start_time), 0))} seconds")
             time.sleep(5)
             if time.time() - start_time > TIMEOUT_PDF_VALIDATION:
                 logger.warning(f"File {filepath} is neither a PDF or image file. Skipping.")
+                item.status = ProcessStatus.INVALID_FILE
+                update_scanneddata_database(item, {"file_status": item.status.value})
                 return
 
-    # Add pdf to database
-    item.db_id = execute_query('INSERT INTO scanneddata (file_name, local_filepath) VALUES (?, ?)', (item.filename, item.local_directory_above), return_last_id=True)
-    logger.debug(f"Added {filepath} to database with id {item.db_id}")
     item.status = ProcessStatus.READING_METADATA
-    update_scanneddata_database(item, {"file_status": item.status.value, "local_filepath": item.local_directory_above, "file_name": item.filename})
+    update_scanneddata_database(item, {"file_status": item.status.value})
 
     # Generate preview image
     try:

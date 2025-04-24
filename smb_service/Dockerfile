@@ -1,5 +1,5 @@
 FROM alpine:latest
-
+ENV TZ=Europe/Berlin
 RUN apk add --no-cache samba samba-common-tools
 
 RUN adduser -D ocr && echo -e "ocr\nocr" | smbpasswd -a -s ocr && \

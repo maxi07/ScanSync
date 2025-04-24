@@ -1,5 +1,5 @@
 FROM python:3.13-slim
-
+ENV TZ=Europe/Berlin
 # Install ocrmypdf requirements
 RUN apt-get update && apt-get install -y \
     unpaper \

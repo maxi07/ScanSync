@@ -311,7 +311,7 @@ function addPdfCard(pdfData) {
     progressContainer.id = pdfData.id + '_progress_bar';
 
     const progressStep = pdfData.status_progressbar || 1;
-    const isFailed = pdfData.file_status?.toLowerCase().includes("failed") || pdfData.file_status?.toLowerCase().includes("deleted");
+    const isFailed = pdfData.file_status?.toLowerCase().includes("failed") || pdfData.file_status?.toLowerCase().includes("deleted") || pdfData.status_progressbar === -1;
     const isCompleted = pdfData.file_status?.toLowerCase().includes("completed");
 
     for (let i = 0; i < 5; i++) {

@@ -16,6 +16,7 @@ class ProcessStatus(Enum):
     SKIPPED: Item was skipped and not processed.
     SYNC_FAILED: Syncing the item to remote storage failed.
     """
+    FILE_NOT_READY = "File Not Ready"
     READING_METADATA = "Reading Metadata"
     OCR_PENDING = "OCR Pending"
     OCR = "OCR Processing"
@@ -26,12 +27,14 @@ class ProcessStatus(Enum):
     COMPLETED = "Completed"
     FAILED = "Failed"
     SKIPPED = "Skipped"
+    INVALID_FILE = "Invalid File"
     SYNC_FAILED = "Sync Failed"
 
 
 class StatusProgressBar:
     """Class to map ProcessStatus to progress bar values."""
     _progress_map = {
+        ProcessStatus.FILE_NOT_READY: 0,
         ProcessStatus.READING_METADATA: 1,
         ProcessStatus.OCR_PENDING: 1,
         ProcessStatus.OCR: 2,
@@ -42,6 +45,7 @@ class StatusProgressBar:
         ProcessStatus.COMPLETED: 5,
         ProcessStatus.FAILED: -1,
         ProcessStatus.SYNC_FAILED: -1,
+        ProcessStatus.INVALID_FILE: -1,
     }
 
     @classmethod
@@ -92,7 +96,7 @@ class ProcessItem:
     The __init__ method validates the input file and initializes all the
     processing metadata attributes.
     """
-    def __init__(self, local_file_path: str, item_type: ItemType, status: ProcessStatus = ProcessStatus.OCR_PENDING):
+    def __init__(self, local_file_path: str, item_type: ItemType, status: ProcessStatus = ProcessStatus.FILE_NOT_READY):
         try:
             self.local_file_path = local_file_path
             if not os.path.exists(local_file_path):

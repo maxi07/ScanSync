@@ -33,6 +33,7 @@ import pytest
     "filename . ",  # Punkt mit Leerzeichen
     "CON",  # Reservierter Name unter Windows
     "file.txt",  # mit Extension (wird nicht entfernt, aber evtl. relevant)
+    "support300_BE_no_votelnote</imagine>",  # HTML-Tag
 ])
 def test_validate_smb_filename(input_str):
     result = validate_smb_filename(input_str)

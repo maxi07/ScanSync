@@ -21,9 +21,9 @@ def callback(ch, method, properties, body):
         logger.info(f"Received PDF for OPENAI renaming: {item.filename}")
         new_filename = generate_filename(item)
         if new_filename:
+            os.rename(item.ocr_file, os.path.join(item.local_directory, new_filename + "_OCR.pdf"))
             item.filename_without_extension = new_filename
             item.filename = new_filename + ".pdf"
-            os.rename(item.ocr_file, os.path.join(item.local_directory, new_filename + "_OCR.pdf"))
             item.ocr_file = os.path.join(item.local_directory, new_filename + "_OCR.pdf")
             logger.info(f"Generated filename: {new_filename}")
         ch.basic_ack(delivery_tag=method.delivery_tag)

@@ -86,7 +86,9 @@ def generate_filename(item: ProcessItem) -> str:
         )
         if openai_filename:
             logger.debug(f"Received OpenAI filename: {openai_filename.output_text}")
-            return openai_filename.output_text
+            sanitized_filename = validate_smb_filename(openai_filename.output_text)
+            logger.debug(f"Sanitized OpenAI filename: {sanitized_filename}")
+            return sanitized_filename
         else:
             logger.warning("OpenAI key worked, but did not return any result.")
             return item.filename_without_extension

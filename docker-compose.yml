@@ -124,6 +124,8 @@ services:
     image: "rabbitmq:4.0.7-management"
     restart: unless-stopped
     container_name: "rabbitmq"
+    environment:
+      - TZ=Europe/Berlin
     ports:
       - "5672:5672"
       - "15672:15672"
