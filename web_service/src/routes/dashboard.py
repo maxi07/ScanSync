@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, g
 import math
 from shared.logging import logger
 from shared.helpers import format_time_difference
+from shared.ProcessItem import ProcessStatus
 from shared.config import config
 from datetime import datetime
 import locale
@@ -25,100 +26,70 @@ def get_db():
 
 @dashboard_bp.route('/')
 def index():
-    # access_token = get_access_token()
-    # if not access_token:
-    #     return redirect(url_for('login'))
-    # user_info = get_user_info(access_token)
-    # return f'Hallo, {user_info["displayName"]}! <br> <a href="/upload">Lade eine Datei hoch</a>'
     try:
         logger.info("Loading dashboard...")
         db = get_db()
         entries_per_page = 8
         try:
-            page = request.args.get('page', 1, type=int)  # Get pageination from url args
-            total_entries = db.execute('SELECT COUNT(*) FROM scanneddata').fetchone()[0]
-            total_pages = math.ceil(total_entries / entries_per_page)
+            page = request.args.get('page', 1, type=int)  # Get pagination from URL args
             offset = (page - 1) * entries_per_page
-            pdfs = db.execute(
-                'SELECT *, DATETIME(created, "localtime") AS local_created, DATETIME(modified, "localtime") AS local_modified FROM scanneddata '
-                'ORDER BY created DESC, id DESC '
-                'LIMIT :limit OFFSET :offset',
-                {'limit': entries_per_page, 'offset': offset}
-            ).fetchall()
-            logger.debug(f"Loaded {len(pdfs)} pdfs")
-        except Exception as e:
-            logger.exception(f"Error while loading pdfs: {e}")
+
+            # Single query to fetch all required data
+            query = '''
+                SELECT *,
+                       DATETIME(created, "localtime") AS local_created,
+                       DATETIME(modified, "localtime") AS local_modified,
+                       (SELECT COUNT(*) FROM scanneddata) AS total_entries,
+                       (SELECT COUNT(*) FROM scanneddata WHERE file_status = "Completed") AS processed_pdfs,
+                       (SELECT COUNT(*) FROM scanneddata WHERE LOWER(file_status) LIKE "%pending%") AS queued_pdfs,
+                       (SELECT DATETIME(created, "localtime") FROM scanneddata WHERE LOWER(file_status) LIKE "%pending%" ORDER BY created DESC LIMIT 1) AS latest_pending,
+                       (SELECT DATETIME(modified, "localtime") FROM scanneddata WHERE file_status = "Completed" ORDER BY modified DESC LIMIT 1) AS latest_completed
+                FROM scanneddata
+                ORDER BY created DESC, id DESC
+                LIMIT :limit OFFSET :offset
+            '''
+            result = db.execute(query, {'limit': entries_per_page, 'offset': offset}).fetchall()
+
+            # Extract data from the query result
+            if result:
+                pdfs = result
+                total_entries = result[0]['total_entries']
+                processed_pdfs = result[0]['processed_pdfs']
+                queued_pdfs = result[0]['queued_pdfs']
+                latest_timestamp_pending = result[0]['latest_pending']
+                latest_timestamp_completed = result[0]['latest_completed']
+            else:
+                pdfs = []
+                total_entries = 0
+                processed_pdfs = "Unknown"
+                queued_pdfs = "Unknown"
+                latest_timestamp_pending = None
+                latest_timestamp_completed = None
+
+            total_pages = math.ceil(total_entries / entries_per_page)
+
+            # Format timestamps
+            latest_timestamp_pending_string = (
+                "Updated " + format_time_difference(latest_timestamp_pending)
+                if latest_timestamp_pending else "Never"
+            )
+            latest_timestamp_completed_string = (
+                "Updated " + format_time_difference(latest_timestamp_completed)
+                if latest_timestamp_completed else "Never"
+            )
+        except (sqlite3.Error, Exception) as e:
+            logger.error(f"Error processing request: {e}")
             pdfs = []
-            total_pages = 1
-            page = 1
-
-        # Count total processed PDFs (with status completed)
-        try:
-            processed_pdfs = db.execute(
-                'SELECT COUNT(*) FROM scanneddata '
-                'WHERE file_status = "Completed"'
-                ).fetchone()[0]
-            logger.debug(f"Found {processed_pdfs} processed pdfs")
-        except Exception as e:
-            logger.exception(f"Error while counting processed pdfs: {e}")
+            total_entries = 0
             processed_pdfs = "Unknown"
-
-        # Count total queued PDFs (with status pending)
-        try:
-            queued_pdfs = db.execute(
-                'SELECT COUNT(*) FROM scanneddata '
-                'WHERE LOWER(file_status) LIKE "pending"'
-                ).fetchone()[0]
-            logger.debug(f"Found {queued_pdfs} queued pdfs")
-        except Exception as e:
-            logger.exception(f"Error while counting queued pdfs: {e}")
             queued_pdfs = "Unknown"
-
-        # Get the latest timestamp from the file_status=pending
-        try:
-            latest_timestamp_pending = db.execute(
-                'SELECT DATETIME(created, "localtime") FROM scanneddata '
-                'WHERE file_status = "Pending" '
-                'ORDER BY created DESC '
-                'LIMIT 1'
-                ).fetchone()
-            if latest_timestamp_pending is not None:
-                logger.debug(f"Found latest timestamp for pending documents: {latest_timestamp_pending[0]}")
-                latest_timestamp_pending_string = "Updated " + format_time_difference(latest_timestamp_pending[0])
-            else:
-                latest_timestamp_pending = db.execute(
-                    'SELECT DATETIME(modified, "localtime") FROM scanneddata '
-                    'WHERE file_status != "Pending" '
-                    'ORDER BY created DESC '
-                    'LIMIT 1'
-                ).fetchone()
-
-                if latest_timestamp_pending is None:
-                    latest_timestamp_pending_string = "Never"
-                else:
-                    latest_timestamp_pending_string = "Updated " + format_time_difference(latest_timestamp_pending[0])
-                logger.debug("No latest timestamp for pending documents found")
-        except Exception as e:
-            logger.exception(f"Error while getting latest pending timestamp: {e}")
             latest_timestamp_pending_string = "Unknown"
-
-        # Get the latest timestamp from the file_status=completed
-        try:
-            latest_timestamp_completed = db.execute(
-                'SELECT DATETIME(modified, "localtime") FROM scanneddata '
-                'WHERE file_status = "Completed" '
-                'ORDER BY modified DESC '
-                'LIMIT 1'
-                ).fetchone()
-            if latest_timestamp_completed is not None:
-                logger.debug(f"Found latest timestamp for synced documents: {latest_timestamp_completed[0]}")
-                latest_timestamp_completed_string = "Updated " + format_time_difference(latest_timestamp_completed[0])
-            else:
-                latest_timestamp_completed_string = "Never"
-                logger.debug("No latest timestamp for synced documents found")
-        except Exception as e:
-            logger.exception(f"Error while getting latest synced timestamp: {e}")
             latest_timestamp_completed_string = "Unknown"
+            total_pages = 0
+            page = 1
+            offset = 0
+            entries_per_page = 12
+            logger.exception(e)
 
         # Set the locale to the user's default
         locale.setlocale(locale.LC_TIME, '')
@@ -140,6 +111,23 @@ def index():
                 except Exception as ex:
                     logger.exception(f"Failed setting datetime for {pdf['id']}. {ex}")
 
+                try:
+                    status_progressbar = {
+                        ProcessStatus.READING_METADATA: 1,
+                        ProcessStatus.OCR_PENDING: 1,
+                        ProcessStatus.OCR: 2,
+                        ProcessStatus.FILENAME_PENDING: 2,
+                        ProcessStatus.FILENAME: 3,
+                        ProcessStatus.SYNC_PENDING: 3,
+                        ProcessStatus.SYNC: 4,
+                        ProcessStatus.COMPLETED: 5,
+                        ProcessStatus.FAILED: -1,
+                        ProcessStatus.SYNC_FAILED: -1,
+                    }
+                    pdf['status_progressbar'] = status_progressbar.get(ProcessStatus(pdf['file_status']), 1)
+                except Exception:
+                    logger.exception(f"Failed setting progressbar for {pdf['id']}.")
+
         return render_template('dashboard.html',
                                pdfs=pdfs_dicts,
                                total_pages=total_pages,
@@ -149,7 +137,7 @@ def index():
                                queued_pdfs=queued_pdfs,
                                processed_pdfs=processed_pdfs,
                                latest_timestamp_completed_string=latest_timestamp_completed_string,
-                               latest_timestamp_pending_string=latest_timestamp_pending_string)
+                               latest_timestamp_pending_string=latest_timestamp_pending_string,)
     except Exception as e:
         logger.exception(e)
         return render_template("dashboard.html",

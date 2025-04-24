@@ -257,6 +257,30 @@ function addPdfCard(pdfData) {
     statusSpan.textContent = pdfData.file_status || "N/A";
     statusSpan.innerHTML += brElement;
 
+    // Create segmented progress bar container
+    const progressContainer = document.createElement('div');
+    progressContainer.classList.add('progress-bar-wrapper');
+    progressContainer.id = pdfData.id + '_progress_bar';
+
+    const progressStep = pdfData.status_progressbar || 1;
+    const isFailed = pdfData.file_status?.toLowerCase().includes("failed") || pdfData.file_status?.toLowerCase().includes("deleted");
+    const isCompleted = pdfData.file_status?.toLowerCase().includes("completed");
+
+    for (let i = 0; i < 5; i++) {
+        const segment = document.createElement('div');
+        segment.classList.add('progress-segment');
+
+        if (isFailed) {
+            segment.classList.add('failed');
+        } else if (isCompleted) {
+            segment.classList.add('completed');
+        } else if (i < progressStep) {
+            segment.classList.add('active');
+        }
+
+        progressContainer.appendChild(segment);
+    }
+
     infoParagraph.appendChild(modifiedText);
     infoParagraph.appendChild(modifiedSpan);
     infoParagraph.appendChild(smbText);
@@ -271,6 +295,8 @@ function addPdfCard(pdfData) {
     cardDiv.appendChild(imageDiv);
     cardDiv.appendChild(bodyDiv);
 
+    // Append progress bar to container and then to card
+    cardDiv.appendChild(progressContainer);
     colDiv.appendChild(cardDiv);
 
     var pdfGrid = document.getElementById("pdfs_grid");
@@ -299,4 +325,26 @@ function getStatusIcon(file_status) {
     }
 
     return status_icon;
+}
+
+function updateProgressBar(pdfId, newStep) {
+    const progressBar = document.getElementById(`${pdfId}_progress_bar`);
+    if (!progressBar) return;
+
+    const segments = progressBar.querySelectorAll('.progress-segment');
+
+    // Clamp value to -1–5
+    const clampedStep = Math.max(-1, Math.min(5, newStep));
+
+    segments.forEach((segment, index) => {
+        segment.classList.remove('active', 'failed', 'completed');
+
+        if (clampedStep === -1) {
+            segment.classList.add('failed');
+        } else if (clampedStep === 5) {
+            segment.classList.add('completed');
+        } else if (index < clampedStep) {
+            segment.classList.add('active');
+        }
+    });
 }

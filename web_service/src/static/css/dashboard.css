@@ -17,6 +17,10 @@
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1); /* Add a light drop shadow */
 }
 
+.card p{
+    margin-bottom: 0rem;
+}
+
 .img-fluid {
     transition: transform 0.2s;
 }
@@ -32,4 +36,33 @@
 .card-img-top:hover {
     transform: scale(1.5);
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
+}
+
+.progress-bar-wrapper {
+    display: flex;
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    gap: 2px;
+    margin-bottom: 1px;
+  }
+  
+.progress-segment {
+flex: 1;
+background-color: #dee2e6;
+transition: background-color 0.3s;
+border-radius: 2px;
+}
+
+.progress-segment.active {
+background-color: #0d6efd; /* Bootstrap-Blau */
+}
+
+.progress-segment.failed {
+background-color: #dc3545; /* Bootstrap-Rot */
+}
+
+.progress-segment.completed {
+background-color: green; /* Bootstrap-Rot */
 }

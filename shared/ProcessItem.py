@@ -16,9 +16,11 @@ class ProcessStatus(Enum):
     SKIPPED: Item was skipped and not processed.
     SYNC_FAILED: Syncing the item to remote storage failed.
     """
+    READING_METADATA = "Reading Metadata"
     OCR_PENDING = "OCR Pending"
     OCR = "OCR Processing"
-    FILENAME_PENDING = "Processing File Name"
+    FILENAME_PENDING = "File Name Pending"
+    FILENAME = "File Name Processing"
     SYNC_PENDING = "Sync Pending"
     SYNC = "Syncing"
     COMPLETED = "Completed"
