@@ -28,12 +28,12 @@ document.addEventListener('DOMContentLoaded', function () {
 function updateDashboard(data) {
     console.log("Updating dashboard");
     // Find the dashboard
-    const queued_dashboard = document.getElementById('widget_queue_content');
-    queued_dashboard.innerText = data.pending_pdfs;
-    const processing_dashboard = document.getElementById('widget_processed_content');
-    processing_dashboard.innerText = data.processed_pdfs;
-    const timestamp_queued = document.getElementById('dashboard_latest_timestamp_pending_string');
-    timestamp_queued.innerText = data.pending_pdfs_latest_timestamp;
+    const processing_dashboard = document.getElementById('widget_processing_content');
+    processing_dashboard.innerText = data.processing_pdfs;
+    const processed_dashboard = document.getElementById('widget_processed_content');
+    processed_dashboard.innerText = data.processed_pdfs;
+    const timestamp_processing = document.getElementById('dashboard_latest_timestamp_processing_string');
+    timestamp_processing.innerText = data.latest_timestamp_processing_timestamp;
     const timestamp_processed = document.getElementById('dashboard_latest_timestamp_completed_string');
     timestamp_processed.innerText = data.processed_pdfs_latest_timestamp;
 }

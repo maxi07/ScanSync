@@ -37,13 +37,13 @@ def index():
             # Single query to fetch all required data
             query = '''
                 SELECT *,
-                       DATETIME(created, "localtime") AS local_created,
-                       DATETIME(modified, "localtime") AS local_modified,
+                       DATETIME(created) AS local_created,
+                       DATETIME(modified) AS local_modified,
                        (SELECT COUNT(*) FROM scanneddata) AS total_entries,
-                       (SELECT COUNT(*) FROM scanneddata WHERE file_status = "Completed") AS processed_pdfs,
-                       (SELECT COUNT(*) FROM scanneddata WHERE LOWER(file_status) LIKE "%pending%") AS queued_pdfs,
-                       (SELECT DATETIME(created, "localtime") FROM scanneddata WHERE LOWER(file_status) LIKE "%pending%" ORDER BY created DESC LIMIT 1) AS latest_pending,
-                       (SELECT DATETIME(modified, "localtime") FROM scanneddata WHERE file_status = "Completed" ORDER BY modified DESC LIMIT 1) AS latest_completed
+                       (SELECT COUNT(*) FROM scanneddata WHERE status_code = 5) AS processed_pdfs,
+                       (SELECT COUNT(*) FROM scanneddata WHERE status_code BETWEEN 0 AND 4) AS processing_pdfs,
+                       (SELECT DATETIME(created) FROM scanneddata WHERE status_code BETWEEN 0 AND 4 ORDER BY created DESC LIMIT 1) AS latest_processing,
+                       (SELECT DATETIME(modified) FROM scanneddata WHERE status_code = 5 ORDER BY modified DESC LIMIT 1) AS latest_completed
                 FROM scanneddata
                 ORDER BY created DESC, id DESC
                 LIMIT :limit OFFSET :offset
@@ -55,23 +55,26 @@ def index():
                 pdfs = result
                 total_entries = result[0]['total_entries']
                 processed_pdfs = result[0]['processed_pdfs']
-                queued_pdfs = result[0]['queued_pdfs']
-                latest_timestamp_pending = result[0]['latest_pending']
+                processing_pdfs = result[0]['processing_pdfs']
+                latest_timestamp_processing = result[0]['latest_processing']
                 latest_timestamp_completed = result[0]['latest_completed']
             else:
                 pdfs = []
                 total_entries = 0
                 processed_pdfs = "Unknown"
-                queued_pdfs = "Unknown"
-                latest_timestamp_pending = None
+                processing_pdfs = "Unknown"
+                latest_timestamp_processing = None
                 latest_timestamp_completed = None
 
             total_pages = math.ceil(total_entries / entries_per_page)
 
+            if not latest_timestamp_processing:
+                latest_timestamp_processing = latest_timestamp_completed
+
             # Format timestamps
-            latest_timestamp_pending_string = (
-                "Updated " + format_time_difference(latest_timestamp_pending)
-                if latest_timestamp_pending else "Never"
+            latest_timestamp_processing_string = (
+                "Updated " + format_time_difference(latest_timestamp_processing)
+                if latest_timestamp_processing else "Never"
             )
             latest_timestamp_completed_string = (
                 "Updated " + format_time_difference(latest_timestamp_completed)
@@ -82,8 +85,8 @@ def index():
             pdfs = []
             total_entries = 0
             processed_pdfs = "Unknown"
-            queued_pdfs = "Unknown"
-            latest_timestamp_pending_string = "Unknown"
+            processing_pdfs = "Unknown"
+            latest_timestamp_processing_string = "Unknown"
             latest_timestamp_completed_string = "Unknown"
             total_pages = 0
             page = 1
@@ -122,10 +125,10 @@ def index():
                                page=page,
                                first_use=first_use,
                                entries_per_page=entries_per_page,
-                               queued_pdfs=queued_pdfs,
+                               processing_pdfs=processing_pdfs,
                                processed_pdfs=processed_pdfs,
                                latest_timestamp_completed_string=latest_timestamp_completed_string,
-                               latest_timestamp_pending_string=latest_timestamp_pending_string,)
+                               latest_timestamp_processing_string=latest_timestamp_processing_string,)
     except Exception as e:
         logger.exception(e)
         return render_template("dashboard.html",
@@ -134,7 +137,7 @@ def index():
                                page=1,
                                first_use=False,
                                entries_per_page=12,
-                               queued_pdfs="Unknown",
+                               processing_pdfs="Unknown",
                                processed_pdfs="Unknown",
-                               latest_timestamp_pending_string="Unknown",
+                               latest_timestamp_processing_string="Unknown",
                                latest_timestamp_completed_string="Unknown")

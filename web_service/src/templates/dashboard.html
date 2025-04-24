@@ -11,17 +11,17 @@
             <div class="card-body">
                 <div class="row g-0">
                     <div class="col-md-8">
-                        <h5 class="card-title">Queued</h5>
-                        <p class="card-text" style="font-size: 2rem;" id="widget_queue_content">{{ queued_pdfs }}</p>
+                        <h5 class="card-title">Processing</h5>
+                        <p class="card-text" style="font-size: 2rem;" id="widget_processing_content">{{ processing_pdfs }}</p>
                     </div>
                     <div class="col-md-4 d-none d-md-block">
-                        <i class="img-fluid rounded-start bi-hourglass-top position-absolute dashboard-widget-icon"
-                            alt="Queue icon"></i>
+                        <i class="img-fluid rounded-start bi-gear position-absolute dashboard-widget-icon"
+                            alt="Processing icon"></i>
                     </div>
                 </div>
             </div>
             <div class="card-footer">
-                <small class="text-body-secondary" id="dashboard_latest_timestamp_pending_string">{{ latest_timestamp_pending_string }}</small>
+                <small class="text-body-secondary" id="dashboard_latest_timestamp_processing_string">{{ latest_timestamp_processing_string }}</small>
             </div>
         </div>
     </div>
@@ -31,11 +31,11 @@
             <div class="card-body">
                 <div class="row g-0">
                     <div class="col-md-8">
-                        <h5 class="card-title">Processed</h5>
+                        <h5 class="card-title">Completed</h5>
                         <p class="card-text" style="font-size: 2rem;" id="widget_processed_content">{{ processed_pdfs }}</p>
                     </div>
                     <div class="col-md-4 d-none d-md-block">
-                        <i class="img-fluid rounded-start bi-check2-square position-absolute dashboard-widget-icon"
+                        <i class="img-fluid rounded-start bi-check2-circle position-absolute dashboard-widget-icon"
                             alt="Processed icon"></i>
                     </div>
                 </div>

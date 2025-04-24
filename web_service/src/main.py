@@ -53,7 +53,6 @@ def rabbitmq_listener():
 
     def callback(ch, method, properties, body):
         global connected_clients
-        logger.warning(f"Connected clients: {connected_clients}")
         if connected_clients > 0:  # Nur wenn Clients verbunden sindd
             item: ProcessItem = pickle.loads(body)
             payload = dict(
@@ -81,30 +80,28 @@ def get_dashboard_info() -> dict:
     """Fetch dashboard information from the database using a single query."""
     try:
         query = """
-            SELECT
-                (SELECT COUNT(*) FROM scanneddata WHERE file_status = "Completed") AS completed_count,
-                (SELECT COUNT(*) FROM scanneddata WHERE LOWER(file_status) LIKE "pending") AS pending_count,
-                (SELECT DATETIME(created, "localtime") FROM scanneddata
-                 WHERE file_status = "Pending"
-                 ORDER BY created DESC LIMIT 1) AS latest_pending_timestamp,
-                (SELECT DATETIME(modified, "localtime") FROM scanneddata
-                 WHERE file_status = "Completed"
-                 ORDER BY modified DESC LIMIT 1) AS latest_completed_timestamp
+            SELECT *,
+                (SELECT COUNT(*) FROM scanneddata WHERE status_code = 5) AS processed_pdfs,
+                (SELECT COUNT(*) FROM scanneddata WHERE status_code BETWEEN 0 AND 4) AS processing_pdfs,
+                (SELECT DATETIME(created) FROM scanneddata WHERE status_code BETWEEN 0 AND 4 ORDER BY created DESC LIMIT 1) AS latest_processing,
+                (SELECT DATETIME(modified) FROM scanneddata WHERE status_code = 5 ORDER BY modified DESC LIMIT 1) AS latest_completed
+            FROM scanneddata
+            ORDER BY created DESC, id DESC
         """
         result = execute_query(query, fetchone=True)
-
-        processed_pdfs = result.get('completed_count', 0)
-        pending_pdfs = result.get('pending_count', 0)
-        latest_timestamp_pending = result.get('latest_pending_timestamp', None)
-        latest_timestamp_completed = result.get('latest_completed_timestamp', "Never")
-        if not latest_timestamp_pending:
-            latest_timestamp_pending = latest_timestamp_completed
+        logger.warning(result)
+        processed_pdfs = result.get('processed_pdfs', 0)
+        processing_pdfs = result.get('processing_pdfs', 0)
+        latest_timestamp_processing = result.get('latest_processing', None)
+        latest_timestamp_completed = result.get('latest_completed', "Never")
+        if not latest_timestamp_processing:
+            latest_timestamp_processing = latest_timestamp_completed
 
         # Convert timestamps into strings for web
-        if latest_timestamp_pending:
-            latest_timestamp_pending = "Updated " + format_time_difference(latest_timestamp_pending)
+        if latest_timestamp_processing:
+            latest_timestamp_processing = "Updated " + format_time_difference(latest_timestamp_processing)
         else:
-            latest_timestamp_pending = "Never"
+            latest_timestamp_processing = "Never"
 
         if latest_timestamp_completed:
             latest_timestamp_completed = "Updated " + format_time_difference(latest_timestamp_completed)
@@ -115,8 +112,8 @@ def get_dashboard_info() -> dict:
 
         return dict(
             processed_pdfs=processed_pdfs,
-            pending_pdfs=pending_pdfs,
-            pending_pdfs_latest_timestamp=latest_timestamp_pending,
+            processing_pdfs=processing_pdfs,
+            latest_timestamp_processing_timestamp=latest_timestamp_processing,
             processed_pdfs_latest_timestamp=latest_timestamp_completed
         )
     except Exception:
@@ -134,7 +131,7 @@ def inject_config():
     """Inject config values into templates."""
     try:
         failed_document_count = execute_query(
-            r"SELECT COUNT(*) AS count FROM scanneddata WHERE LOWER(file_status) LIKE '%failed%' OR LOWER(file_status) LIKE '%invalid%'",
+            r"SELECT COUNT(*) AS count FROM scanneddata WHERE status_code < 0",
             fetchone=True
         ).get('count', 0)
     except Exception:

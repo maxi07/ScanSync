@@ -4,7 +4,7 @@ import sqlite3
 import pika.exceptions
 from shared.config import config
 from shared.logging import logger
-from shared.ProcessItem import ProcessItem
+from shared.ProcessItem import ProcessItem, StatusProgressBar
 import os
 import pika
 
@@ -78,8 +78,8 @@ def update_scanneddata_database(item: ProcessItem, update_values: dict):
             set_clause = ', '.join(f'{key} = ?' for key in update_values.keys())
 
             # Update the scanneddata table
-            query = f'UPDATE scanneddata SET {set_clause}, modified = CURRENT_TIMESTAMP WHERE id = ?'
-            cursor.execute(query, (*update_values.values(), item.db_id))
+            query = f"UPDATE scanneddata SET {set_clause}, modified = DATETIME('now', 'localtime'), status_code = ? WHERE id = ?"
+            cursor.execute(query, (*update_values.values(), StatusProgressBar().get_progress(item.status), item.db_id))
             logger.debug(f"Updated database scanneddata for id {item.db_id} with values {update_values}")
 
             # Commit the changes and close the connection

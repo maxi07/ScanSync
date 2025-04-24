@@ -135,5 +135,4 @@ class ProcessItem:
 
         # PDF Status
         self.pdf_pages = 0
-        self.pdf_pages_processed = 0
         logger.debug(f"Created ProcessItem: {self.local_file_path}")
