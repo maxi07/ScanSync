@@ -31,7 +31,7 @@ def callback(ch, method, properties, body):
         logger.exception(f"Failed processing {item.filename} with openai.")
     finally:
         item.status = ProcessStatus.SYNC_PENDING
-        update_scanneddata_database(item.db_id, {"file_status": item.status.value})
+        update_scanneddata_database(item, {"file_status": item.status.value})
         forward_to_rabbitmq("upload_queue", item)
 
 

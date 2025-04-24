@@ -1,9 +1,10 @@
 from contextlib import contextmanager
-import json
+import pickle
 import sqlite3
 import pika.exceptions
 from shared.config import config
 from shared.logging import logger
+from shared.ProcessItem import ProcessItem
 import os
 import pika
 
@@ -58,7 +59,7 @@ def execute_query(query: str, params=(), fetchone=False, fetchall=False, return_
         logger.exception("Failed executing SQL query.")
 
 
-def update_scanneddata_database(id: int, update_values: dict):
+def update_scanneddata_database(item: ProcessItem, update_values: dict):
     """Updates the scanned data database table with new values for the given ID.
 
     Connects to the SQLite database, constructs a dynamic SQL query to update
@@ -71,19 +72,19 @@ def update_scanneddata_database(id: int, update_values: dict):
         with db_connection() as connection:
             # Create a cursor object
             cursor = connection.cursor()
-            logger.debug(f"Received values: {update_values} with keys {update_values.keys()} to update SQL db for id {id}")
+            logger.debug(f"Received values: {update_values} with keys {update_values.keys()} to update SQL db for id {item.db_id}")
 
             # Construct the SET part of the query dynamically based on the dictionary
             set_clause = ', '.join(f'{key} = ?' for key in update_values.keys())
 
             # Update the scanneddata table
             query = f'UPDATE scanneddata SET {set_clause}, modified = CURRENT_TIMESTAMP WHERE id = ?'
-            cursor.execute(query, (*update_values.values(), id))
-            logger.debug(f"Updated database scanneddata for id {id} with values {update_values}")
+            cursor.execute(query, (*update_values.values(), item.db_id))
+            logger.debug(f"Updated database scanneddata for id {item.db_id} with values {update_values}")
 
             # Commit the changes and close the connection
             connection.commit()
-            notify_sse_clients({'id': id, 'updated_fields': update_values})
+            notify_sse_clients(item)
     except Exception:
         logger.exception(f"Error updating database for id {id}.")
 
@@ -100,21 +101,20 @@ def initialize_rabbitmq():
         logger.exception("Failed to initialize RabbitMQ connection.")
 
 
-def notify_sse_clients(payload: dict, retry_count=0, max_retries=3):
+def notify_sse_clients(item: ProcessItem, retry_count=0, max_retries=3):
     try:
         if rabbit_channel is None or rabbit_connection is None or rabbit_connection.is_closed:
             initialize_rabbitmq()
         rabbit_channel.basic_publish(
             exchange='sse_updates_fanout',
             routing_key='',  # fanout ignores this
-            body=json.dumps(payload)
+            body=pickle.dumps(item),
         )
-        logger.debug(f"Sent update to SSE exchange: {payload}")
     except pika.exceptions.StreamLostError:
         if retry_count < max_retries:
             logger.warning(f"RabbitMQ connection lost. Retrying... Attempt {retry_count + 1}/{max_retries}")
             initialize_rabbitmq()
-            notify_sse_clients(payload, retry_count=retry_count + 1, max_retries=max_retries)
+            notify_sse_clients(item, retry_count=retry_count + 1, max_retries=max_retries)
         else:
             logger.error("Max retries reached. Failed to send update to SSE queue.")
     except Exception:

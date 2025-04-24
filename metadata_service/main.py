@@ -72,7 +72,7 @@ def on_created(filepath: str):
     item.db_id = execute_query('INSERT INTO scanneddata (file_name, local_filepath) VALUES (?, ?)', (item.filename, item.local_directory_above), return_last_id=True)
     logger.debug(f"Added {filepath} to database with id {item.db_id}")
     item.status = ProcessStatus.READING_METADATA
-    update_scanneddata_database(item.db_id, {"file_status": item.status.value, "local_filepath": item.local_directory_above, "file_name": item.filename})
+    update_scanneddata_database(item, {"file_status": item.status.value, "local_filepath": item.local_directory_above, "file_name": item.filename})
 
     # Generate preview image
     try:
@@ -83,7 +83,8 @@ def on_created(filepath: str):
             os.mkdir(preview_folder)
         previewimage_path = preview_folder + str(item.db_id) + '.jpg'
         pdf_to_jpeg(item.local_file_path, previewimage_path, 128, 50)
-        update_scanneddata_database(item.db_id, {'previewimage_path': "/static/images/pdfpreview/" + str(item.db_id) + ".jpg"})
+        item.preview_image_path = previewimage_path
+        update_scanneddata_database(item, {'previewimage_path': "/static/images/pdfpreview/" + str(item.db_id) + ".jpg"})
     except Exception as e:
         logger.exception(f"Error adding preview image to database: {e}")
 
@@ -98,7 +99,7 @@ def on_created(filepath: str):
         item.remote_drive_id = result.get("drive_id")
     else:
         logger.warning(f"Could not find remote destination for {item.local_directory_above}")
-    update_scanneddata_database(item.db_id, {'remote_filepath': item.remote_file_path})
+    update_scanneddata_database(item, {'remote_filepath': item.remote_file_path})
 
     # Read PDF file properties
     if item.item_type == ItemType.PDF:
@@ -106,11 +107,11 @@ def on_created(filepath: str):
             pdf_reader = PdfReader(item.local_file_path)
             item.pdf_pages = len(pdf_reader.pages)
             logger.debug(f"PDF file has {item.pdf_pages} pages to process")
-            update_scanneddata_database(item.db_id, {'pdf_pages': item.pdf_pages})
+            update_scanneddata_database(item, {'pdf_pages': item.pdf_pages})
         except Exception:
             logger.exception(f"Error reading PDF file: {item.local_file_path}")
     item.status = ProcessStatus.OCR_PENDING
-    update_scanneddata_database(item.db_id, {"file_status": item.status.value})
+    update_scanneddata_database(item, {"file_status": item.status.value})
     channel.basic_publish(
                     exchange="",
                     routing_key="ocr_queue",

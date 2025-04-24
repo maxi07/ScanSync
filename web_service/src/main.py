@@ -1,4 +1,5 @@
 import os
+import pickle
 import queue
 import json
 import threading
@@ -6,6 +7,7 @@ import time
 from flask import Flask, Response
 import sys
 sys.path.append('/app/src')
+from shared.ProcessItem import ProcessItem, StatusProgressBar
 from shared.helpers import connect_rabbitmq, format_time_difference
 from shared.logging import logger
 from routes.dashboard import dashboard_bp
@@ -52,7 +54,17 @@ def rabbitmq_listener():
     def callback(ch, method, properties, body):
         global connected_clients
         if connected_clients > 0:  # Nur wenn Clients verbunden sind
-            payload = json.loads(body.decode())
+            item: ProcessItem = pickle.loads(body)
+            payload = dict(
+                id=item.db_id,
+                file_name=item.filename,
+                status=item.status,
+                local_filepath=item.local_directory_above,
+                previewimage_path=item.preview_image_path,
+                remote_filepath=item.remote_file_path,
+                pdf_pages=item.pdf_pages,
+                status_progressbar=StatusProgressBar.get_progress(item.status),
+            )
             payload["dashboard_data"] = get_dashboard_info()  # Nur bei Bedarf abrufen
             sse_queue.put(json.dumps(payload))  # An verbundene Clients senden
             logger.debug(f"Received update from RabbitMQ: {payload}")

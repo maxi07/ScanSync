@@ -27,12 +27,12 @@ def callback(ch, method, properties, body):
     except Exception:
         logger.exception(f"Failed processing {body}.")
         item.status = ProcessStatus.SYNC_FAILED
-        update_scanneddata_database(item.db_id, {"file_status": item.status.value})
+        update_scanneddata_database(item, {"file_status": item.status.value})
 
 
 def start_processing(item: ProcessItem):
     item.status = ProcessStatus.SYNC
-    update_scanneddata_database(item.db_id, {"file_status": item.status.value})
+    update_scanneddata_database(item, {"file_status": item.status.value})
     item.time_upload_started = datetime.now()
     logger.info(f"Processing file for upload: {item.ocr_file}")
     res = upload_small(item)
@@ -82,7 +82,7 @@ def start_processing(item: ProcessItem):
             logger.exception(f"Failed to delete original file {item.local_file_path}")
 
         item.status = ProcessStatus.COMPLETED
-    update_scanneddata_database(item.db_id, {"file_status": item.status.value})
+    update_scanneddata_database(item, {"file_status": item.status.value})
 
 
 def start_consuming_with_reconnect():

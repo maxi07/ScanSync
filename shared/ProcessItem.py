@@ -29,6 +29,27 @@ class ProcessStatus(Enum):
     SYNC_FAILED = "Sync Failed"
 
 
+class StatusProgressBar:
+    """Class to map ProcessStatus to progress bar values."""
+    _progress_map = {
+        ProcessStatus.READING_METADATA: 1,
+        ProcessStatus.OCR_PENDING: 1,
+        ProcessStatus.OCR: 2,
+        ProcessStatus.FILENAME_PENDING: 2,
+        ProcessStatus.FILENAME: 3,
+        ProcessStatus.SYNC_PENDING: 3,
+        ProcessStatus.SYNC: 4,
+        ProcessStatus.COMPLETED: 5,
+        ProcessStatus.FAILED: -1,
+        ProcessStatus.SYNC_FAILED: -1,
+    }
+
+    @classmethod
+    def get_progress(cls, status: ProcessStatus) -> int:
+        """Get the progress bar value for a given ProcessStatus."""
+        return cls._progress_map.get(status, 0)  # Default to 0 if status is not found
+
+
 class OCRStatus(Enum):
     """Enumeration of possible OCR statuses.
 
@@ -105,6 +126,8 @@ class ProcessItem:
         self.db_id = None
         self.remote_folder_id = None
         self.remote_drive_id = None
+        self.preview_image_path = None
+        self.web_url = None
 
         # PDF Status
         self.pdf_pages = 0

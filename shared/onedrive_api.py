@@ -215,7 +215,8 @@ def upload_small(item: ProcessItem) -> bool:
             webUrl = response.json().get("webUrl")
             if webUrl:
                 logger.debug(f"File is accessible at {webUrl}")
-                update_scanneddata_database(item.db_id, {"web_url": webUrl, "remote_filepath": item.remote_file_path, "file_name": response.json().get("name", item.filename)})
+                item.web_url = webUrl
+                update_scanneddata_database(item, {"web_url": webUrl, "remote_filepath": item.remote_file_path, "file_name": response.json().get("name", item.filename)})
             return True
         else:
             logger.error(f"Failed to upload file: {response.status_code} - {response.text}")
@@ -286,7 +287,7 @@ def upload(item: ProcessItem) -> bool:
                     webUrl = chunk_response.json().get("webUrl")
                     if webUrl:
                         logger.debug(f"File is accessible at {webUrl}")
-                        update_scanneddata_database(item.db_id, {"web_url": webUrl, "remote_filepath": item.remote_file_path})
+                        update_scanneddata_database(item, {"web_url": webUrl, "remote_filepath": item.remote_file_path})
 
         logger.info(f"File {item.ocr_file} uploaded successfully to {item.remote_file_path}")
     except requests.exceptions.RequestException as e:

@@ -29,7 +29,7 @@ def callback(ch, method, properties, body):
 
 def start_processing(item: ProcessItem):
     item.status = ProcessStatus.OCR
-    update_scanneddata_database(item.db_id, {"file_status": item.status.value})
+    update_scanneddata_database(item, {"file_status": item.status.value})
     item.time_ocr_started = datetime.now()
 
     logger.info(f"Processing file with OCR: {item.local_file_path}")
@@ -76,7 +76,7 @@ def start_processing(item: ProcessItem):
             logger.error(f"Failed to forward item {item.filename} to the next service: {e}")
             item.status = ProcessStatus.FAILED
         finally:
-            update_scanneddata_database(item.db_id, {"file_status": item.status.value})
+            update_scanneddata_database(item, {"file_status": item.status.value})
         return item
 
 

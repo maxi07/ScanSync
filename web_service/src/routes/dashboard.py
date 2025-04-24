@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, g
 import math
 from shared.logging import logger
 from shared.helpers import format_time_difference
-from shared.ProcessItem import ProcessStatus
+from shared.ProcessItem import StatusProgressBar, ProcessStatus
 from shared.config import config
 from datetime import datetime
 import locale
@@ -112,19 +112,7 @@ def index():
                     logger.exception(f"Failed setting datetime for {pdf['id']}. {ex}")
 
                 try:
-                    status_progressbar = {
-                        ProcessStatus.READING_METADATA: 1,
-                        ProcessStatus.OCR_PENDING: 1,
-                        ProcessStatus.OCR: 2,
-                        ProcessStatus.FILENAME_PENDING: 2,
-                        ProcessStatus.FILENAME: 3,
-                        ProcessStatus.SYNC_PENDING: 3,
-                        ProcessStatus.SYNC: 4,
-                        ProcessStatus.COMPLETED: 5,
-                        ProcessStatus.FAILED: -1,
-                        ProcessStatus.SYNC_FAILED: -1,
-                    }
-                    pdf['status_progressbar'] = status_progressbar.get(ProcessStatus(pdf['file_status']), 1)
+                    pdf['status_progressbar'] = StatusProgressBar.get_progress(ProcessStatus(pdf['file_status']))
                 except Exception:
                     logger.exception(f"Failed setting progressbar for {pdf['id']}.")
 
