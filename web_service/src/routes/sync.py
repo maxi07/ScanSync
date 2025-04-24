@@ -19,14 +19,14 @@ def sync():
     # Get all failed uploads
     try:
         page_failed_pdfs = request.args.get('page_failed_pdfs', 1, type=int)  # Get pageination from url args
-        failed_query_count = r"SELECT COUNT(*) AS count FROM scanneddata WHERE LOWER(file_status) LIKE '%failed%' OR LOWER(file_status) LIKE '%invalid%'"
+        failed_query_count = r"SELECT COUNT(*) AS count FROM scanneddata WHERE status_code < 0 AND LOWER(file_status) NOT LIKE '%deleted%'"
         total_entries = execute_query(failed_query_count, fetchone=True).get('count', 0)
         entries_per_page = 20
         total_pages_failed_pdfs = math.ceil(total_entries / entries_per_page)
         offset = (page_failed_pdfs - 1) * entries_per_page
         failed_pdfs = execute_query(
-            'SELECT *, DATETIME(created, "localtime") AS local_created, DATETIME(modified, "localtime") AS local_modified FROM scanneddata '
-            'WHERE LOWER(file_status) LIKE "%failed%" OR LOWER(file_status) LIKE "%invalid%" '
+            'SELECT *, DATETIME(created) AS local_created, DATETIME(modified) AS local_modified FROM scanneddata '
+            'WHERE status_code < 0 AND LOWER(file_status) NOT LIKE "%deleted%" '
             'ORDER BY created DESC '
             'LIMIT ? OFFSET ?',
             (entries_per_page, offset), fetchall=True)

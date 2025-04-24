@@ -83,13 +83,12 @@ def get_dashboard_info() -> dict:
             SELECT *,
                 (SELECT COUNT(*) FROM scanneddata WHERE status_code = 5) AS processed_pdfs,
                 (SELECT COUNT(*) FROM scanneddata WHERE status_code BETWEEN 0 AND 4) AS processing_pdfs,
-                (SELECT DATETIME(created) FROM scanneddata WHERE status_code BETWEEN 0 AND 4 ORDER BY created DESC LIMIT 1) AS latest_processing,
+                (SELECT DATETIME(created) FROM scanneddata WHERE status_code < 5 ORDER BY created DESC LIMIT 1) AS latest_processing,
                 (SELECT DATETIME(modified) FROM scanneddata WHERE status_code = 5 ORDER BY modified DESC LIMIT 1) AS latest_completed
             FROM scanneddata
             ORDER BY created DESC, id DESC
         """
         result = execute_query(query, fetchone=True)
-        logger.warning(result)
         processed_pdfs = result.get('processed_pdfs', 0)
         processing_pdfs = result.get('processing_pdfs', 0)
         latest_timestamp_processing = result.get('latest_processing', None)
@@ -131,7 +130,7 @@ def inject_config():
     """Inject config values into templates."""
     try:
         failed_document_count = execute_query(
-            r"SELECT COUNT(*) AS count FROM scanneddata WHERE status_code < 0",
+            r"SELECT COUNT(*) AS count FROM scanneddata WHERE status_code < 0 AND LOWER(file_status) NOT LIKE '%deleted%'",
             fetchone=True
         ).get('count', 0)
     except Exception:
