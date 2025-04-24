@@ -15,8 +15,8 @@
                         <p class="card-text" style="font-size: 2rem;" id="widget_processing_content">{{ processing_pdfs }}</p>
                     </div>
                     <div class="col-md-4 d-none d-md-block">
-                        <i class="img-fluid rounded-start bi-gear position-absolute dashboard-widget-icon"
-                            alt="Processing icon"></i>
+                        <i class="img-fluid rounded-start bi-gear position-absolute dashboard-widget-icon{% if processing_pdfs and processing_pdfs > -1 %} rotating{% endif %}"
+                            alt="Processing icon" id="widget_processing_icon"></i>
                     </div>
                 </div>
             </div>

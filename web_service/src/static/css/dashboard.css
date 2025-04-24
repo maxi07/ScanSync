@@ -66,3 +66,16 @@ background-color: #dc3545; /* Bootstrap-Rot */
 .progress-segment.completed {
 background-color: green; /* Bootstrap-Rot */
 }
+
+.rotating {
+    animation: rotateIcon 10s linear infinite;
+}
+
+@keyframes rotateIcon {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}

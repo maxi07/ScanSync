@@ -30,6 +30,12 @@ function updateDashboard(data) {
     // Find the dashboard
     const processing_dashboard = document.getElementById('widget_processing_content');
     processing_dashboard.innerText = data.processing_pdfs;
+    const dashboard_widget_icon = document.getElementById('widget_processing_icon');
+    if (data.processing_pdfs > 0) {
+        dashboard_widget_icon.classList.add('rotating');
+    } else {
+        dashboard_widget_icon.classList.remove('rotating');
+    }
     const processed_dashboard = document.getElementById('widget_processed_content');
     processed_dashboard.innerText = data.processed_pdfs;
     const timestamp_processing = document.getElementById('dashboard_latest_timestamp_processing_string');
