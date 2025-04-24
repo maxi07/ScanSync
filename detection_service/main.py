@@ -1,9 +1,9 @@
 import os
 import time
-from shared.logging import logger
+from scansynclib.logging import logger
 import pika
-from shared.helpers import reconnect_rabbitmq, setup_rabbitmq_connection
-from shared.config import config
+from scansynclib.helpers import reconnect_rabbitmq, setup_rabbitmq_connection
+from scansynclib.config import config
 import json
 
 SCAN_DIR = config.get("smb.path")

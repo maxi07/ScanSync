@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template
-from shared.logging import logger
-from shared.onedrive_settings import onedrive_settings
-from shared.onedrive_api import get_user_info, get_user_photo
-from shared.openai_settings import openai_settings
+from scansynclib.logging import logger
+from scansynclib.onedrive_settings import onedrive_settings
+from scansynclib.onedrive_api import get_user_info, get_user_photo
+from scansynclib.openai_settings import openai_settings
 
 settings_bp = Blueprint('settings', __name__)
 

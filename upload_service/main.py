@@ -1,11 +1,11 @@
 from datetime import datetime
 import pickle
-from shared.ProcessItem import ProcessItem, ProcessStatus
-from shared.logging import logger
-from shared.helpers import connect_rabbitmq, move_to_failed
-from shared.sqlite_wrapper import update_scanneddata_database
-from shared.onedrive_api import upload_small
-from shared.config import config
+from scansynclib.ProcessItem import ProcessItem, ProcessStatus
+from scansynclib.logging import logger
+from scansynclib.helpers import connect_rabbitmq, move_to_failed
+from scansynclib.sqlite_wrapper import update_scanneddata_database
+from scansynclib.onedrive_api import upload_small
+from scansynclib.config import config
 import os
 import time
 import pika.exceptions

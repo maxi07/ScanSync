@@ -1,12 +1,12 @@
 import os
 import pickle
-from shared.ProcessItem import ProcessItem, ProcessStatus
-from shared.logging import logger
-from shared.helpers import connect_rabbitmq, forward_to_rabbitmq
+from scansynclib.ProcessItem import ProcessItem, ProcessStatus
+from scansynclib.logging import logger
+from scansynclib.helpers import connect_rabbitmq, forward_to_rabbitmq
 import time
 import pika.exceptions
-from shared.openai_helper import generate_filename
-from shared.sqlite_wrapper import update_scanneddata_database
+from scansynclib.openai_helper import generate_filename
+from scansynclib.sqlite_wrapper import update_scanneddata_database
 
 
 RABBITQUEUE = "openai_queue"

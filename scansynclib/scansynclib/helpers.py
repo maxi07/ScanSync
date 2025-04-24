@@ -4,10 +4,10 @@ import pickle
 import pika
 import socket
 import time
-from shared.ProcessItem import ProcessItem
-from shared.config import config
+from scansynclib.ProcessItem import ProcessItem
+from scansynclib.config import config
 import pika.exceptions
-from shared.logging import logger
+from scansynclib.logging import logger
 
 
 def connect_rabbitmq(queue_names: list = None, heartbeat: int = 30):

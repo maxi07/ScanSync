@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=79.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scansynclib"
+version = "0.1.0"
+description = "Shared helper library"
+dependencies = ["colorlog", "tenacity", "pika", "openai"]
+requires-python = ">=3.13"
+
+[tool.setuptools]
+packages = ["scansynclib"]
+
+[tool.setuptools.package-dir]
+"" = "."

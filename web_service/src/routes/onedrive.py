@@ -1,10 +1,10 @@
 import json
 import msal
 from flask import Blueprint, jsonify, request, redirect, session, url_for
-from shared.logging import logger
-from shared.helpers import to_bool
-from shared.onedrive_settings import onedrive_settings
-from shared.onedrive_api import save_token, get_user_info, get_user_root_drive_id, get_user_drive_items, get_user_shared_drive_items, fetch_graph_api_data
+from scansynclib.logging import logger
+from scansynclib.helpers import to_bool
+from scansynclib.onedrive_settings import onedrive_settings
+from scansynclib.onedrive_api import save_token, get_user_info, get_user_root_drive_id, get_user_drive_items, get_user_shared_drive_items, fetch_graph_api_data
 
 onedrive_bp = Blueprint('onedrive', __name__)
 

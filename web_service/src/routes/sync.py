@@ -1,10 +1,10 @@
 import os
 from flask import Blueprint, render_template, request, jsonify, send_file
-import shared.onedrive_smb_manager as onedrive_smb_manager
-from shared.logging import logger
+import scansynclib.onedrive_smb_manager as onedrive_smb_manager
+from scansynclib.logging import logger
 import math
-from shared.sqlite_wrapper import execute_query
-from shared.config import config
+from scansynclib.sqlite_wrapper import execute_query
+from scansynclib.config import config
 
 sync_bp = Blueprint('sync', __name__)
 

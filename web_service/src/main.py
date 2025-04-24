@@ -7,16 +7,16 @@ import time
 from flask import Flask, Response
 import sys
 sys.path.append('/app/src')
-from shared.ProcessItem import ProcessItem, StatusProgressBar
-from shared.helpers import connect_rabbitmq, format_time_difference
-from shared.logging import logger
+from scansynclib.ProcessItem import ProcessItem, StatusProgressBar
+from scansynclib.helpers import connect_rabbitmq, format_time_difference
+from scansynclib.logging import logger
 from routes.dashboard import dashboard_bp
 from routes.sync import sync_bp
 from routes.settings import settings_bp
 from routes.api import api_bp
 from routes.onedrive import onedrive_bp
-from shared.sqlite_wrapper import execute_query
-from shared.config import config
+from scansynclib.sqlite_wrapper import execute_query
+from scansynclib.config import config
 
 logger.info("Starting web service...")
 
@@ -29,7 +29,7 @@ app.register_blueprint(api_bp)
 app.register_blueprint(onedrive_bp)
 
 sse_queue = queue.Queue()
-connected_clients = 0  # Zähler für verbundene Clients
+connected_clients = 0
 
 
 def start_rabbitmq_listener():

@@ -1,8 +1,8 @@
-from shared.logging import logger
-from shared.ProcessItem import ProcessItem, ProcessStatus, OCRStatus
-from shared.sqlite_wrapper import update_scanneddata_database
-from shared.helpers import connect_rabbitmq, forward_to_rabbitmq
-from shared.openai_settings import openai_settings
+from scansynclib.logging import logger
+from scansynclib.ProcessItem import ProcessItem, ProcessStatus, OCRStatus
+from scansynclib.sqlite_wrapper import update_scanneddata_database
+from scansynclib.helpers import connect_rabbitmq, forward_to_rabbitmq
+from scansynclib.openai_settings import openai_settings
 import pickle
 import ocrmypdf
 from datetime import datetime

@@ -1,15 +1,15 @@
 import json
 import os
 import time
-from shared.logging import logger
-from shared.ProcessItem import ItemType, ProcessItem, ProcessStatus
+from scansynclib.logging import logger
+from scansynclib.ProcessItem import ItemType, ProcessItem, ProcessStatus
 from PIL import Image
 from pypdf import PdfReader
 import pika
 import pika.exceptions
-from shared.sqlite_wrapper import execute_query, update_scanneddata_database
-from shared.helpers import connect_rabbitmq, move_to_failed
-from shared.config import config
+from scansynclib.sqlite_wrapper import execute_query, update_scanneddata_database
+from scansynclib.helpers import connect_rabbitmq, move_to_failed
+from scansynclib.config import config
 import pymupdf
 import pickle
 
@@ -94,7 +94,7 @@ def on_created(filepath: str):
 
     # Generate preview image
     try:
-        preview_folder = "/shared/preview-images/"
+        preview_folder = "/app/preview-images/"
         logger.debug(f"Checking if {preview_folder} exists")
         if not os.path.exists(preview_folder):
             logger.debug(f"Creating folder {preview_folder}")

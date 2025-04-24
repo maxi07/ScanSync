@@ -1,13 +1,13 @@
-from shared.ProcessItem import ProcessItem
-from shared.logging import logger
+from scansynclib.ProcessItem import ProcessItem
+from scansynclib.logging import logger
 import json
 import os
 import time
 import msal
 import requests
 import base64
-from shared.onedrive_settings import onedrive_settings
-from shared.sqlite_wrapper import update_scanneddata_database
+from scansynclib.onedrive_settings import onedrive_settings
+from scansynclib.sqlite_wrapper import update_scanneddata_database
 
 TOKEN_FILE = '/app/data/token.json'
 USER_PROFILE_FILE = '/app/data/user_profile.json'

@@ -1,8 +1,8 @@
 from openai import OpenAI, AuthenticationError, RateLimitError
-from shared.ProcessItem import ProcessItem
-from shared.logging import logger
+from scansynclib.ProcessItem import ProcessItem
+from scansynclib.logging import logger
 from pypdf import PdfReader
-from shared.openai_settings import openai_settings
+from scansynclib.openai_settings import openai_settings
 import re
 from tenacity import Retrying, RetryError, stop_after_attempt, wait_random_exponential, retry_if_exception_type
 

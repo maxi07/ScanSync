@@ -47,8 +47,11 @@ RUN git clone https://github.com/agl/jbig2enc.git && \
     cd .. && rm -rf jbig2enc
 
 WORKDIR /app
-COPY requirements.txt .
+ENV CONFIG_PATH=/app/scansynclib/scansynclib/config.json
+COPY ocr_service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
+COPY ocr_service/ /app/
+COPY scansynclib/ /app/scansynclib/
+RUN pip install /app/scansynclib
 
 CMD ["python", "main.py"]

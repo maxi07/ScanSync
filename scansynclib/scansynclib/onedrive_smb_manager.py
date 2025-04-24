@@ -1,6 +1,6 @@
-from shared.sqlite_wrapper import execute_query
-from shared.logging import logger
-from shared.config import config
+from scansynclib.sqlite_wrapper import execute_query
+from scansynclib.logging import logger
+from scansynclib.config import config
 import os
 
 

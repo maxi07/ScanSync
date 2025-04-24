@@ -1,4 +1,4 @@
-from shared.openai_helper import validate_smb_filename
+from scansynclib.openai_helper import validate_smb_filename
 import pytest
 
 

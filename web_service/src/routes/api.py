@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
-from shared.logging import logger
-from shared.onedrive_settings import onedrive_settings
-from shared.openai_settings import openai_settings
-from shared.openai_helper import test_and_add_key
+from scansynclib.logging import logger
+from scansynclib.onedrive_settings import onedrive_settings
+from scansynclib.openai_settings import openai_settings
+from scansynclib.openai_helper import test_and_add_key
 
 
 api_bp = Blueprint('api', __name__)

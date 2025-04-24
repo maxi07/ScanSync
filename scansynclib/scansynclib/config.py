@@ -2,8 +2,9 @@ import json
 from pathlib import Path
 from typing import Any
 from os.path import expanduser, join
-from shared.logging import logger
+from scansynclib.logging import logger
 import fcntl
+import os
 
 
 class Config:
@@ -79,6 +80,6 @@ class Config:
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
 
-CONFIG_PATH = Path(__file__).resolve().parent.parent / 'shared' / 'config.json'
+CONFIG_PATH = Path(os.environ.get('CONFIG_PATH', '/app/scansynclib/scansynclib/config.json'))
 config = Config(str(CONFIG_PATH))
 logger.debug(f"Loaded {__name__} module")
