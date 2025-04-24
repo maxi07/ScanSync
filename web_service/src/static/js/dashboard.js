@@ -38,6 +38,7 @@ function updateDashboard(data) {
     timestamp_processed.innerText = data.processed_pdfs_latest_timestamp;
 }
 
+
 function updateCard(updateData) {
     const cardId = updateData.id + '_pdf_card';
     const cardElement = document.getElementById(cardId);
@@ -60,188 +61,126 @@ function updateCard(updateData) {
         }
     }
 
-    const fieldsMap = {
-        file_name: '_pdf_title',
-        file_status: '_pdf_status',
-        pdf_pages: '_pdf_pages_badge',
-        remote_filepath: '_pdf_cloud',
-        web_url: '_pdf_cloud',
-        local_filepath: '_pdf_smb',
-        previewimage_path: '_pdf_card_image',
-    };
-
-    // Update the card with new data
-    const elementId = updateData.id + fieldsMap[key];
-    const element = document.getElementById(elementId);
-
-    if (!element) {
-        console.warn(`Element with ID ${elementId} not found for key ${key}.`);
-        return;
-    }
-
     // Update Image
-    const imageDiv = document.getElementById(updateData.id + '_pdf_card_image');
-    if (!imageDiv) {
-        console.warn(`Image container with ID ${updateData.id}_pdf_card_image not found.`);
-    } else {
-        const existingImg = imageDiv.querySelector('img');
-        const existingSvg = imageDiv.querySelector('svg');
-        if (existingSvg) imageDiv.removeChild(existingSvg);
-        if (!existingImg) {
-            const imgElement = document.createElement('img');
-            imgElement.id = updateData.id + '_pdf_preview_image';
-            imgElement.classList.add('card-img-top', 'mx-auto');
-            imgElement.style.height = '128px';
-            imgElement.style.width = 'auto';
-            imgElement.alt = 'pdf preview';
-            imageDiv.appendChild(imgElement);
+    try {
+        if (updateData.previewimage_path && updateData.previewimage_path.trim() !== "") {
+            const imageDiv = document.getElementById(updateData.id + '_pdf_card_image');
+            if (!imageDiv) {
+                console.warn(`Image container with ID ${updateData.id}_pdf_card_image not found.`);
+            } else {
+                const existingImg = imageDiv.querySelector('img');
+                const existingSvg = imageDiv.querySelector('svg');
+                if (existingSvg) imageDiv.removeChild(existingSvg);
+                if (!existingImg) {
+                    const imgElement = document.createElement('img');
+                    imgElement.id = updateData.id + '_pdf_preview_image';
+                    imgElement.classList.add('card-img-top', 'mx-auto');
+                    imgElement.style.height = '128px';
+                    imgElement.style.width = 'auto';
+                    imgElement.alt = 'pdf preview';
+                    imageDiv.appendChild(imgElement);
+                }
+                document.getElementById(updateData.id + '_pdf_preview_image').src = updateData.previewimage_path;
+            }
         }
-        document.getElementById(updateData.id + '_pdf_preview_image').src = value;
+    } catch (error) {
+        console.error(`Error updating image: ${error.message}`);
     }
 
     // Update Cloud Link
-    if (!updateData.web_url || updateData.web_url.trim() === "") {
-        console.warn(`web_url is missing or empty for key ${key}.`);
-    } else {
-        const parent = element.parentElement;
-        if (parent && parent.tagName === 'SPAN') {
+    try {
+        if (updateData.web_url && updateData.web_url.trim() !== "") {
+            const element = document.getElementById(updateData.id + "_pdf_cloud");
             const cloudLink = document.createElement('a');
             cloudLink.id = updateData.id + '_pdf_cloud';
             cloudLink.href = updateData.web_url;
-            cloudLink.textContent = updateData.updated_fields.remote_filepath || "Link";
-            cloudLink.target = '_blank';
-            const brElement = document.createElement('br');
-            cloudLink.appendChild(brElement);
-            parent.replaceChild(cloudLink, element);
+            cloudLink.textContent = updateData.remote_filepath || "OneDrive";
+            cloudLink.innerHTML += "<br>";
+            cloudLink.target = '_blank'; // Open link in a new tab
+            element.innerHTML = ""; // Clear existing content
+            element.replaceWith(cloudLink);
         }
+    } catch (error) {
+        console.error(`Error updating cloud link: ${error.message}`);
     }
 
     // Update Local Filepath
-    if (!updateData.local_filepath || updateData.local_filepath.trim() === "") {
-        console.warn(`local_filepath is missing or empty for key ${key}.`);
-    } else {
-        element.textContent = updateData.local_filepath;
-        element.innerHTML += "<br>";
+    try {
+        if (updateData.local_filepath && updateData.local_filepath.trim() !== "") {
+            const element = document.getElementById(updateData.id + "_pdf_smb");
+            element.textContent = updateData.local_filepath;
+            element.innerHTML += "<br>";
+        }
+    } catch (error) {
+        console.error(`Error updating local filepath: ${error.message}`);
     }
 
     // Update Remote Filepath
-    if (!updateData.remote_filepath || updateData.remote_filepath.trim() === "") {
-        console.warn(`remote_filepath is missing or empty for key ${key}.`);
-    } else {
-        element.textContent = updateData.remote_filepath;
-        element.innerHTML += "<br>";
+    try {
+        if (updateData.remote_filepath && updateData.remote_filepath.trim() !== "") {
+            const element = document.getElementById(updateData.id + "_pdf_cloud");
+            element.textContent = updateData.remote_filepath;
+            element.innerHTML += "<br>";
+        }
+    } catch (error) {
+        console.error(`Error updating remote filepath: ${error.message}`);
     }
 
     // Update File Status
-    if (!updateData.file_status || updateData.file_status.trim() === "") {
-        console.warn(`file_status is missing or empty for key ${key}.`);
-    } else {
-        const status_icon = getStatusIcon(updateData.file_status);
-        const statusText = element.previousElementSibling;
-        if (statusText && statusText.tagName === 'SPAN') {
-            const newStatusText = `<i class="bi ${status_icon}"></i><strong> Status:</strong> `;
-            statusText.innerHTML = newStatusText;
-        } else {
-            console.warn("Parent element is not a <span> or does not exist for status icon update.");
+    try {
+        if (updateData.file_status && updateData.file_status.trim() !== "") {
+            const element = document.getElementById(updateData.id + "_pdf_status");
+            const status_icon = getStatusIcon(updateData.file_status);
+            const statusText = element.previousElementSibling;
+            if (statusText && statusText.tagName === 'SPAN') {
+                const newStatusText = `<i class="bi ${status_icon}"></i><strong> Status:</strong> `;
+                statusText.innerHTML = newStatusText;
+            } else {
+                console.warn("Parent element is not a <span> or does not exist for status icon update.");
+            }
+            element.textContent = updateData.file_status;
         }
-        element.textContent = updateData.file_status;
+    } catch (error) {
+        console.error(`Error updating file status: ${error.message}`);
     }
 
-    // Update file name
-    if (!updateData.file_name || updateData.file_name.trim() === "") {
-        console.warn(`file_name is missing or empty for key ${key}.`);
-    } else {
-        element.textContent = updateData.file_name;
+    // Update File Name
+    try {
+        if (updateData.file_name && updateData.file_name.trim() !== "") {
+            const element = document.getElementById(updateData.id + "_pdf_title");
+            element.textContent = updateData.file_name;
+        }
+    } catch (error) {
+        console.error(`Error updating file name: ${error.message}`);
     }
 
     // Update PDF Pages
-    if (!updateData.pdf_pages || updateData.pdf_pages.trim() === "") {
-        console.warn(`pdf_pages is missing or empty for key ${key}.`);
-    } else {
-        const badgeSpan = document.getElementById(updateData.id + '_pdf_pages_badge');
-        if (badgeSpan) {
-            badgeSpan.textContent = updateData.pdf_pages;
-        } else {
-            console.warn(`Badge span with ID ${updateData.id + '_pdf_pages_badge'} not found.`);
+    try {
+        if (updateData.pdf_pages) {
+            const badgeSpan = document.getElementById(updateData.id + '_pdf_pages_badge');
+            if (badgeSpan) {
+                badgeSpan.textContent = updateData.pdf_pages;
+            } else {
+                console.warn(`Badge span with ID ${updateData.id + '_pdf_pages_badge'} not found.`);
+            }
         }
+    } catch (error) {
+        console.error(`Error updating PDF pages: ${error.message}`);
     }
 
     // Update Progress Bar
-    if (updateData.status_progressbar) {
-        const progressBar = document.getElementById(`${updateData.id}_progress_bar`);
-        if (progressBar) {
-            updateProgressBar(updateData.id, updateData.status_progressbar);
-        } else {
-            console.warn(`Progress bar with ID ${updateData.id}_progress_bar not found.`);
+    try {
+        if (updateData.status_progressbar) {
+            const progressBar = document.getElementById(`${updateData.id}_progress_bar`);
+            if (progressBar) {
+                updateProgressBar(updateData.id, updateData.status_progressbar);
+            } else {
+                console.warn(`Progress bar with ID ${updateData.id}_progress_bar not found.`);
+            }
         }
+    } catch (error) {
+        console.error(`Error updating progress bar: ${error.message}`);
     }
-            
-    
-
-    
-
-    // Object.entries(updateData.updated_fields).forEach(([key, value]) => {
-    //     const elementId = updateData.id + fieldsMap[key];
-    //     const element = document.getElementById(elementId);
-
-    //     if (!element) {
-    //         console.warn(`Element with ID ${elementId} not found for key ${key}.`);
-    //         return;
-    //     }
-
-    //     if (key === 'previewimage_path') {
-    //         const imageDiv = document.getElementById(updateData.id + '_pdf_card_image');
-    //         if (!imageDiv) {
-    //             console.warn(`Image container with ID ${updateData.id}_pdf_card_image not found.`);
-    //             return;
-    //         }
-
-    //         const existingImg = imageDiv.querySelector('img');
-    //         const existingSvg = imageDiv.querySelector('svg');
-
-    //         if (existingSvg) imageDiv.removeChild(existingSvg);
-    //         if (!existingImg) {
-    //             const imgElement = document.createElement('img');
-    //             imgElement.id = updateData.id + '_pdf_preview_image';
-    //             imgElement.classList.add('card-img-top', 'mx-auto');
-    //             imgElement.style.height = '128px';
-    //             imgElement.style.width = 'auto';
-    //             imgElement.alt = 'pdf preview';
-    //             imageDiv.appendChild(imgElement);
-    //         }
-    //         document.getElementById(updateData.id + '_pdf_preview_image').src = value;
-    //     } else if (key === 'web_url') {
-    //         const parent = element.parentElement;
-    //         if (parent && parent.tagName === 'SPAN') {
-    //             const cloudLink = document.createElement('a');
-    //             cloudLink.id = updateData.id + '_pdf_cloud';
-    //             cloudLink.href = value;
-    //             cloudLink.textContent = updateData.updated_fields.remote_filepath || "Link";
-    //             cloudLink.target = '_blank';
-    //             const brElement = document.createElement('br');
-    //             cloudLink.appendChild(brElement);
-    //             parent.replaceChild(cloudLink, element);
-    //         }
-    //     } else if (key === 'local_filepath') {
-    //         element.textContent = value;
-    //         element.innerHTML += "<br>";
-    //     } else if (key === 'remote_filepath') {
-    //         element.textContent = value;
-    //         element.innerHTML += "<br>";
-    //     } else if (key === 'file_status') {
-    //         const status_icon = getStatusIcon(value);
-    //         const statusText = element.previousElementSibling;
-    //         if (statusText && statusText.tagName === 'SPAN') {
-    //             const newStatusText = `<i class="bi ${status_icon}"></i><strong> Status:</strong> `;
-    //             statusText.innerHTML = newStatusText;
-    //         } else {
-    //             console.warn("Parent element is not a <span> or does not exist for status icon update.");
-    //         }
-    //         element.textContent = value;
-    //     } else {
-    //         element.textContent = value;
-    //     }
-    // });
 
     // Update dashboard data
     if (updateData.dashboard_data) {
@@ -281,7 +220,7 @@ function addPdfCard(pdfData) {
     imgElement.alt = 'pdf preview';
 
     // Set image source conditionally
-    if (pdfData.previewimage_path) {
+    if (pdfData.previewimage_path && pdfData.previewimage_path.trim() !== "") {
         imgElement.src = pdfData.previewimage_path;
         imageDiv.appendChild(imgElement);
     } else {

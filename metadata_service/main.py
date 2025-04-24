@@ -83,8 +83,9 @@ def on_created(filepath: str):
             os.mkdir(preview_folder)
         previewimage_path = preview_folder + str(item.db_id) + '.jpg'
         pdf_to_jpeg(item.local_file_path, previewimage_path, 128, 50)
-        item.preview_image_path = previewimage_path
-        update_scanneddata_database(item, {'previewimage_path': "/static/images/pdfpreview/" + str(item.db_id) + ".jpg"})
+        web_path_previewimage = "/static/images/pdfpreview/" + str(item.db_id) + ".jpg"
+        item.preview_image_path = web_path_previewimage
+        update_scanneddata_database(item, {'previewimage_path': web_path_previewimage})
     except Exception as e:
         logger.exception(f"Error adding preview image to database: {e}")
 

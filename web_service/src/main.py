@@ -53,20 +53,22 @@ def rabbitmq_listener():
 
     def callback(ch, method, properties, body):
         global connected_clients
-        if connected_clients > 0:  # Nur wenn Clients verbunden sind
+        logger.warning(f"Connected clients: {connected_clients}")
+        if connected_clients > 0:  # Nur wenn Clients verbunden sindd
             item: ProcessItem = pickle.loads(body)
             payload = dict(
                 id=item.db_id,
                 file_name=item.filename,
-                status=item.status,
+                file_status=item.status.value,
                 local_filepath=item.local_directory_above,
                 previewimage_path=item.preview_image_path,
                 remote_filepath=item.remote_file_path,
-                pdf_pages=item.pdf_pages,
-                status_progressbar=StatusProgressBar.get_progress(item.status),
+                pdf_pages=int(item.pdf_pages) if item.pdf_pages is not None else 0,
+                status_progressbar=int(StatusProgressBar.get_progress(item.status)),
+                web_url=item.web_url,
             )
             payload["dashboard_data"] = get_dashboard_info()  # Nur bei Bedarf abrufen
-            sse_queue.put(json.dumps(payload))  # An verbundene Clients senden
+            sse_queue.put(json.dumps(payload, default=str))  # Ensure all objects are serializable
             logger.debug(f"Received update from RabbitMQ: {payload}")
         else:
             logger.debug("No connected clients. Skipping SSE queue update.")

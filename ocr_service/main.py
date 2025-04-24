@@ -63,7 +63,7 @@ def start_processing(item: ProcessItem):
         item.status = ProcessStatus.SYNC_PENDING
 
         try:
-            logger.debug(f"Checking if OpenAI key is set: {openai_settings.api_key}")
+            logger.debug("Checking if OpenAI key is set")
             if openai_settings.api_key:
                 logger.info(f"Forwarding item {item.filename} to OpenAI service.")
                 item.status = ProcessStatus.FILENAME_PENDING
