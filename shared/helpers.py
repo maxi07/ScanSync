@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
+import os
 import pickle
 import pika
 import socket
 import time
 from shared.ProcessItem import ProcessItem
+from shared.config import config
 import pika.exceptions
 from shared.logging import logger
 
@@ -133,3 +135,45 @@ def to_bool(value):
     if isinstance(value, str):
         return value.strip().lower() == "true"
     return bool(value)
+
+
+def move_to_failed(item: ProcessItem):
+    """
+    Moves a given item to the "failed" directory and performs cleanup operations.
+
+    This function attempts to move the file associated with the provided `ProcessItem`
+    to a designated "failed" directory. If the directory does not exist, it will be created.
+    Additionally, if an OCR file associated with the item exists, it will be deleted.
+
+    Args:
+        item (ProcessItem): The item to be moved to the "failed" directory. This object
+                            should have the attributes `local_file_path`, `filename`, 
+                            and `ocr_file`.
+
+    Raises:
+        - No exceptions are raised directly; all exceptions are logged.
+    """
+
+    SMB_PATH = config.get("smb.path")
+    failedDir = os.path.join(SMB_PATH, config.get("failedDir"))
+    if failedDir:
+        if not os.path.exists(failedDir):
+            try:
+                os.makedirs(failedDir)
+            except Exception:
+                logger.exception(f"Failed to create failed directory {failedDir}")
+        try:
+            os.rename(item.local_file_path, os.path.join(failedDir, os.path.basename(item.filename)))
+        except Exception:
+            logger.exception(f"Failed to move item {item.local_file_path} to failed directory {failedDir}")
+        logger.info(f"Moved {item.local_file_path} to {failedDir}")
+
+        # Delete OCR file if present
+        if os.path.exists(item.ocr_file):
+            try:
+                os.remove(item.ocr_file)
+                logger.info(f"Removed OCR file {item.ocr_file}")
+            except Exception:
+                logger.exception(f"Failed to remove OCR file {item.ocr_file}")
+    else:
+        logger.error("Failed directory not set in config. Skipping move.")

@@ -2,7 +2,7 @@ from datetime import datetime
 import pickle
 from shared.ProcessItem import ProcessItem, ProcessStatus
 from shared.logging import logger
-from shared.helpers import connect_rabbitmq
+from shared.helpers import connect_rabbitmq, move_to_failed
 from shared.sqlite_wrapper import update_scanneddata_database
 from shared.onedrive_api import upload_small
 from shared.config import config
@@ -11,7 +11,6 @@ import time
 import pika.exceptions
 
 logger.info("Starting Upload service...")
-SMB_PATH = config.get("smb.path")
 RABBITQUEUE = "upload_queue"
 
 
@@ -39,30 +38,7 @@ def start_processing(item: ProcessItem):
     if res is False:
         logger.error(f"Failed to upload {item.ocr_file}")
         item.status = ProcessStatus.SYNC_FAILED
-
-        # Move failed document to failed folder
-        failedDir = os.path.join(SMB_PATH, config.get("failedDir"))
-        if failedDir:
-            if not os.path.exists(failedDir):
-                try:
-                    os.makedirs(failedDir)
-                except Exception:
-                    logger.exception(f"Failed to create failed directory {failedDir}")
-            try:
-                os.rename(item.local_file_path, os.path.join(failedDir, os.path.basename(item.filename)))
-            except Exception:
-                logger.exception(f"Failed to move item {item.local_file_path} to failed directory {failedDir}")
-            logger.info(f"Moved {item.local_file_path} to {failedDir}")
-
-            # Delete OCR file if present
-            if os.path.exists(item.ocr_file):
-                try:
-                    os.remove(item.ocr_file)
-                    logger.info(f"Removed OCR file {item.ocr_file}")
-                except Exception:
-                    logger.exception(f"Failed to remove OCR file {item.ocr_file}")
-        else:
-            logger.warning("Failed directory not set in config. Skipping move.")
+        move_to_failed(item)
     else:
         logger.info(f"Upload completed: {item.local_file_path}")
 

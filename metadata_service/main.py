@@ -8,7 +8,7 @@ from pypdf import PdfReader
 import pika
 import pika.exceptions
 from shared.sqlite_wrapper import execute_query, update_scanneddata_database
-from shared.helpers import connect_rabbitmq
+from shared.helpers import connect_rabbitmq, move_to_failed
 from shared.config import config
 import pymupdf
 import pickle
@@ -58,6 +58,19 @@ def on_created(filepath: str):
     logger.debug(f"Added {filepath} to database with id {item.db_id}")
     update_scanneddata_database(item, {"file_status": item.status.value, "local_filepath": item.local_directory_above, "file_name": item.filename})
 
+    # Match a remote destination
+    query = "SELECT onedrive_path, folder_id, drive_id FROM smb_onedrive WHERE smb_name = ?"
+    params = (item.local_directory_above,)
+    result = execute_query(query, params, fetchone=True)
+    if result:
+        logger.debug(f"Found remote destination for {item.local_directory_above}: {result}")
+        item.remote_file_path = result.get("onedrive_path")
+        item.remote_folder_id = result.get("folder_id")
+        item.remote_drive_id = result.get("drive_id")
+    else:
+        logger.warning(f"Could not find remote destination for {item.local_directory_above}")
+    update_scanneddata_database(item, {'remote_filepath': item.remote_file_path})
+
     logger.info(f"Waiting for {filepath} to be a valid PDF or image file")
     for i in range(TIMEOUT_PDF_VALIDATION):
         if is_pdf(filepath):
@@ -73,6 +86,7 @@ def on_created(filepath: str):
                 logger.warning(f"File {filepath} is neither a PDF or image file. Skipping.")
                 item.status = ProcessStatus.INVALID_FILE
                 update_scanneddata_database(item, {"file_status": item.status.value})
+                move_to_failed(item)
                 return
 
     item.status = ProcessStatus.READING_METADATA
@@ -92,19 +106,6 @@ def on_created(filepath: str):
         update_scanneddata_database(item, {'previewimage_path': web_path_previewimage})
     except Exception as e:
         logger.exception(f"Error adding preview image to database: {e}")
-
-    # Match a remote destination
-    query = "SELECT onedrive_path, folder_id, drive_id FROM smb_onedrive WHERE smb_name = ?"
-    params = (item.local_directory_above,)
-    result = execute_query(query, params, fetchone=True)
-    if result:
-        logger.debug(f"Found remote destination for {item.local_directory_above}: {result}")
-        item.remote_file_path = result.get("onedrive_path")
-        item.remote_folder_id = result.get("folder_id")
-        item.remote_drive_id = result.get("drive_id")
-    else:
-        logger.warning(f"Could not find remote destination for {item.local_directory_above}")
-    update_scanneddata_database(item, {'remote_filepath': item.remote_file_path})
 
     # Read PDF file properties
     if item.item_type == ItemType.PDF:

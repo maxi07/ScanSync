@@ -134,7 +134,7 @@ def inject_config():
     """Inject config values into templates."""
     try:
         failed_document_count = execute_query(
-            r"SELECT COUNT(*) AS count FROM scanneddata WHERE LOWER(file_status) LIKE '%failed%'",
+            r"SELECT COUNT(*) AS count FROM scanneddata WHERE LOWER(file_status) LIKE '%failed%' OR LOWER(file_status) LIKE '%invalid%'",
             fetchone=True
         ).get('count', 0)
     except Exception:

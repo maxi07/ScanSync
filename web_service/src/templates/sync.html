@@ -90,8 +90,13 @@
         <tbody>
             {% for item in failed_pdfs %}
             <tr id="{{ item.id }}_failedpdf_row">
-                <td class="d-none d-sm-table-cell"><img src="{{ item.previewimage_path }}" alt="Preview"
-                        class="img-fluid" style="max-width: 200px; height:30px;"></td>
+                <td class="d-none d-sm-table-cell">
+                    {% if item.previewimage_path %}
+                    <img src="{{ item.previewimage_path }}" alt="Preview" class="img-fluid" style="max-width: 200px; height:30px;">
+                    {% else %}
+                    <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 20px;"></i>
+                    {% endif %}
+                </td>
                 <td class="overflow-hidden">{{ item.file_name }}</td>
                 <td class="d-none d-sm-table-cell">{{ item.remote_filepath }}</td>
                 <td class="d-none d-sm-table-cell">{{ item.created }}</td>
