@@ -3,6 +3,7 @@ from scansynclib.logging import logger
 from scansynclib.onedrive_settings import onedrive_settings
 from scansynclib.openai_settings import openai_settings
 from scansynclib.openai_helper import test_and_add_key
+from scansynclib.sqlite_wrapper import execute_query
 
 
 api_bp = Blueprint('api', __name__)
@@ -60,3 +61,37 @@ def delete_openai_settings():
         return jsonify({'message': 'Settings deleted successfully!'}), 200
     else:
         return jsonify({'error': 'Failed to delete settings'}), 500
+
+
+@api_bp.get('/api/status')
+def get_status():
+    logger.info("Received request to get status")
+    try:
+        query = """
+            SELECT *,
+                (SELECT COUNT(*) FROM scanneddata WHERE status_code = 5) AS processed_pdfs,
+                (SELECT COUNT(*) FROM scanneddata WHERE status_code BETWEEN 0 AND 4) AS processing_pdfs,
+                (SELECT DATETIME(created) FROM scanneddata WHERE status_code < 5 ORDER BY created DESC LIMIT 1) AS latest_processing_timestamp,
+                (SELECT DATETIME(modified) FROM scanneddata WHERE status_code = 5 ORDER BY modified DESC LIMIT 1) AS latest_completed_timestamp,
+                (SELECT file_name FROM scanneddata ORDER BY created DESC LIMIT 1) AS latest_created_name,
+                (SELECT status_code FROM scanneddata ORDER BY created DESC LIMIT 1) AS latest_created_status
+            FROM scanneddata
+            ORDER BY created DESC, id DESC
+        """
+        result = execute_query(query, fetchone=True)
+        if result:
+            response = {
+                'processed_pdfs': result.get('processed_pdfs', 0),
+                'processing_pdfs': result.get('processing_pdfs', 0),
+                'latest_processing_timestamp': result.get('latest_processing_timestamp', None),
+                'latest_completed_timestamp': result.get('latest_completed_timestamp', None),
+                'latest_created_name': result.get('latest_created_name', None),
+                'latest_created_status': result.get('latest_created_status', None)
+            }
+            return jsonify(response), 200
+        else:
+            return jsonify({'error': 'No data found'}), 404
+    except Exception as e:
+        err = f"Error fetching status: {e}"
+        logger.exception(err)
+        return jsonify({'error': err}), 500
