@@ -1,6 +1,6 @@
 import json
 import os
-from shared.logging import logger
+from scansynclib.logging import logger
 
 OPENAI_SETTINGS_FILE = '/app/data/openai_settings.json'
 

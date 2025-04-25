@@ -1,6 +1,6 @@
 import json
 import os
-from shared.logging import logger
+from scansynclib.logging import logger
 
 ONEDRIVE_SETTINGS_FILE = '/app/data/onedrive_settings.json'
 

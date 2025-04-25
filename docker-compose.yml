@@ -14,14 +14,13 @@ services:
       - app-network
 
   ocr_service:
-    build: ./ocr_service
+    build:
+      context: .
+      dockerfile: ocr_service/Dockerfile
     restart: unless-stopped
     volumes:
-      - ./ocr_service:/ocr_service
       - scans:/mnt/scans
-      - ./shared:/ocr_service/shared
       - data:/app/data
-    working_dir: /ocr_service
     networks:
       - app-network
     depends_on:
@@ -33,14 +32,13 @@ services:
     command: ["python", "main.py"]
 
   openai_service:
-    build: ./openai_service
+    build:
+      context: .
+      dockerfile: openai_service/Dockerfile
     restart: unless-stopped
     volumes:
-      - ./openai_service:/openai_service
       - scans:/mnt/scans
-      - ./shared:/openai_service/shared
       - data:/app/data
-    working_dir: /openai_service
     networks:
       - app-network
     depends_on:
@@ -52,14 +50,14 @@ services:
     command: ["python", "main.py"]
 
   detection_service:
-    build: ./detection_service
+    build:
+      context: .
+      dockerfile: detection_service/Dockerfile
     container_name: detection_service
     restart: unless-stopped
     volumes:
-      - ./detection_service:/detection_service
       - scans:/mnt/scans
-      - ./shared:/detection_service/shared
-    working_dir: /detection_service
+      - data:/app/data
     networks:
       - app-network
     depends_on:
@@ -68,14 +66,14 @@ services:
     command: ["python", "main.py"]
   
   metadata_service:
-    build: ./metadata_service
+    build:
+      context: .
+      dockerfile: metadata_service/Dockerfile
     restart: unless-stopped
     volumes:
-      - ./metadata_service:/metadata_service
       - scans:/mnt/scans
-      - ./shared:/metadata_service/shared
-      - preview-images:/shared/preview-images
-    working_dir: /metadata_service
+      - preview-images:/app/preview-images
+      - data:/app/data
     networks:
       - app-network
     depends_on:
@@ -87,15 +85,14 @@ services:
     command: ["python", "main.py"]
   
   upload_service:
-    build: ./upload_service
+    build:
+      context: .
+      dockerfile: upload_service/Dockerfile
     container_name: upload_service
     restart: unless-stopped
     volumes:
-      - ./upload_service:/upload_service
       - scans:/mnt/scans
-      - ./shared:/upload_service/shared
       - data:/app/data
-    working_dir: /upload_service
     networks:
       - app-network
     depends_on:
@@ -106,16 +103,17 @@ services:
   web_service:
     image: web_service
     restart: unless-stopped
-    build: ./web_service
+    build:
+      context: .
+      dockerfile: web_service/Dockerfile
     ports:
       - 5001:5001
     environment:
       - FLASK_ENV=development
     volumes:
-      - ./web_service:/app  # TODO: Only for development!!
+      - ./web_service/src:/app/src  # Only for development!!
       - scans:/mnt/scans
       - data:/app/data
-      - ./shared:/app/shared
       - preview-images:/app/src/static/images/pdfpreview
     networks:
       - app-network
@@ -139,7 +137,6 @@ services:
 
 volumes:
   scans:
-  shared:
   preview-images:
   data:
 

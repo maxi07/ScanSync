@@ -1,7 +1,7 @@
 from enum import Enum
 import os
 from datetime import datetime
-from shared.logging import logger
+from scansynclib.logging import logger
 
 
 class ProcessStatus(Enum):

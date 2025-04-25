@@ -1,10 +1,4 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const lottiePlayer = document.getElementById('welcome_lottie_player')
-    lottiePlayer.addEventListener("ready", function () {
-        const loadinglottieanimation = document.getElementById('waitingAnimationLottie');
-        loadinglottieanimation.style.display = 'none';
-    });
-
     console.log("Creating " + pdfsData.length + " pdf cards.");
     // Iterate over the PDF data and add cards dynamically
     pdfsData.forEach(function (pdfData) {
@@ -194,8 +188,25 @@ function updateCard(updateData) {
     }
 }
 
+// Check if its the very first element and remove welcome code
+function checkWelcome() {
+    const welcomeElement = document.getElementById('empty_dashboard');
+    if (welcomeElement) {
+        const parentElement = welcomeElement.parentNode;
+        if (parentElement) {
+            parentElement.removeChild(welcomeElement);
+            console.log("Removed welcome element");
+        } else {
+            console.warn("Parent element not found for welcome element.");
+        }
+    }
+}
+
 // Function to add a new PDF card
 function addPdfCard(pdfData) {
+    // Check for welcome element first
+    checkWelcome();
+
     // Create elements for the card
     var colDiv = document.createElement('div');
     colDiv.id = pdfData.id + '_col';

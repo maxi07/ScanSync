@@ -2,9 +2,9 @@ from contextlib import contextmanager
 import pickle
 import sqlite3
 import pika.exceptions
-from shared.config import config
-from shared.logging import logger
-from shared.ProcessItem import ProcessItem, StatusProgressBar
+from scansynclib.config import config
+from scansynclib.logging import logger
+from scansynclib.ProcessItem import ProcessItem, StatusProgressBar
 import os
 import pika
 
@@ -125,6 +125,11 @@ db_path = config.get("db.path")
 if not os.path.exists(db_path):
     logger.info("Initializing database...")
     with db_connection() as conn:
-        with open(config.get("db.schema"), "r") as f:
+        logger.debug(f"Creating database at {os.path.abspath(db_path)}")
+        schema_path = "scansynclib/scansynclib/db/schema.sql"
+        if not os.path.exists(schema_path):
+            logger.error(f"Schema file not found: {schema_path}")
+            raise FileNotFoundError(f"Schema file not found: {schema_path}")
+        with open(schema_path, "r") as f:
             conn.executescript(f.read())
     logger.info("Database initialized successfully.")

@@ -2,8 +2,7 @@
     "version": "0.1",
     "failedDir": "failed-documents",
     "db": {
-        "path": "shared/db/scansync.db",
-        "schema": "shared/db/schema.sql"
+        "path": "data/scansync.db"
     },
     "smb": {
         "path": "/mnt/scans",

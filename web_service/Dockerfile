@@ -13,13 +13,16 @@ WORKDIR /app
 
 # tzdata for setting timezone
 ENV TZ=Europe/Berlin
-
-COPY requirements.txt .
+ENV CONFIG_PATH=/app/scansynclib/scansynclib/config.json
+COPY web_service/requirements.txt .
 RUN apt-get update && apt-get install -y --no-install-recommends sqlite3 && rm -rf /var/lib/apt/lists/*
 RUN python -m pip install -r requirements.txt
-COPY . /app
-COPY entrypoint.sh /entrypoint.sh
+COPY web_service/ /app
+COPY scansynclib/ /app/scansynclib/
+COPY web_service/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+RUN pip install /app/scansynclib
+RUN test -d /app/scansynclib || (echo "scansynclib missing!" && exit 1)
 USER root
 
 ENTRYPOINT ["/entrypoint.sh"]

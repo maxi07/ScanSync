@@ -1,9 +1,9 @@
 from flask import Blueprint, render_template, request, g
 import math
-from shared.logging import logger
-from shared.helpers import format_time_difference
-from shared.ProcessItem import StatusProgressBar, ProcessStatus
-from shared.config import config
+from scansynclib.logging import logger
+from scansynclib.helpers import format_time_difference
+from scansynclib.ProcessItem import StatusProgressBar, ProcessStatus
+from scansynclib.config import config
 from datetime import datetime
 import locale
 import sqlite3
@@ -61,8 +61,8 @@ def index():
             else:
                 pdfs = []
                 total_entries = 0
-                processed_pdfs = "Unknown"
-                processing_pdfs = "Unknown"
+                processed_pdfs = 0
+                processing_pdfs = 0
                 latest_timestamp_processing = None
                 latest_timestamp_completed = None
 
@@ -84,8 +84,8 @@ def index():
             logger.error(f"Error processing request: {e}")
             pdfs = []
             total_entries = 0
-            processed_pdfs = "Unknown"
-            processing_pdfs = "Unknown"
+            processed_pdfs = 0
+            processing_pdfs = 0
             latest_timestamp_processing_string = "Unknown"
             latest_timestamp_completed_string = "Unknown"
             total_pages = 0
@@ -100,9 +100,6 @@ def index():
 
         # Convert sqlite3.Row objects to dictionaries
         pdfs_dicts = list(reversed([dict(pdf) for pdf in pdfs]))
-
-        # Get first use flag
-        first_use = bool(config.get("web_service.first_use", False))
 
         if len(pdfs_dicts) > 0:
             for pdf in pdfs_dicts:
@@ -123,7 +120,6 @@ def index():
                                pdfs=pdfs_dicts,
                                total_pages=total_pages,
                                page=page,
-                               first_use=first_use,
                                entries_per_page=entries_per_page,
                                processing_pdfs=processing_pdfs,
                                processed_pdfs=processed_pdfs,
@@ -135,9 +131,8 @@ def index():
                                pdfs=[],
                                total_pages=0,
                                page=1,
-                               first_use=False,
                                entries_per_page=12,
-                               processing_pdfs="Unknown",
-                               processed_pdfs="Unknown",
+                               processing_pdfs=0,
+                               processed_pdfs=0,
                                latest_timestamp_processing_string="Unknown",
                                latest_timestamp_completed_string="Unknown")
