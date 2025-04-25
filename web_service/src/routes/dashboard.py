@@ -101,9 +101,6 @@ def index():
         # Convert sqlite3.Row objects to dictionaries
         pdfs_dicts = list(reversed([dict(pdf) for pdf in pdfs]))
 
-        # Get first use flag
-        first_use = bool(config.get("web_service.first_use", False))
-
         if len(pdfs_dicts) > 0:
             for pdf in pdfs_dicts:
                 try:
@@ -123,7 +120,6 @@ def index():
                                pdfs=pdfs_dicts,
                                total_pages=total_pages,
                                page=page,
-                               first_use=first_use,
                                entries_per_page=entries_per_page,
                                processing_pdfs=processing_pdfs,
                                processed_pdfs=processed_pdfs,
@@ -135,7 +131,6 @@ def index():
                                pdfs=[],
                                total_pages=0,
                                page=1,
-                               first_use=False,
                                entries_per_page=12,
                                processing_pdfs=0,
                                processed_pdfs=0,
