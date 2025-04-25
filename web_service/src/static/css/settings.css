@@ -5,3 +5,34 @@
 .nav-tabs .nav-item .nav-link{
     color: white;
 }
+
+.carousel-caption {
+    background-color: white;
+    border-radius: 10px;
+    opacity: 0.8;
+}
+
+.carousel-caption p, 
+.carousel-caption a,
+.carousel-caption h5 {
+    color: black;
+}
+
+.carousel-caption p {
+    margin-left: 1rem;
+    margin-right: 1rem;
+}
+
+.carousel-indicators button {
+    background-color: black !important;
+}
+
+.carousel img {
+    border-radius: 10px;
+    transition: transform 0.5s ease;
+}
+
+.carousel img:hover {
+    transform: scale(1.3);
+    transition: transform 0.5s ease;
+}

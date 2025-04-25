@@ -75,34 +75,37 @@
         {% endif %}
 
         <!-- Numbered Pages -->
-        {% for page_num in range(1, total_pages + 1) if page - 5 <= page_num <=page + 5 %} <li
-            class="page-item {% if page_num == page %}active{% endif %}">
+        {% if total_pages > 1 %}
+        {% for page_num in range(1, total_pages + 1) if page - 5 <= page_num <=page + 5 %}
+        <li class="page-item {% if page_num == page %}active{% endif %}">
             <a class="page-link" href="?page={{ page_num }}">{{ page_num }}</a>
             </li>
-            {% endfor %}
+        {% endfor %}
+        {% endif %}
 
-            <!-- Next Button -->
-            {% if page != total_pages %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page + 1 }}" aria-label="Next">
-                    <span aria-hidden="true">&raquo;</span>
-                </a>
-            </li>
-            {% endif %}
+        <!-- Next Button -->
+        {% if page != total_pages %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page + 1 }}" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        </li>
+        {% endif %}
 
-            <!-- Last Page Button -->
-            {% if page != total_pages %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ total_pages }}" aria-label="Last">
-                    <span aria-hidden="true">&raquo;&raquo;</span>
-                </a>
-            </li>
+        <!-- Last Page Button -->
+        {% if page != total_pages %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ total_pages }}" aria-label="Last">
+                <span aria-hidden="true">&raquo;&raquo;</span>
+            </a>
+        </li>
         {% endif %}
 
     </ul>
 </nav>
 
 {% else %}
+{% if total_pages > 1 %}
 <div id="empty_dashboard" class="text-center">
     <h2>Welcome to PySyncOCR</h2>
     <p>Start by adding a new OneDrive connection from the Sync menu. Next, create your first SMB destination and map it
@@ -113,6 +116,9 @@
             style="width: 300px; height: 300px;" loop autoplay></dotlottie-player>
     </div>
 </div>
+{% else %}
+<p class="text-center">Nothing here to see! Please go <a href="/">back.</a></p>
+{% endif %}
 {% endif %}
 
 

@@ -42,10 +42,85 @@
                     <div id="collapseOne" class="accordion-collapse collapse {% if not user_name %}show{% endif %}"
                         data-bs-parent="#accordionInstructionsAzure">
                         <div class="accordion-body">
-                            To connect to OneDrive, you will need to create your own app registration on Microsoft
-                            Azure. This process is free of charge and only takes a few steps. After you followed the
-                            process, enter
-                            your app details here.
+                            <p>To connect to OneDrive, you will need to create your own app registration on Microsoft
+                                Azure. This process is free of charge and only takes a few steps. After you followed the
+                                process, entery our app details here.</p>
+                                <div id="carouselAzureCaptions" class="carousel slide">
+                                    <div class="carousel-indicators">
+                                      <button type="button" data-bs-target="#carouselAzureCaptions" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                                      <button type="button" data-bs-target="#carouselAzureCaptions" data-bs-slide-to="1" aria-label="Slide 2"></button>
+                                      <button type="button" data-bs-target="#carouselAzureCaptions" data-bs-slide-to="2" aria-label="Slide 3"></button>
+                                      <button type="button" data-bs-target="#carouselAzureCaptions" data-bs-slide-to="3" aria-label="Slide 4"></button>
+                                      <button type="button" data-bs-target="#carouselAzureCaptions" data-bs-slide-to="4" aria-label="Slide 5"></button>
+                                      <button type="button" data-bs-target="#carouselAzureCaptions" data-bs-slide-to="5" aria-label="Slide 6"></button>
+                                      <button type="button" data-bs-target="#carouselAzureCaptions" data-bs-slide-to="6" aria-label="Slide 7"></button>
+                                    </div>
+                                    <div class="carousel-inner">
+                                      <div class="carousel-item active">
+                                        <img src="static/images/tutorial-azure/1-login.png" class="d-block w-100" alt="Sign up for Microsoft Azure">
+                                        <div class="carousel-caption d-none d-md-block">
+                                          <h5>Sign Into your Azure Account</h5>
+                                          <p>Head to <a href="https://portal.azure.com">portal.azure.com</a> and sign up for a free account.</p>
+                                        </div>
+                                      </div>
+                                      <div class="carousel-item">
+                                        <img src="static/images/tutorial-azure/2-dashboard.png" class="d-block w-100" alt="Azure Dashboard">
+                                        <div class="carousel-caption d-none d-md-block">
+                                          <h5>Head to App Registrations</h5>
+                                          <p>This can also be found by using the search bar.</p>
+                                        </div>
+                                      </div>
+                                      <div class="carousel-item">
+                                        <img src="static/images/tutorial-azure/3-app-registration.png" class="d-block w-100" alt="Create a new app registration">
+                                        <div class="carousel-caption d-none d-md-block">
+                                          <h5>Create a new app registration</h5>
+                                          <p></p>
+                                        </div>
+                                      </div>
+                                      <div class="carousel-item">
+                                        <img src="static/images/tutorial-azure/4-app-registration.png" class="d-block w-100" alt="Enter details for the app registration">
+                                        <div class="carousel-caption d-none d-md-block">
+                                          <h5>Enter details for registration</h5>
+                                          <p>Give it any name, select <strong>Personal Microsoft accounts only</strong>.<br>Select <strong>Web</strong> as Redirect URI and enter <strong>http://localhost:5001/getAToken</strong>. Double check capitalization.</p>
+                                        </div>
+                                      </div>
+                                      <div class="carousel-item">
+                                        <img src="static/images/tutorial-azure/5-app-registration-dashboard.png" class="d-block w-100" alt="Get Application ID">
+                                        <div class="carousel-caption d-none d-md-block">
+                                          <h5>Get Application ID</h5>
+                                          <p>Take note of the Application (client) ID.</p>
+                                        </div>
+                                      </div>
+                                      <div class="carousel-item">
+                                        <img src="static/images/tutorial-azure/6-client-secret.png" class="d-block w-100" alt="Create Client Secret">
+                                        <div class="carousel-caption d-none d-md-block">
+                                          <h5>Create client secret</h5>
+                                          <p>Get to <strong>Certificates & secrets</strong>, click <strong>New client secret</strong>, give it a name and set expiry to maximum.</p>
+                                        </div>
+                                      </div>
+                                      <div class="carousel-item">
+                                        <img src="static/images/tutorial-azure/7-client-secret-result.png" class="d-block w-100" alt="Copy client secret">
+                                        <div class="carousel-caption d-none d-md-block">
+                                          <h5>Copy client secret</h5>
+                                          <p>Take note of client secret. Now fill the two copied values into the next step.</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <button class="carousel-control-prev" type="button" data-bs-target="#carouselAzureCaptions" data-bs-slide="prev">
+                                      <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                      <span class="visually-hidden">Previous</span>
+                                    </button>
+                                    <button class="carousel-control-next" type="button" data-bs-target="#carouselAzureCaptions" data-bs-slide="next">
+                                      <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                      <span class="visually-hidden">Next</span>
+                                    </button>
+                                </div>
+                                <p class="small text-muted">
+                                    Microsoft, Azure, and related logos are trademarks of the Microsoft Corporation. This web application is not affiliated with, endorsed by, or sponsored by Microsoft. For more information, please refer to the 
+                                    <a href="https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general" target="_blank" rel="noopener noreferrer">
+                                      Microsoft Trademark & Brand Guidelines
+                                    </a>.
+                                </p>
                         </div>
                     </div>
                 </div>
@@ -121,7 +196,7 @@
                 </div>
             </div>
         </div>
-        <div class="tab-pane" id="ocr-tabpanel" role="tabpanel" aria-labelledby="ocr-tab">No content yet..</div>
+        <div class="tab-pane" id="ocr-tabpanel" role="tabpanel" aria-labelledby="ocr-tab">OCR settings will be available in the future.</div>
         <div class="tab-pane" id="openai-tabpanel" role="tabpanel" aria-labelledby="openai-tab">
             <p>
                 Using OpenAI, we can add automatic file names to your scanned files. The content of the first page will be submitted
