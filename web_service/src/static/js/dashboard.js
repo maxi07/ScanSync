@@ -219,7 +219,7 @@ function addPdfCard(pdfData) {
 
     var imageDiv = document.createElement('div');
     imageDiv.id = pdfData.id + '_pdf_card_image';
-    imageDiv.classList.add('bg-light', 'text-center', 'p-3', 'rounded-top');
+    imageDiv.classList.add('bg-light', 'text-center', 'p-3', 'rounded-top', 'overflow-hidden');
 
     // Create badge span
     var badgeSpan = document.createElement('span');
