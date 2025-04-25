@@ -171,7 +171,7 @@ def stream():
 def favicon():
     """Serve the favicon."""
     prefers_dark = 'dark' in request.headers.get('User-Agent', '').lower()
-    favicon_file = 'PySyncOCR_logos_black.ico' if prefers_dark else 'PySyncOCR_logos_white.ico'
+    favicon_file = 'ScanSync_logo_black.ico' if prefers_dark else 'ScanSync_logo_white.ico'
     return send_from_directory(os.path.join(app.root_path, 'static/images'), favicon_file, mimetype="image/x-icon")
 
 
