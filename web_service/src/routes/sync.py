@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 from flask import Blueprint, render_template, request, jsonify, send_file
 import scansynclib.onedrive_smb_manager as onedrive_smb_manager
@@ -34,6 +35,13 @@ def sync():
     except Exception:
         logger.exception("Failed retrieving failed pdfs.")
         failed_pdfs = []
+
+    for smb_connection in smb_shares:
+        try:
+            datetime_created = datetime.strptime(smb_connection['created'], "%Y-%m-%d %H:%M:%S")
+            smb_connection['created'] = datetime_created.strftime('%d.%m.%Y %H:%M')
+        except Exception as ex:
+            logger.exception(f"Failed setting datetime for {smb_connection['id']}. {ex}")
     return render_template('sync.html',
                            smb_shares=smb_shares,
                            failed_pdfs=failed_pdfs,

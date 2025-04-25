@@ -37,7 +37,7 @@
                     <div style="word-break: break-all;">
                         <i class="bi bi-folder"></i>
                         {% if item.web_url %}
-                        <a href="{{ item.web_url }}" target="_blank" id="{{ item.id }}_remote_pathmapping">{{ item.onedrive_path }}</a>
+                        <a href="{{ item.web_url }}" title="Open in OneDrive" target="_blank" id="{{ item.id }}_remote_pathmapping">{{ item.onedrive_path }}</a>
                         {% else %}
                         <span id="{{ item.id }}_remote_pathmapping">{{ item.onedrive_path }}</span>
                         {% endif %}
