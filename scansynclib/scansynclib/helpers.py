@@ -148,7 +148,7 @@ def move_to_failed(item: ProcessItem):
 
     Args:
         item (ProcessItem): The item to be moved to the "failed" directory. This object
-                            should have the attributes `local_file_path`, `filename`, 
+                            should have the attributes `local_file_path`, `filename`,
                             and `ocr_file`.
 
     Raises:
