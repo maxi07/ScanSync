@@ -4,7 +4,7 @@ import queue
 import json
 import threading
 import time
-from flask import Flask, Response
+from flask import Flask, Response, request, send_from_directory
 import sys
 sys.path.append('/app/src')
 from scansynclib.ProcessItem import ProcessItem, StatusProgressBar
@@ -165,6 +165,14 @@ def stream():
             logger.info(f"Client disconnected. Total connected clients: {connected_clients}")
 
     return Response(event_stream(), mimetype="text/event-stream")
+
+
+@app.route("/favicon.ico")
+def favicon():
+    """Serve the favicon."""
+    prefers_dark = 'dark' in request.headers.get('User-Agent', '').lower()
+    favicon_file = 'PySyncOCR_logos_black.ico' if prefers_dark else 'PySyncOCR_logos_white.ico'
+    return send_from_directory(os.path.join(app.root_path, 'static/images'), favicon_file, mimetype="image/x-icon")
 
 
 start_rabbitmq_listener()
