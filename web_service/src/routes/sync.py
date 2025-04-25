@@ -5,6 +5,7 @@ from scansynclib.logging import logger
 import math
 from scansynclib.sqlite_wrapper import execute_query
 from scansynclib.config import config
+from scansynclib.helpers import validate_smb_filename
 
 sync_bp = Blueprint('sync', __name__)
 
@@ -63,6 +64,9 @@ def add_path_mapping():
     if not smb_name or not onedrive_path or not drive_id or not folder_id:
         logger.error("Missing required form data")
         return jsonify({'error': 'Missing required data'}), 400
+
+    # Validate SMB name
+    smb_name = validate_smb_filename(smb_name)
 
     if old_smb_id != -1:
         logger.debug(f"Editing existing SMB share with ID {old_smb_id}")

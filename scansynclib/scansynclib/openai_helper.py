@@ -3,8 +3,8 @@ from scansynclib.ProcessItem import ProcessItem
 from scansynclib.logging import logger
 from pypdf import PdfReader
 from scansynclib.openai_settings import openai_settings
-import re
 from tenacity import Retrying, RetryError, stop_after_attempt, wait_random_exponential, retry_if_exception_type
+from scansynclib.helpers import validate_smb_filename
 
 
 OPENAI_MODEL = "gpt-4.1-nano"
@@ -116,38 +116,6 @@ def generate_filename(item: ProcessItem) -> str:
     finally:
         # Close the OpenAI client connection
         client.close()
-
-
-def validate_smb_filename(filename: str) -> str:
-    """
-    Validates and adjusts a string to be a valid Windows SMB filename (without extension)
-    and ensures it is at most 50 characters long.
-
-    Parameters:
-    - filename (str): The input filename to validate.
-
-    Returns:
-    - str: A valid SMB filename.
-    """
-    # Remove invalid characters for Windows filenames
-    invalid_chars = r'[<>:"/\\|?*\x00-\x1F]'
-    filename = re.sub(invalid_chars, '', filename)
-
-    # Trim whitespace and dots before length cutoff
-    filename = filename.strip().strip('.')
-
-    # Ensure the filename is at most 50 characters
-    if len(filename) > 50:
-        filename = filename[:50]
-
-    # Final trim in case length cutoff introduced trailing space or dot
-    filename = filename.strip().strip('.')
-
-    # Ensure filename is not empty after sanitization
-    if not filename:
-        filename = "default_filename"
-
-    return filename
 
 
 def extract_text(pdf_path: str) -> str:

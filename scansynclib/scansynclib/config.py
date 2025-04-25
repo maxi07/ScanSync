@@ -80,6 +80,6 @@ class Config:
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
 
-CONFIG_PATH = Path(os.environ.get('CONFIG_PATH', '/app/scansynclib/scansynclib/config.json'))
+CONFIG_PATH = Path(os.environ.get('CONFIG_PATH', 'scansynclib/scansynclib/config.json'))
 config = Config(str(CONFIG_PATH))
 logger.debug(f"Loaded {__name__} module")

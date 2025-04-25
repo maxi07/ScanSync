@@ -1,4 +1,4 @@
-from scansynclib.openai_helper import validate_smb_filename
+from scansynclib.helpers import validate_smb_filename
 import pytest
 
 
@@ -38,21 +38,18 @@ import pytest
 def test_validate_smb_filename(input_str):
     result = validate_smb_filename(input_str)
 
-    # 1. Nicht leer
+    # 1. Not empty
     assert result != "", f"Result was unexpectedly empty for input: {input_str}"
 
-    # 2. Keine ungültigen Zeichen
+    # 2. No invalid chars
     assert not any(c in result for c in '<>:"/\\|?*'), f"Invalid chars still in result: {result}"
 
-    # 3. Keine Steuerzeichen
+    # 3. No special chars
     assert all('\x00' > c or c > '\x1F' for c in result), f"Control chars found in result: {result}"
 
-    # 4. Keine Punkte oder Leerzeichen am Anfang oder Ende
+    # 4. Check for invalid chars at beginning or end
     assert not result.startswith(('.', ' ')), f"Starts with invalid char: {result}"
     assert not result.endswith(('.', ' ')), f"Ends with invalid char: {result}"
 
-    # 5. Maximal 50 Zeichen
+    # 5. Max 50 chars
     assert len(result) <= 50, f"Filename too long: {len(result)} chars"
-
-    # Optional: Ausgabe zur Sichtkontrolle (nur bei Bedarf aktivieren)
-    # print(f"'{input_str}' → '{result}'")
