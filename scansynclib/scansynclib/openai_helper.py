@@ -67,6 +67,9 @@ def generate_filename(item: ProcessItem) -> str:
     - str: The generated filename if successful, otherwise the original filename without extension.
     """
     logger.info(f"Generating filename for {item.local_file_path}")
+    if not item.ocr_file:
+        logger.warning("No OCR file found. Using default filename.")
+        return item.filename_without_extension
 
     # Get PDF Text
     pdf_text = extract_text(item.ocr_file)
@@ -82,8 +85,8 @@ def generate_filename(item: ProcessItem) -> str:
     try:
         # Retry logic for OpenAI API calls
         retry_strategy = Retrying(
-            stop=stop_after_attempt(6),
-            wait=wait_random_exponential(multiplier=10, min=10, max=120),
+            stop=stop_after_attempt(3),
+            wait=wait_random_exponential(multiplier=10, min=10, max=30),
             retry=retry_if_exception_type(RateLimitError),
             after=lambda retry_state: logger.warning(
                 f"Attempt nr {retry_state.attempt_number} failed with exception: {retry_state.outcome.exception()}, waited {round(retry_state.upcoming_sleep, 1)} seconds"

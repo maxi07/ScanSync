@@ -29,6 +29,7 @@ class ProcessStatus(Enum):
     SKIPPED = "Skipped"
     INVALID_FILE = "Invalid File"
     SYNC_FAILED = "Sync Failed"
+    DELETED = "Deleted"
 
 
 class StatusProgressBar:
@@ -46,6 +47,7 @@ class StatusProgressBar:
         ProcessStatus.FAILED: -1,
         ProcessStatus.SYNC_FAILED: -1,
         ProcessStatus.INVALID_FILE: -1,
+        ProcessStatus.DELETED: -1,
     }
 
     @classmethod

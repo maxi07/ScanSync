@@ -302,6 +302,7 @@ function addPdfCard(pdfData) {
         var cloudLink = document.createElement('a');
         cloudLink.id = pdfData.id + '_pdf_cloud';
         cloudLink.href = pdfData.web_url;
+        cloudLink.title = "Open in OneDrive";
         cloudLink.textContent = pdfData.remote_filepath;
         cloudLink.innerHTML += brElement;
         cloudLink.target = '_blank'; // Open link in a new tab

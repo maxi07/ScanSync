@@ -20,13 +20,18 @@ def callback(ch, method, properties, body):
             return
         logger.info(f"Received PDF for OPENAI renaming: {item.filename}")
         new_filename = generate_filename(item)
-        if new_filename:
+        if new_filename and os.path.exists(item.ocr_file):
             os.rename(item.ocr_file, os.path.join(item.local_directory, new_filename + "_OCR.pdf"))
             item.filename_without_extension = new_filename
             item.filename = new_filename + ".pdf"
             item.ocr_file = os.path.join(item.local_directory, new_filename + "_OCR.pdf")
             logger.info(f"Generated filename: {new_filename}")
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+        try:
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+        except pika.exceptions.AMQPConnectionError:
+            logger.error("Connection lost while acknowledging message. Reconnecting...")
+            connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=120)
+            channel.basic_ack(delivery_tag=method.delivery_tag)
     except Exception:
         logger.exception(f"Failed processing {item.filename} with openai.")
     finally:

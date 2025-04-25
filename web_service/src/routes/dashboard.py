@@ -42,7 +42,7 @@ def index():
                        (SELECT COUNT(*) FROM scanneddata) AS total_entries,
                        (SELECT COUNT(*) FROM scanneddata WHERE status_code = 5) AS processed_pdfs,
                        (SELECT COUNT(*) FROM scanneddata WHERE status_code BETWEEN 0 AND 4) AS processing_pdfs,
-                       (SELECT DATETIME(created) FROM scanneddata WHERE status_code < 5 ORDER BY created DESC LIMIT 1) AS latest_processing,
+                       (SELECT DATETIME(modified) FROM scanneddata ORDER BY modified DESC LIMIT 1) AS latest_processing,
                        (SELECT DATETIME(modified) FROM scanneddata WHERE status_code = 5 ORDER BY modified DESC LIMIT 1) AS latest_completed
                 FROM scanneddata
                 ORDER BY created DESC, id DESC
