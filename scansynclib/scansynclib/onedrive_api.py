@@ -8,6 +8,8 @@ import requests
 import base64
 from scansynclib.onedrive_settings import onedrive_settings
 from scansynclib.sqlite_wrapper import update_scanneddata_database
+from tenacity import retry, stop_after_attempt, wait_random_exponential
+
 
 TOKEN_FILE = '/app/data/token.json'
 USER_PROFILE_FILE = '/app/data/user_profile.json'
@@ -31,6 +33,7 @@ def save_token(token):
     logger.debug("Token saved to file")
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=2, min=5, max=60))
 def get_access_token():
     """Returns token and renews it if necessary"""
     try:
@@ -70,6 +73,7 @@ def get_access_token():
     return None
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=2, min=5, max=60))
 def get_user_info(refresh=False):
     if not refresh and os.path.exists(USER_PROFILE_FILE):
         with open(USER_PROFILE_FILE, 'r') as file:
@@ -99,6 +103,7 @@ def get_user_info(refresh=False):
         return None
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=2, min=5, max=60))
 def get_user_photo(refresh=False):
     if not refresh and os.path.exists(USER_IMAGE_FILE):
         logger.debug("User photo file found, loading cached photo")
@@ -128,6 +133,7 @@ def get_user_photo(refresh=False):
         return None
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=2, min=5, max=60))
 def fetch_graph_api_data(endpoint):
     try:
         access_token = get_access_token()
@@ -152,6 +158,7 @@ def fetch_graph_api_data(endpoint):
         return None
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=2, min=5, max=60))
 def get_user_root_drive_id():
     result: json = fetch_graph_api_data(
         'https://graph.microsoft.com/v1.0/me/drive/root/?$select=id'
@@ -162,6 +169,7 @@ def get_user_root_drive_id():
     return result['id']
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=2, min=5, max=60))
 def get_user_drive_items(id: str):
     result = fetch_graph_api_data(
         'https://graph.microsoft.com/v1.0/me/drive/items/' + id + '/children?$select=id,name,folder,webUrl,parentReference'
@@ -174,6 +182,7 @@ def get_user_drive_items(id: str):
     return result
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=2, min=5, max=60))
 def get_user_shared_drive_items(driveid: str, folderid: str):
     result = fetch_graph_api_data(
         'https://graph.microsoft.com/v1.0/drives/' + driveid + '/items/' + folderid + '/children?$select=id,name,folder,webUrl,parentReference,remoteItem'
@@ -186,6 +195,7 @@ def get_user_shared_drive_items(driveid: str, folderid: str):
     return result
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=10, min=10, max=60))
 def upload_small(item: ProcessItem) -> bool:
     try:
         logger.info(f"Uploading file {item.ocr_file} to OneDrive")
@@ -228,6 +238,7 @@ def upload_small(item: ProcessItem) -> bool:
     return False
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=10, min=10, max=60))
 def upload(item: ProcessItem) -> bool:
     try:
         logger.info(f"Uploading file {item.ocr_file} to OneDrive")
