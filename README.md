@@ -1,3 +1,4 @@
+[![Tests](https://github.com/maxi07/ScanSync/actions/workflows/pytest.yml/badge.svg)](https://github.com/maxi07/ScanSync/actions/workflows/pytest.yml)
 <img src="web_service/src/static/images/ScanSync_logo_white.png#gh-dark-mode-only" width="30%">
 <img src="web_service/src/static/images/ScanSync_logo_black.png#gh-light-mode-only" width="30%">
 

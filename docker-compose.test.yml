@@ -1,0 +1,47 @@
+services:
+  web_service:
+    build:
+      context: .
+      dockerfile: web_service/Dockerfile
+    ports:
+      - 5001:5001
+    environment:
+      - FLASK_ENV=testing
+    volumes:
+      - scans_test:/mnt/scans
+      - data_test:/app/data
+      - preview_images_test:/app/src/static/images/pdfpreview
+    networks:
+      - test-network
+    depends_on:
+      - rabbitmq
+
+  rabbitmq:
+    image: rabbitmq:4.0.7-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - test-network
+
+  test_service:
+    build:
+      context: .
+      dockerfile: test_service/Dockerfile
+    depends_on:
+      - web_service
+    networks:
+      - test-network
+    volumes:
+      - scans_test:/mnt/scans
+      - data_test:/app/data
+      - preview_images_test:/app/preview-images
+      - ./detection_service:/tests/tests/detection_service
+
+volumes:
+  scans_test:
+  data_test:
+  preview_images_test:
+
+networks:
+  test-network:
