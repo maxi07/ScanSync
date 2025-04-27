@@ -36,23 +36,39 @@ def index():
 
             # Single query to fetch all required data
             query = '''
-                SELECT *,
-                       DATETIME(created) AS local_created,
-                       DATETIME(modified) AS local_modified,
-                       (SELECT COUNT(*) FROM scanneddata) AS total_entries,
-                       (SELECT COUNT(*) FROM scanneddata WHERE status_code = 5) AS processed_pdfs,
-                       (SELECT COUNT(*) FROM scanneddata WHERE status_code BETWEEN 0 AND 4) AS processing_pdfs,
-                       (SELECT DATETIME(modified) FROM scanneddata ORDER BY modified DESC LIMIT 1) AS latest_processing,
-                       (SELECT DATETIME(modified) FROM scanneddata WHERE status_code = 5 ORDER BY modified DESC LIMIT 1) AS latest_completed
-                FROM scanneddata
-                ORDER BY created DESC, id DESC
-                LIMIT :limit OFFSET :offset
+                SELECT 
+                    d.*,
+                    stats.total_entries,
+                    stats.processed_pdfs,
+                    stats.processing_pdfs,
+                    stats.latest_processing,
+                    stats.latest_completed
+                FROM (
+                    SELECT
+                        COUNT(*) AS total_entries,
+                        SUM(CASE WHEN status_code = 5 THEN 1 ELSE 0 END) AS processed_pdfs,
+                        SUM(CASE WHEN status_code BETWEEN 0 AND 4 THEN 1 ELSE 0 END) AS processing_pdfs,
+                        MAX(DATETIME(modified)) AS latest_processing,
+                        MAX(CASE WHEN status_code = 5 THEN DATETIME(modified) ELSE NULL END) AS latest_completed
+                    FROM scanneddata
+                ) stats
+                LEFT JOIN (
+                    SELECT *,
+                        DATETIME(created) AS local_created,
+                        DATETIME(modified) AS local_modified
+                    FROM scanneddata
+                    ORDER BY created DESC, id DESC
+                    LIMIT :limit OFFSET :offset
+                ) d ON 1=1
             '''
             result = db.execute(query, {'limit': entries_per_page, 'offset': offset}).fetchall()
 
             # Extract data from the query result
             if result:
-                pdfs = result
+                if result[0]['id'] is None:
+                    pdfs = []
+                else:
+                    pdfs = result
                 total_entries = result[0]['total_entries']
                 processed_pdfs = result[0]['processed_pdfs']
                 processing_pdfs = result[0]['processing_pdfs']
@@ -120,6 +136,7 @@ def index():
                                pdfs=pdfs_dicts,
                                total_pages=total_pages,
                                page=page,
+                               total_entries=total_entries,
                                entries_per_page=entries_per_page,
                                processing_pdfs=processing_pdfs,
                                processed_pdfs=processed_pdfs,
@@ -130,6 +147,7 @@ def index():
         return render_template("dashboard.html",
                                pdfs=[],
                                total_pages=0,
+                               total_entries=0,
                                page=1,
                                entries_per_page=12,
                                processing_pdfs=0,

@@ -103,9 +103,8 @@
 
     </ul>
 </nav>
-
-{% else %}
-{% if total_pages > 1 %}
+{% endif %}
+{% if total_entries == 0 %}
 <div id="empty_dashboard" class="text-center">
     <h2>Welcome to ScanSync</h2>
     <p>Start by adding a new OneDrive connection from the Sync menu. Next, create your first SMB destination and map it
@@ -116,11 +115,11 @@
             style="width: 300px; height: 300px;" loop autoplay></dotlottie-player>
     </div>
 </div>
-{% else %}
-<p class="text-center">Nothing here to see! Please go <a href="/">back.</a></p>
-{% endif %}
 {% endif %}
 
+{% if total_entries > 0 and pdfs == [] %}
+<p class="text-center">Nothing here to see! Please go <a href="/">back.</a></p>
+{% endif %}
 
 <script>
     var pdfsData = JSON.parse('{{ pdfs | tojson | safe }}');

@@ -17,5 +17,7 @@ def test_homepage_text():
         driver.get("http://web_service:5001")
         WebDriverWait(driver, 10).until(EC.title_contains("ScanSync"))
         assert "ScanSync" in driver.title
+        print(driver.page_source)
+        assert "No content available yet. Start scanning your first PDF to see it here." in driver.page_source
     finally:
         driver.quit()

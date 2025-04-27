@@ -19,7 +19,7 @@ class OpenAISettings:
                         settings.get('api_key')
                     )
             else:
-                logger.warning("OpenAISettings file does not exist!")
+                logger.warning("OpenAISettings file does not exist, probably hasnt been configured yet.")
         except Exception:
             logger.exception("Error loading OpenAISettings from file")
         return cls()
