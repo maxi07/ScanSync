@@ -36,7 +36,7 @@ def index():
 
             # Single query to fetch all required data
             query = '''
-                SELECT 
+                SELECT
                     d.*,
                     stats.total_entries,
                     stats.processed_pdfs,
