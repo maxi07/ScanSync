@@ -40,7 +40,7 @@ def start_processing(item: ProcessItem):
         item.status = ProcessStatus.SYNC_FAILED
         move_to_failed(item)
     else:
-        logger.info(f"Upload completed: {item.local_file_path}")
+        logger.info(f"Upload completed: {item.filename}")
 
         # Delete ocr file
         try:

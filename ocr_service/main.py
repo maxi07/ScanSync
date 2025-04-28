@@ -32,13 +32,16 @@ def start_processing(item: ProcessItem):
     update_scanneddata_database(item, {"file_status": item.status.value})
     item.time_ocr_started = datetime.now()
 
-    logger.info(f"Processing file with OCR: {item.local_file_path}")
+    logger.info(f"Processing file with OCR: {item.filename}")
 
     try:
         result = ocrmypdf.ocr(item.local_file_path, item.ocr_file, output_type='pdfa', skip_text=True, rotate_pages=True, jpg_quality=80, png_quality=80, optimize=2, language=["eng", "deu"], tesseract_timeout=120)
-        logger.info(f"OCR processing completed: {item.local_file_path}")
+        if result != 0:
+            logger.error(f"OCR exited with code {result}")
+            item.ocr_status = OCRStatus.FAILED
+        else:
+            logger.info(f"OCR processing completed: {item.filename}")
         logger.debug(f"OCR exited with code {result}")
-        logger.debug(f"Adding {item.ocr_file} to sync queue")
         item.ocr_status = OCRStatus.COMPLETED
     except ocrmypdf.UnsupportedImageFormatError:
         logger.error(f"Unsupported image format: {item.local_file_path}")

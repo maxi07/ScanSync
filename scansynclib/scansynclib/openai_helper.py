@@ -66,7 +66,7 @@ def generate_filename(item: ProcessItem) -> str:
     Returns:
     - str: The generated filename if successful, otherwise the original filename without extension.
     """
-    logger.info(f"Generating filename for {item.local_file_path}")
+    logger.info(f"Generating filename for {item.filename}")
     if not item.ocr_file:
         logger.warning("No OCR file found. Using default filename.")
         return item.filename_without_extension

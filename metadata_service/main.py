@@ -35,17 +35,17 @@ def on_created(filepath: str):
 
     # Ignore hidden files
     if os.path.basename(filepath).startswith((".", "_")):
-        logger.debug(f"Ignoring hidden file at {filepath}")
+        logger.info(f"Ignoring hidden file at {filepath}")
         return
 
     # Ignore OCR files
     if "_OCR.pdf" in filepath:
-        logger.debug(f"Ignoring working _OCR file at {filepath}")
+        logger.info(f"Ignoring working _OCR file at {filepath}")
         return
 
     # Ignore folder failed-documents
     if config.get("failedDir") in filepath:
-        logger.debug(f"Ignoring failed documents folder at {filepath}")
+        logger.info(f"Ignoring failed documents folder at {filepath}")
         return
 
     # Test if file is PDF or image. if neither can be opened, wait five seconds and try again.
@@ -71,7 +71,7 @@ def on_created(filepath: str):
         logger.warning(f"Could not find remote destination for {item.local_directory_above}")
     update_scanneddata_database(item, {'remote_filepath': item.remote_file_path})
 
-    logger.info(f"Waiting for {filepath} to be a valid PDF or image file")
+    logger.info(f"Waiting for {item.filename} to be a valid PDF or image file")
     for i in range(TIMEOUT_PDF_VALIDATION):
         if is_pdf(filepath):
             item.item_type = ItemType.PDF
@@ -112,7 +112,7 @@ def on_created(filepath: str):
         try:
             pdf_reader = PdfReader(item.local_file_path)
             item.pdf_pages = len(pdf_reader.pages)
-            logger.debug(f"PDF file has {item.pdf_pages} pages to process")
+            logger.info(f"{item.filename} has {item.pdf_pages} pages to process")
             update_scanneddata_database(item, {'pdf_pages': item.pdf_pages})
         except Exception:
             logger.exception(f"Error reading PDF file: {item.local_file_path}")
@@ -180,7 +180,7 @@ def callback(ch, method, properties, body):
     try:
         data = json.loads(body)
         filepath = data["file_path"]
-        logger.info(f"Received item for metadata service {body}")
+        logger.info(f"Received item for metadata service {filepath}")
         on_created(filepath)
         ch.basic_ack(delivery_tag=method.delivery_tag)
     except Exception:

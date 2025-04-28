@@ -18,7 +18,7 @@ def callback(ch, method, properties, body):
         if not isinstance(item, ProcessItem):
             logger.warning("Received object, that is not of type ProcessItem. Skipping.")
             return
-        logger.info(f"Received PDF for OPENAI renaming: {item.filename}")
+        logger.debug(f"Received PDF for OPENAI renaming: {item.filename}")
         new_filename = generate_filename(item)
         if new_filename and os.path.exists(item.ocr_file):
             os.rename(item.ocr_file, os.path.join(item.local_directory, new_filename + "_OCR.pdf"))
