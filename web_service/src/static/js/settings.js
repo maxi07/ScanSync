@@ -15,10 +15,11 @@ document.getElementById('onedrive-settings-form').addEventListener('submit', asy
     });
 
     try {
+        data.hostname = window.location.hostname.split(':')[0]; // Extract only "server3" from "http://server:5001/settings"
         const response = await fetch('/api/onedrive-settings', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+            'Content-Type': 'application/json',
             },
             body: JSON.stringify(data),
         });
@@ -143,6 +144,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeTab) {
             activeTab.click();
         }
+    }
+
+    try {
+        const hostname = window.location.hostname.split(':')[0] || 'localhost'; // Extract only "server" from "http://server:5001/settings"
+        const hostnameField = document.getElementById('hostname-instructions');
+        if (hostnameField) {
+            hostnameField.innerText = hostname;
+        }
+    } catch (error) {
+        console.error('Failed setting hostname field:', error);
     }
 });
 
