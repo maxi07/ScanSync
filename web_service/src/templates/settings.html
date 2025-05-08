@@ -146,17 +146,6 @@
 
                                     </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="clientSecret" class="form-label">Client Secret</label>
-                                    <input type="password" class="form-control" name="clientSecret" id="clientSecret"
-                                        aria-describedby="clientSecretHelp" value="{{ client_secret }}"
-                                        pattern="(?=.*[a-z])(?=.*[A-Z]).{10,}" required>
-                                    <div id="clientSecretHelp" class="form-text">
-                                        The secret of your app registration on <a
-                                            href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">Azure</a>.
-
-                                    </div>
-                                </div>
                                 <button type="submit" class="btn btn-primary">Submit</button>
                             </form>
                         </div>
@@ -182,12 +171,12 @@
                                 <p class="fw-bold">{{ user_email or "No email provided" }}</p>
                                 <a href="/logout" role="button" class="btn btn-danger mt-3 me-2 disabled"
                                     style="color:white"><i class="bi bi-box-arrow-right me-1"></i> Logout (Coming soon)</a>
-                                <a href="/login" role="button" class="btn btn-secondary mt-3"
+                                <a href="#" onclick="window.open('/login', 'popup', 'width=600,height=600'); return false;" class="btn btn-secondary mt-3"
                                     style="color:white"><i class="bi bi-arrow-clockwise me-1"></i>Reauthenticate</a>
                             </div>
                             {% else %}
                             <div class="text-center" id="onedrive-login-button">
-                                <a href="/login" class="d-inline-block">
+                                <a href="#" onclick="window.open('/login', 'popup', 'width=600,height=600'); return false;" class="d-inline-block">
                                     <img src="/static/images/ms-symbollockup_signin_dark.svg" alt="Microsoft Sign-In"
                                         class="img-fluid" style="cursor: pointer;">
                                 </a>

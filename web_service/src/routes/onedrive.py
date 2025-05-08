@@ -1,6 +1,6 @@
 import json
 import msal
-from flask import Blueprint, jsonify, request, redirect, session, url_for
+from flask import Blueprint, jsonify, render_template, request, session
 from scansynclib.logging import logger
 from scansynclib.helpers import to_bool
 from scansynclib.onedrive_settings import onedrive_settings
@@ -11,31 +11,63 @@ onedrive_bp = Blueprint('onedrive', __name__)
 
 @onedrive_bp.route('/login')
 def login():
-    msal_app = msal.ConfidentialClientApplication(
+    msal_app = msal.PublicClientApplication(
         onedrive_settings.client_id,
         authority=onedrive_settings.authority,
-        client_credential=onedrive_settings.client_secret
     )
-    auth_url = msal_app.get_authorization_request_url(onedrive_settings.scope, redirect_uri=onedrive_settings.redirect_uri)
-    return redirect(auth_url)
+
+    logger.debug(f"Starting device flow for OneDrive authentication with scope {onedrive_settings.scope}")
+    logger.debug(f"MSAL app: {msal_app}")
+    flow = msal_app.initiate_device_flow(scopes=onedrive_settings.scope)
+    logger.debug(f"Flow: {flow}")
+
+    if "user_code" not in flow:
+        return "Failed starting device authentication flow, user_code missing", 500
+
+    # Token-Polling im Hintergrund oder durch separaten JS-Aufruf
+    return render_template("device_login.html", flow=flow)
 
 
-@onedrive_bp.route('/getAToken')
-def get_atoken():
-    code = request.args.get('code')
-    msal_app = msal.ConfidentialClientApplication(
+@onedrive_bp.get('initiate_device_flow')
+def initiate_device_flow():
+    msal_app = msal.PublicClientApplication(
         onedrive_settings.client_id,
         authority=onedrive_settings.authority,
-        client_credential=onedrive_settings.client_secret
     )
-    result = msal_app.acquire_token_by_authorization_code(code, scopes=onedrive_settings.scope, redirect_uri=onedrive_settings.redirect_uri)
+
+    logger.debug(f"Starting device flow for OneDrive authentication with scope {onedrive_settings.scope}")
+    logger.debug(f"MSAL app: {msal_app}")
+    flow = msal_app.initiate_device_flow(scopes=onedrive_settings.scope)
+    logger.debug(f"Flow: {flow}")
+
+    if "user_code" not in flow:
+        return "Failed starting device authentication flow, user_code missing", 500
+
+    return jsonify(flow)
+
+
+@onedrive_bp.route('/poll_token')
+def poll_token():
+    device_code = request.args.get('device_code')
+    msal_app = msal.PublicClientApplication(
+        onedrive_settings.client_id,
+        authority=onedrive_settings.authority,
+    )
+    try:
+        result = msal_app.acquire_token_by_device_flow({
+            "device_code": device_code,
+            "interval": 5,
+            "expires_in": 900
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
     if "access_token" in result:
         save_token(result)
         session['user'] = get_user_info()
-        logger.info(f"Welcome {session['user']['displayName']}")
-        return redirect(url_for('settings.index'))
-    return "Fehler bei der Anmeldung!"
+        return jsonify({"success": True})
+    else:
+        return jsonify({"success": False, "error": result.get("error", "unknown")})
 
 
 @onedrive_bp.post('/get-user-drive-items')

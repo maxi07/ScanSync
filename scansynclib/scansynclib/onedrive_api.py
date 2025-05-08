@@ -46,7 +46,6 @@ def get_access_token():
             msal_app = msal.ConfidentialClientApplication(
                 onedrive_settings.client_id,
                 authority=onedrive_settings.authority,
-                client_credential=onedrive_settings.client_secret
             )
 
         expires_at = token_data.get("expires_at", 0)

@@ -18,14 +18,9 @@ def save_onedrive_settings():
     logger.debug(f"Request data: {request.json}")
     data = request.json
     client_id = data.get('clientID')
-    client_secret = data.get('clientSecret')
-    hostname = data.get('hostname')
 
-    if client_id and client_secret and hostname:
+    if client_id:
         onedrive_settings.client_id = client_id
-        onedrive_settings.client_secret = client_secret
-        onedrive_settings.redirect_uri = f"http://{hostname}:5001/getAToken"
-
         onedrive_settings.save()
         return jsonify({'message': 'Settings saved successfully!'}), 200
     else:

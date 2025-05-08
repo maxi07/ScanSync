@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Microsoft Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/css/msftlogin.css">
+  <link rel="icon" href="/static/images/ScanSync_logo_black.ico">
+  <script>
+    async function pollToken() {
+      const interval = {{ flow['interval'] | safe }};
+      while (true) {
+        const response = await fetch('/poll_token?device_code={{ flow["device_code"] }}');
+        const result = await response.json();
+        if (result.success) {
+          window.close();
+          break;
+        } else if (result.error !== 'authorization_pending') {
+          document.getElementById("message").innerText = "Error: " + result.error;
+          break;
+        }
+        await new Promise(r => setTimeout(r, interval * 1000));
+      }
+    }
+
+    function copyCode() {
+      const codeText = document.getElementById("user-code").innerText;
+      navigator.clipboard.writeText(codeText).then(() => {
+        const btn = document.getElementById("copy-btn");
+        btn.innerHTML = '<i class="bi bi-clipboard-check"></i> Copied!';
+        setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard"></i>', 2000);
+      });
+    }
+
+    window.onload = pollToken;
+  </script>
+</head>
+
+<body class="d-flex align-items-center justify-content-center">
+  <div class="card shadow-lg p-4 popup-card text-center">
+    <div class="mb-4">
+      <i class="bi bi-box-arrow-in-right fs-1 text-primary"></i>
+      <h3 class="mt-2">Sign in to Microsoft</h3>
+    </div>
+
+    <div class="mb-4">
+      <p class="fw-semibold">Step 1: Copy the code below</p>
+      <div class="input-group justify-content-center">
+        <div class="form-control text-center bg-light fw-bold border" id="user-code" readonly>
+          {{ flow['user_code'] }}
+        </div>
+        <button class="btn btn-outline-secondary" type="button" id="copy-btn" onclick="copyCode()">
+          <i class="bi bi-clipboard"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <p class="fw-semibold">Step 2: Login to your Microsoft account</p>
+      <a href="{{ flow['verification_uri'] }}" class="btn btn-primary w-100">
+        <i class="bi bi-box-arrow-up-right"></i> Open Microsoft Login
+      </a>
+    </div>
+
+    <p id="message" hidden class="text-muted">Waiting for login...</p>
+  </div>
+</body>
+
+</html>
