@@ -13,45 +13,33 @@ document.addEventListener('DOMContentLoaded', function () {
     remotepathselector.addEventListener('show.bs.collapse', function () {
         loadOneDriveDir();
     });
+    // Enable popovers
+    const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]')
+    const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl))
+    replaceHostnamePopovers();
 });
 
-// Add event listener for smb form submit
-document.getElementById("pathmappingmodal_add_smb_form").addEventListener('submit', async function (event) {
-    // Validate for invalid chars
-    const input = document.getElementById("local_path");
-    const error = document.getElementById("error_message_local_path");
-    const name = input.value;
+function replaceHostnamePopovers() {
+    const popoverButtons = document.querySelectorAll('[data-bs-toggle="popover"]');
 
-    if (!isValidSmbName(name)) {
-      event.preventDefault(); // Verhindert das Absenden
-      error.textContent = "Invalid SMB name: Avoid < > : \" / \\ | ? * or reserved names.";
-      error.style.display = "block";
-      return;
-    } else {
-      error.style.display = "none";
-    }
+    popoverButtons.forEach((btn) => {
+        const popover = new bootstrap.Popover(btn, {
+            trigger: 'focus', // or 'click', depending on your preference
+            html: true
+        });
 
-    console.log("Submitting SMB form");
-    event.preventDefault();
-    const form = event.target;
-    const formData = new FormData(form);
-    const response = await fetch("/add-path-mapping" || window.location.pathname, {
-        method: 'POST',
-        body: formData
+        btn.addEventListener('shown.bs.popover', () => {
+            // Wait a moment to ensure DOM is inserted
+            setTimeout(() => {
+                const hostname = window.location.hostname; // e.g., "server3"
+                const popoverEl = document.querySelector('.popover .hostname-popover');
+                if (popoverEl) {
+                    popoverEl.textContent = hostname;
+                }
+            }, 0);
+        });
     });
-
-    if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-            window.location.href = '/sync';
-        } else {
-            alert(data.error || 'Unknown error while submitting');
-        }
-    } else {
-        const data = await response.json().catch(() => ({}));
-        alert(data.error || 'Unknwon error while submitting');
-    }
-});
+};
 
 // Reset form when opening
 document.getElementById("pathmappingmodal").addEventListener('show.bs.modal', function () {

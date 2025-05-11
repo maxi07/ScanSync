@@ -26,7 +26,7 @@
                         <i class="bi bi-hdd-stack text-primary"></i> SMB
                     </div>
                     <div style="word-break: break-all;">
-                        <i class="bi bi-folder"></i><span class="ms-1" id="{{ item.id }}_smb_path">{{ item.smb_name }}</span>
+                        <i class="bi bi-folder"></i><span class="ms-1" id="{{ item.id }}_smb_path">Scans/{{ item.smb_name }}</span>
                     </div>
                 </div>
                 
@@ -57,14 +57,57 @@
                 </div>
             </div>
     
-            <div class="card-footer">
-                <button id="{{ item.id }}_edit_button" onclick="editPathMapping('{{ item.id }}')"
-                    class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#pathmappingmodal">
-                    <i class="bi bi-pencil"></i> Edit
-                </button>
-                <button id="{{ item.id }}_delete_button" onclick="deletePathMapping('{{ item.id }}')"
-                    class="btn btn-danger">
-                    <i class="bi bi-trash"></i> Delete
+            <div class="card-footer d-flex justify-content-between align-items-center">
+                <div>
+                    <button id="{{ item.id }}_edit_button" onclick="editPathMapping('{{ item.id }}')"
+                        class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#pathmappingmodal">
+                        <i class="bi bi-pencil"></i> Edit
+                    </button>
+                    <button id="{{ item.id }}_delete_button" onclick="deletePathMapping('{{ item.id }}')"
+                        class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </div>
+                <button class="btn btn-link text-muted" data-bs-toggle="popover" data-bs-title="Connect to this SMB"
+                data-bs-content='<div class="list-group">
+                <div class="list-group-item list-group-item-action d-flex gap-3">
+                    <i class="bi bi-globe flex-shrink-0"></i>
+                    <div class="d-flex gap-2 w-100 justify-content-between align-items-start">
+                        <p class="mb-0 fw-bold">Hostname</p>
+                        <p class="mb-0 opacity-75 hostname-popover">Unknown</p>
+                    </div>
+                </div>
+                <div class="list-group-item list-group-item-action d-flex gap-3">
+                    <i class="bi bi-plug-fill flex-shrink-0"></i>
+                    <div class="d-flex gap-2 w-100 justify-content-between align-items-start">
+                        <p class="mb-0 fw-bold">Port</p>
+                        <p class="mb-0 opacity-75">445</p>
+                    </div>
+                </div>
+                <div class="list-group-item list-group-item-action d-flex gap-3">
+                    <i class="bi bi-folder-fill flex-shrink-0"></i>
+                    <div class="d-flex gap-2 w-100 justify-content-between align-items-start">
+                        <p class="mb-0 fw-bold">Path</p>
+                        <p class="mb-0 opacity-75">Scans/{{ item.smb_name }}</p>
+                    </div>
+                </div>
+                <div class="list-group-item list-group-item-action d-flex gap-3">
+                    <i class="bi bi-file-person-fill flex-shrink-0"></i>
+                    <div class="d-flex gap-2 w-100 justify-content-between align-items-start">
+                        <p class="mb-0 fw-bold">Username</p>
+                        <p class="mb-0 opacity-75">ocr</p>
+                    </div>
+                </div>
+                <div class="list-group-item list-group-item-action d-flex gap-3">
+                    <i class="bi bi-file-lock-fill flex-shrink-0"></i>
+                    <div class="d-flex gap-2 w-100 justify-content-between align-items-start">
+                        <p class="mb-0 fw-bold">Password</p>
+                        <p class="mb-0 opacity-75">ocr</p>
+                    </div>
+                </div>
+            </div>'
+                data-bs-html="true">
+                    <i class="bi bi-question-circle"></i>
                 </button>
             </div>
         </div>

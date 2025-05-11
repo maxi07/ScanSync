@@ -2,6 +2,7 @@ from scansynclib.sqlite_wrapper import execute_query
 from scansynclib.logging import logger
 from scansynclib.config import config
 import os
+import shutil
 
 
 def add(smb_name: str, drive_id: str, folder_id: str, onedrive_path: str, web_url: str) -> int:
@@ -83,7 +84,7 @@ def delete(smb_id: int) -> bool:
     # Delete the folder from the filesystem
     smb_folder = os.path.join(config.get("smb.path"), smb_name)
     if os.path.exists(smb_folder):
-        os.rmdir(smb_folder)
+        shutil.rmtree(smb_folder, ignore_errors=True)
         logger.info(f"Deleted SMB folder at {smb_folder}")
     else:
         logger.warning(f"SMB folder does not exist: {smb_folder}")
