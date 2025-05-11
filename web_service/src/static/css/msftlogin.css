@@ -1,0 +1,26 @@
+body {
+    background: linear-gradient(133deg, #02aabd 0%, #04ecba 100%);
+    height: 100vh;
+    margin: 0;
+  }
+  
+  .popup-card {
+    max-width: 420px;
+    width: 100%;
+    border-radius: 1rem;
+    background-color: white;
+  }
+  
+  h3 {
+    font-weight: 600;
+  }
+  
+  input,
+  .form-control {
+    pointer-events: none;
+    user-select: all;
+  }
+  
+  a.btn {
+    min-width: 200px;
+  }

@@ -5,7 +5,6 @@ from scansynclib.openai_settings import openai_settings
 from scansynclib.openai_helper import test_and_add_key
 from scansynclib.sqlite_wrapper import execute_query
 
-
 api_bp = Blueprint('api', __name__)
 
 
@@ -19,11 +18,9 @@ def save_onedrive_settings():
     logger.debug(f"Request data: {request.json}")
     data = request.json
     client_id = data.get('clientID')
-    client_secret = data.get('clientSecret')
 
-    if client_id and client_secret:
+    if client_id:
         onedrive_settings.client_id = client_id
-        onedrive_settings.client_secret = client_secret
         onedrive_settings.save()
         return jsonify({'message': 'Settings saved successfully!'}), 200
     else:

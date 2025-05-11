@@ -18,7 +18,7 @@ document.getElementById('onedrive-settings-form').addEventListener('submit', asy
         const response = await fetch('/api/onedrive-settings', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+            'Content-Type': 'application/json',
             },
             body: JSON.stringify(data),
         });
@@ -146,3 +146,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+function openLoginPopup() {
+    document.getElementById("onedrive-container").classList.add("d-none");
+    document.getElementById("onedrive-loading-spinner").classList.remove("d-none");
+    const popup = window.open('/login', 'popup', 'width=600,height=600');
+    const timer = setInterval(() => {
+        if (popup.closed) {
+            clearInterval(timer);
+            console.log('Popup closed');
+            window.location.reload();
+        }
+    }, 1000);
+}

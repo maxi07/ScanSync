@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Microsoft Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/css/msftlogin.css">
+  <link rel="icon" href="/static/images/ScanSync_logo_black.ico">
+  <script>
+    async function pollToken(flow) {
+      const interval = flow['interval'];
+      while (true) {
+        const response = await fetch(`/poll_token?device_code=${flow["device_code"]}`);
+        const result = await response.json();
+        if (result.success) {
+          window.close();
+          break;
+        } else if (result.error !== 'authorization_pending') {
+          document.getElementById("message").innerText = "Error: " + result.error;
+          break;
+        }
+        await new Promise(r => setTimeout(r, interval * 1000));
+      }
+    }
+
+    function copyCode() {
+      const codeText = document.getElementById("user-code").innerText;
+      navigator.clipboard.writeText(codeText).then(() => {
+        const btn = document.getElementById("copy-btn");
+        btn.innerHTML = '<i class="bi bi-clipboard-check"></i> Copied!';
+        setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard"></i>', 2000);
+      });
+    }
+
+    function getFlow() {
+        const codeContainer = document.getElementById("code-container");
+        const userCode = document.getElementById("user-code");
+        const loadingSpinner = document.getElementById("loading-spinner");
+        const loginButtonContainer = document.getElementById("login-button-container");
+        fetch('/initiate_device_flow')
+          .then(response => response.json())
+          .then(flow => {
+            document.getElementById("user-code").innerText = flow['user_code'] || "No code available";
+            document.getElementById("verification-url").onclick = function () {
+              window.open(flow['verification_uri'], '_blank', 'width=600,height=600');
+            };
+            document.getElementById("verification-url").classList.remove("disabled");
+            loadingSpinner.style.display = "none";
+            codeContainer.style.display = "flex";
+
+            // Make the user-code selected and focused
+            userCode.focus();
+            const range = document.createRange();
+            range.selectNodeContents(userCode);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            pollToken(flow);
+          })
+          .catch(error => {
+            console.error('Error fetching token flow:', error);
+            document.getElementById("message").innerText = "Error fetching token flow.";
+            document.getElementById("message").hidden = false;
+          });
+    }
+
+
+    document.addEventListener("DOMContentLoaded", function () {
+        getFlow();
+    });
+  </script>
+</head>
+
+<body class="d-flex align-items-center justify-content-center">
+  <div class="card shadow-lg p-4 popup-card text-center">
+    <div class="mb-4">
+      <i class="bi bi-box-arrow-in-right fs-1 text-primary"></i>
+      <h3 class="mt-2">Sign in to Microsoft</h3>
+    </div>
+
+    <div class="mb-4">
+      <p class="fw-semibold">Step 1: Copy the code below</p>
+      <div class="input-group justify-content-center" id="code-container" style="display: none;">
+        <span class="input-group-text" id="addon-wrapping"><i class="bi bi-lock"></i></span>
+        <div class="form-control text-center bg-light fw-bold border" id="user-code" readonly>
+
+        </div>
+      </div>
+      <div id="loading-spinner" class="spinner-border text-primary mt-2" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+
+    <div class="mb-4" id="login-button-container">
+      <p class="fw-semibold">Step 2: Login to your Microsoft account</p>
+      <a href="#" class="btn btn-primary w-100 disabled" id="verification-url">
+        <i class="bi bi-box-arrow-up-right"></i> Open Microsoft Login
+      </a>
+    </div>
+
+    <p id="message" class="text-muted">Waiting for login, do not close this window...</p>
+  </div>
+</body>
+
+</html>

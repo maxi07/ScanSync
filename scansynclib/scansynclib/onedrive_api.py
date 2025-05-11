@@ -33,6 +33,27 @@ def save_token(token):
     logger.debug("Token saved to file")
 
 
+def delete_token():
+    """Deletes token file"""
+    if os.path.exists(TOKEN_FILE):
+        os.remove(TOKEN_FILE)
+        logger.info("Token file deleted")
+    else:
+        logger.warning("Token file not found, nothing to delete")
+
+    if os.path.exists(USER_PROFILE_FILE):
+        os.remove(USER_PROFILE_FILE)
+        logger.info("User profile file deleted")
+    else:
+        logger.warning("User profile file not found, nothing to delete")
+
+    if os.path.exists(USER_IMAGE_FILE):
+        os.remove(USER_IMAGE_FILE)
+        logger.info("User image file deleted")
+    else:
+        logger.warning("User image file not found, nothing to delete")
+
+
 @retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=2, min=5, max=60))
 def get_access_token():
     """Returns token and renews it if necessary"""
@@ -46,7 +67,6 @@ def get_access_token():
             msal_app = msal.ConfidentialClientApplication(
                 onedrive_settings.client_id,
                 authority=onedrive_settings.authority,
-                client_credential=onedrive_settings.client_secret
             )
 
         expires_at = token_data.get("expires_at", 0)
@@ -82,7 +102,7 @@ def get_user_info(refresh=False):
 
     access_token = get_access_token()
     if not access_token:
-        logger.error("No access token available to fetch user info")
+        logger.warning("No access token available to fetch user info")
         return None
 
     graph_api_url = 'https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail'
