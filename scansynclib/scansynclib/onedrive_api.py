@@ -102,7 +102,7 @@ def get_user_info(refresh=False):
 
     access_token = get_access_token()
     if not access_token:
-        logger.error("No access token available to fetch user info")
+        logger.warning("No access token available to fetch user info")
         return None
 
     graph_api_url = 'https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail'

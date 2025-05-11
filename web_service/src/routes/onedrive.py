@@ -63,8 +63,10 @@ def poll_token():
         session['user'] = get_user_info()
         return jsonify({"success": True})
     else:
-        if "AADSTS70016" not in result:
+        if result.get("error") != "authorization_pending":
             logger.error(f"Failed to authenticate with OneDrive: {result.get('error_description', 'unknown')}")
+        else:
+            logger.debug(f"Authorization pending: {result.get('error_description', 'unknown')}")
         return jsonify({"success": False, "error": result.get("error", "unknown")})
 
 
