@@ -105,11 +105,23 @@
 </nav>
 {% endif %}
 {% if total_entries == 0 %}
-<div id="empty_dashboard" class="text-center">
+<div id="empty_dashboard" class="text-center mt-3">
     <h2>Welcome to ScanSync</h2>
-    <p>Start by adding a new OneDrive connection from the Sync menu. Next, create your first SMB destination and map it
-        to a folder on your OneDrive.</p>
-    <p>No content available yet. Start scanning your first PDF to see it here.</p>
+    <p>Get started in three steps:</p>
+    <div class="d-flex flex-column align-items-center">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-1-circle text-primary me-2 instructions-icon"></i>
+            <span>Login with OneDrive on the <a href="/settings">settings</a> page</span>
+        </div>
+        <div class="d-flex align-items-center">
+            <i class="bi bi-2-circle text-primary me-2 instructions-icon"></i>
+            <span>Add your first connection on the <a href="/sync">sync</a> page</span>
+        </div>
+        <div class="d-flex align-items-center">
+            <i class="bi bi-3-circle text-primary me-2 instructions-icon"></i>
+            <span>Start scanning!</span>
+        </div>
+    </div>
     <div class="d-flex align-items-center justify-content-center">
         <dotlottie-player src="/static/lottie/welcome.json" background="transparent" speed="1"
             style="width: 300px; height: 300px;" loop autoplay></dotlottie-player>

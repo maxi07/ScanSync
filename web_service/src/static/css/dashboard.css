@@ -80,3 +80,8 @@ background-color: green; /* Bootstrap-Rot */
         transform: rotate(360deg);
     }
 }
+
+.instructions-icon {
+    font-size: 1.5rem;
+    color: white !important;
+}
