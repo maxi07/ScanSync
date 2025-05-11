@@ -163,25 +163,33 @@
                     <div id="collapseUser" class="accordion-collapse collapse {% if user_name %}show{% endif %}"
                         data-bs-parent="#accordionInstructionsAzure">
                         <div class="accordion-body">
-                            {% if user_name %}
-                            <div class="text-center" id="onedrive-user-info">
-                                <img src="data:image/jpeg;base64,{{ user_picture }}" alt="Profile Picture"
-                                    class="rounded-circle" style="width: 150px; height: 150px;">
-                                <h3 class="mt-3">{{ user_name or "Not Logged In" }}</h3>
-                                <p class="fw-bold">{{ user_email or "No email provided" }}</p>
-                                <a href="/logout" role="button" class="btn btn-danger mt-3 me-2"
-                                    style="color:white"><i class="bi bi-box-arrow-right me-1"></i> Logout</a>
-                                <a href="#" onclick="openLoginPopup()" class="btn btn-secondary mt-3"
-                                    style="color:white"><i class="bi bi-arrow-clockwise me-1"></i>Reauthenticate</a>
+                            <div id="onedrive-container">
+                                {% if user_name %}
+                                <div class="text-center" id="onedrive-user-info">
+                                    <img src="data:image/jpeg;base64,{{ user_picture }}" alt="Profile Picture"
+                                        class="rounded-circle" style="width: 150px; height: 150px;">
+                                    <h3 class="mt-3">{{ user_name or "Not Logged In" }}</h3>
+                                    <p class="fw-bold">{{ user_email or "No email provided" }}</p>
+                                    <a href="/logout" role="button" class="btn btn-danger mt-3 me-2"
+                                        style="color:white"><i class="bi bi-box-arrow-right me-1"></i> Logout</a>
+                                    <a href="#" onclick="openLoginPopup()" class="btn btn-secondary mt-3"
+                                        style="color:white"><i class="bi bi-arrow-clockwise me-1"></i>Reauthenticate</a>
+                                </div>
+                                {% else %}
+                                <div class="text-center" id="onedrive-login-button">
+                                    <a href="#" onclick="openLoginPopup(); return false;" class="d-inline-block">
+                                        <img src="/static/images/ms-symbollockup_signin_dark.svg" alt="Microsoft Sign-In"
+                                            class="img-fluid" style="cursor: pointer;">
+                                    </a>
+                                </div>
+                                {% endif %}
                             </div>
-                            {% else %}
-                            <div class="text-center" id="onedrive-login-button">
-                                <a href="#" onclick="openLoginPopup(); return false;" class="d-inline-block">
-                                    <img src="/static/images/ms-symbollockup_signin_dark.svg" alt="Microsoft Sign-In"
-                                        class="img-fluid" style="cursor: pointer;">
-                                </a>
+                            <div id="onedrive-loading-spinner" class="d-none d-flex align-items-center justify-content-center">
+                                <div class="spinner-border text-primary" role="status"></div>
+                                <span class="visually-hidden">Loading...</span>
+                                <p class="ms-2 mb-0">Waiting for login...</p>
                             </div>
-                            {% endif %}
+                            
                         </div>
                     </div>
                 </div>
