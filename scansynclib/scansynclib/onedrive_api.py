@@ -33,6 +33,27 @@ def save_token(token):
     logger.debug("Token saved to file")
 
 
+def delete_token():
+    """Deletes token file"""
+    if os.path.exists(TOKEN_FILE):
+        os.remove(TOKEN_FILE)
+        logger.info("Token file deleted")
+    else:
+        logger.warning("Token file not found, nothing to delete")
+
+    if os.path.exists(USER_PROFILE_FILE):
+        os.remove(USER_PROFILE_FILE)
+        logger.info("User profile file deleted")
+    else:
+        logger.warning("User profile file not found, nothing to delete")
+
+    if os.path.exists(USER_IMAGE_FILE):
+        os.remove(USER_IMAGE_FILE)
+        logger.info("User image file deleted")
+    else:
+        logger.warning("User image file not found, nothing to delete")
+
+
 @retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=2, min=5, max=60))
 def get_access_token():
     """Returns token and renews it if necessary"""

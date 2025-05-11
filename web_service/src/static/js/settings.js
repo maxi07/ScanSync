@@ -146,3 +146,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+function openLoginPopup() {
+    const popup = window.open('/login', 'popup', 'width=600,height=600');
+    const timer = setInterval(() => {
+        if (popup.closed) {
+            clearInterval(timer);
+            console.log('Popup closed');
+            window.location.reload();
+        }
+    }, 1000);
+}
