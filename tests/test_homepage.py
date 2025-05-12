@@ -25,7 +25,7 @@ def test_dashboard_text_first_start(driver):
     driver.get("http://web_service:5001")
     WebDriverWait(driver, 10).until(EC.title_contains("ScanSync"))
     assert "ScanSync" in driver.title
-    assert "No content available yet. Start scanning your first PDF to see it here." in driver.page_source
+    assert "Get started in three steps:" in driver.page_source
     widget_processing_content = driver.find_element(By.ID, "widget_processing_content").text
     assert "None" in widget_processing_content
     widget_processed_content = driver.find_element(By.ID, "widget_processed_content").text
