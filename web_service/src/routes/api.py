@@ -45,6 +45,8 @@ def save_openai_settings():
         if code != 200:
             logger.warning(f"Failed to validate OpenAI key: {message}")
             return jsonify({'error': message}), code
+        openai_settings.api_key = api_key
+        openai_settings.save()
         return jsonify({'message': 'OpenAI API key saved successfully! ScanSync now uses ChatGPT for automatic file names.'}), 200
     else:
         return jsonify({'error': 'Invalid data'}), 400
