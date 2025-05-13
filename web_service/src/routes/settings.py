@@ -3,7 +3,6 @@ from scansynclib.logging import logger
 from scansynclib.onedrive_settings import onedrive_settings
 from scansynclib.onedrive_api import get_user_info, get_user_photo
 from scansynclib.openai_settings import openai_settings
-import os
 
 settings_bp = Blueprint('settings', __name__)
 
@@ -18,7 +17,6 @@ def index():
     user_email = ""
     user_picture = ""
     openai_key = ""
-    hostname = os.getenv('DOCKER_HOSTNAME') or "localhost"
 
     try:
         client_id = onedrive_settings.client_id or ""
@@ -50,5 +48,4 @@ def index():
                            user_name=user_name,
                            user_email=user_email,
                            user_picture=user_picture,
-                           openai_key=openai_key,
-                           hostname=hostname,)
+                           openai_key=openai_key,)

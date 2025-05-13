@@ -1,11 +1,12 @@
 document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('top-progress-bar').style.display = 'block';
     console.log("Creating " + pdfsData.length + " pdf cards.");
     // Iterate over the PDF data and add cards dynamically
     pdfsData.forEach(function (pdfData) {
         addPdfCard(pdfData);
     });
 
-    eventSource = new EventSource("http://localhost:5001/stream");
+    eventSource = new EventSource("/stream");
     eventSource.onmessage = function(event) {
         const data = JSON.parse(event.data);
         console.log("Received data:", data);
@@ -15,6 +16,15 @@ document.addEventListener('DOMContentLoaded', function () {
     eventSource.onerror = function(err) {
         console.error("SSE error", err);
     };
+
+    eventSource.onopen = function() {
+        console.log("SSE connection opened");
+        document.getElementById('top-progress-bar').style.display = 'none';
+    }
+
+    eventSource.onclose = function() {
+        console.log("SSE connection closed");
+    }
 });
 
 
