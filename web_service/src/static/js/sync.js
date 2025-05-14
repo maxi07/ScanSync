@@ -19,6 +19,44 @@ document.addEventListener('DOMContentLoaded', function () {
     replaceHostnamePopovers();
 });
 
+// Add event listener for smb form submit
+document.getElementById("pathmappingmodal_add_smb_form").addEventListener('submit', async function (event) {
+    // Validate for invalid chars
+    const input = document.getElementById("local_path");
+    const error = document.getElementById("error_message_local_path");
+    const name = input.value;
+
+    if (!isValidSmbName(name)) {
+      event.preventDefault(); // Verhindert das Absenden
+      error.textContent = "Invalid SMB name: Avoid < > : \" / \\ | ? * or reserved names.";
+      error.style.display = "block";
+      return;
+    } else {
+      error.style.display = "none";
+    }
+
+    console.log("Submitting SMB form");
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const response = await fetch("/add-path-mapping" || window.location.pathname, {
+        method: 'POST',
+        body: formData
+    });
+
+    if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+            window.location.href = '/sync';
+        } else {
+            alert(data.error || 'Unknown error while submitting');
+        }
+    } else {
+        const data = await response.json().catch(() => ({}));
+        alert(data.error || 'Unknwon error while submitting');
+    }
+});
+
 function replaceHostnamePopovers() {
     const popoverButtons = document.querySelectorAll('[data-bs-toggle="popover"]');
 
