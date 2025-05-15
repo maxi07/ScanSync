@@ -13,6 +13,7 @@ ScanSync is a Python application designed to streamline document management by:
 - Ensuring redundancy with [RabbitMQ](https://www.rabbitmq.com).
 - Supporting multiple sync targets.
 
+![Dashboard](/doc/dashboard.jpg)
 
 ## 🚀 Features
 - **SMB Server**: Easily connect and manage your documents.
@@ -34,23 +35,23 @@ ScanSync is a Python application designed to streamline document management by:
    - [Docker Compose](https://docs.docker.com/compose/install/)
 3. Start the application:
    ```bash
-   docker-compose up --build -d
+   docker compose up --build -d
    ```
 
 Once started:
 - Connect to the SMB server using:
   - **Username**: `ocr`
   - **Password**: `ocr`
-  - **Share**: `scans`
-- Any document added to the `scans` share will be automatically processed.
+  - **Share**: `Scans`
 - Access the web server at your server's IP on port `5001`.
-
+- Setup your onedrive connection, add a smb share and start scanning
 
 ## 🛠 Development
 
 For development purposes, you can use the built-in Flask server:
 1. Update the `ENV` variable in the [docker-compose.yml](/docker-compose.yml) file to `development`.
 2. Restart the application to enable debug output and Flask development mode.
+3. Run pytests via the [run-tests.sh](run-tests.sh) script (Spins up a docker [test-service](/test_service/Dockerfile))
 
 
 ## 🔮 Upcoming Features
