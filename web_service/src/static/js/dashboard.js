@@ -10,7 +10,11 @@ document.addEventListener('DOMContentLoaded', function () {
     eventSource.onmessage = function(event) {
         const data = JSON.parse(event.data);
         console.log("Received data:", data);
-        updateCard(data);
+        // Check if the data has card id
+        if (data.id) {
+            console.log("Updating card with ID:", data.id);
+            updateCard(data);
+        }
     };
     
     eventSource.onerror = function(err) {

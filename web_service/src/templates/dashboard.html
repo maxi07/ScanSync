@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
 <link rel="stylesheet" type="text/css" href="/static/css/dashboard.css">
-<h1>Dashboard</h1>
 
 <!-- Dashboard widgets -->
 <div class="row g-4 mb-3">
@@ -47,7 +46,6 @@
     </div>
 </div>
 
-{% if pdfs %}<h2> Latest documents </h2>{% endif %}
 <div class="row row-cols-1 row-cols-sm-2 row-cols-md-2 row-cols-lg-4 g-4" id="pdfs_grid">
 </div>
 {% if pdfs %}

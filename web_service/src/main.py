@@ -152,9 +152,10 @@ def stream():
         connected_clients += 1
         logger.info(f"Client connected. Total connected clients: {connected_clients}")
         try:
+            yield 'data: {"status": "connected"}\n\n'
             while True:
                 try:
-                    data = sse_queue.get(timeout=10)
+                    data = sse_queue.get(timeout=2)
                     logger.debug(f"Data retrieved from SSE queue: {data}")
                     time.sleep(0.2)
                     yield f"data: {data}\n\n"
