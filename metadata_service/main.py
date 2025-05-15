@@ -89,6 +89,13 @@ def on_created(filepath: str):
                 move_to_failed(item)
                 return
 
+    # Check again if file exists
+    if not os.path.exists(filepath):
+        logger.warning(f"File {filepath} does not exist anymore. Skipping.")
+        item.status = ProcessStatus.DELETED
+        update_scanneddata_database(item, {"file_status": item.status.value})
+        return
+
     item.status = ProcessStatus.READING_METADATA
     update_scanneddata_database(item, {"file_status": item.status.value})
 
