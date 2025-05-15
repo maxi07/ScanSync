@@ -17,7 +17,19 @@ document.addEventListener('DOMContentLoaded', function () {
     const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]')
     const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl))
     replaceHostnamePopovers();
+    setSortByDropdown();
 });
+
+function setSortByDropdown() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderParam = urlParams.get('order');
+    const sortDropdown = document.getElementById('sortDropdown');
+    if (orderParam && Array.from(sortDropdown.options).some(option => option.value === orderParam)) {
+        sortDropdown.value = orderParam;
+    } else {
+        sortDropdown.value = "created ASC";
+    }
+}
 
 // Add event listener for smb form submit
 document.getElementById("pathmappingmodal_add_smb_form").addEventListener('submit', async function (event) {
@@ -312,4 +324,12 @@ function deleteFailedSync(id) {
         };
     }
     xhr.send(JSON.stringify({ "id": id }));
+}
+
+function sortPathMappings() {
+    const sortBy = document.getElementById('sortDropdown').value;
+    console.log(`Sorting by: ${sortBy}`);
+    const url = new URL(window.location.href);
+    url.searchParams.set('order', sortBy);
+    window.location.href = url.toString();
 }

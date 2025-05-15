@@ -101,9 +101,13 @@ def delete(smb_id: int) -> bool:
     return True
 
 
-def get_all():
+def get_all(order=""):
     logger.info("Getting all SMB shares from database")
-    query = "SELECT * FROM smb_onedrive"
+    # Check if order is valid
+    if order and order not in ["smb_name ASC", "smb_name DESC", "created ASC", "created DESC"]:
+        logger.error(f"Invalid order parameter: {order}")
+        order = "created ASC"
+    query = "SELECT * FROM smb_onedrive ORDER BY " + (order if order else "id")
     result = execute_query(query, fetchall=True)
 
     if result is None:

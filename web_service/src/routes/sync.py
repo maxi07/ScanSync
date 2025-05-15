@@ -15,8 +15,11 @@ sync_bp = Blueprint('sync', __name__)
 def sync():
     logger.info("Requested sync site")
 
+    # Read URL args
+    order_by = request.args.get('order', 'created ASC')
+
     # Get all SMB shares from the database
-    smb_shares = onedrive_smb_manager.get_all()
+    smb_shares = onedrive_smb_manager.get_all(order=order_by)
 
     # Get all failed uploads
     try:
