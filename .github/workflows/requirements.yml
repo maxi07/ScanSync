@@ -11,7 +11,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
+          fetch-depth: 0             # otherwise, you will fail to push refs to dest repo
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -26,13 +29,7 @@ jobs:
       - name: Generate requirements-dev.txt
         run: |
           pipreqs . --force --ignore .venv --savepath requirements-dev.txt
-
-      - name: Push requirements-dev.txt
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add requirements-dev.txt
-          git commit -m "Update requirements-dev.txt" || echo "No changes"
-          git push https://x-access-token:$GH_PAT@github.com/${{ github.repository }}.git HEAD:main
+      - name: Commit & Push changes
+        uses: actions-js/push@master
+        with:
+          github_token: ${{ secrets.GH_PAT }}
