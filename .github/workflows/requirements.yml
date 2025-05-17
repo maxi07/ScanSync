@@ -13,8 +13,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
-          fetch-depth: 0             # otherwise, you will fail to push refs to dest repo
+          persist-credentials: false # sonst wird GITHUB_TOKEN statt deines PAT genutzt
+          fetch-depth: 0             # sonst schlägt git push fehl
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,7 +29,9 @@ jobs:
       - name: Generate requirements-dev.txt
         run: |
           pipreqs . --force --ignore .venv --savepath requirements-dev.txt
+
       - name: Commit & Push changes
         uses: actions-js/push@master
         with:
           github_token: ${{ secrets.GH_PAT }}
+          message: "Update requirements-dev.txt [skip ci]"
