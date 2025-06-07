@@ -85,3 +85,11 @@ background-color: green; /* Bootstrap-Rot */
     font-size: 1.5rem;
     color: white !important;
 }
+
+.page-item-dots {
+    width: 30px;
+}
+
+.page-item-dots .page-link {
+    padding-left: 8px;
+}

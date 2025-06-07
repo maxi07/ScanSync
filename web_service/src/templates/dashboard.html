@@ -54,17 +54,8 @@
 <nav aria-label="Page navigation">
     <ul class="pagination justify-content-center">
 
-        <!-- First Page Button -->
-        {% if page != 1 %}
-        <li class="page-item">
-            <a class="page-link" href="?page=1" aria-label="First">
-                <span aria-hidden="true">&laquo;&laquo;</span>
-            </a>
-        </li>
-        {% endif %}
-
         <!-- Previous Button -->
-        {% if page != 1 %}
+        {% if page > 1 %}
         <li class="page-item">
             <a class="page-link" href="?page={{ page - 1 }}" aria-label="Previous">
                 <span aria-hidden="true">&laquo;</span>
@@ -72,29 +63,51 @@
         </li>
         {% endif %}
 
-        <!-- Numbered Pages -->
-        {% if total_pages > 1 %}
-        {% for page_num in range(1, total_pages + 1) if page - 5 <= page_num <=page + 5 %}
-        <li class="page-item {% if page_num == page %}active{% endif %}">
-            <a class="page-link" href="?page={{ page_num }}">{{ page_num }}</a>
-            </li>
-        {% endfor %}
+        <!-- First Page -->
+        <li class="page-item {% if page == 1 %}active{% endif %}">
+            <a class="page-link" href="?page=1">1</a>
+        </li>
+
+        {% set start = 2 %}
+        {% set end = total_pages - 1 %}
+        {% if page - 2 > 2 %}
+            {% set start = page - 2 %}
+        {% endif %}
+        {% if page + 2 < total_pages - 1 %}
+            {% set end = page + 2 %}
         {% endif %}
 
-        <!-- Next Button -->
-        {% if page != total_pages %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ page + 1 }}" aria-label="Next">
-                <span aria-hidden="true">&raquo;</span>
-            </a>
+        <!-- Dots if needed -->
+        {% if start > 2 %}
+        <li class="page-item disabled page-item-dots"><span class="page-link">...</span></li>
+        {% endif %}
+
+        <!-- Four dynamic pages -->
+        {% for page_num in range(start, end + 1) %}
+            {% if page_num != 1 and page_num != total_pages %}
+            <li class="page-item {% if page_num == page %}active{% endif %}">
+                <a class="page-link" href="?page={{ page_num }}">{{ page_num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+
+        <!-- Dots if needed before last page -->
+        {% if end < total_pages - 1 %}
+        <li class="page-item disabled page-item-dots"><span class="page-link">...</span></li>
+        {% endif %}
+
+        <!-- Last Page (if more than one page) -->
+        {% if total_pages > 1 %}
+        <li class="page-item {% if page == total_pages %}active{% endif %}">
+            <a class="page-link" href="?page={{ total_pages }}">{{ total_pages }}</a>
         </li>
         {% endif %}
 
-        <!-- Last Page Button -->
-        {% if page != total_pages %}
+        <!-- Next Button -->
+        {% if page < total_pages %}
         <li class="page-item">
-            <a class="page-link" href="?page={{ total_pages }}" aria-label="Last">
-                <span aria-hidden="true">&raquo;&raquo;</span>
+            <a class="page-link" href="?page={{ page + 1 }}" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
             </a>
         </li>
         {% endif %}
