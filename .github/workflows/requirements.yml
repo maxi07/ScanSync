@@ -1,37 +1,69 @@
-name: Generate requirements-dev.txt
+name: Merge Requirements
 
 on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'requirements-dev.txt'
+  workflow_dispatch:
 
 jobs:
-  generate-requirements:
+  merge-requirements:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
         with:
-          persist-credentials: false # sonst wird GITHUB_TOKEN statt deines PAT genutzt
-          fetch-depth: 0             # sonst schlägt git push fehl
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.13'
+          python-version: '3.x'
 
-      - name: Install dependencies
+      - name: Install pip-tools
+        run: pip install pip-tools
+
+      - name: Find and merge all requirements.txt files
         run: |
-          python -m pip install --upgrade pip
-          pip install pipreqs
+          echo "Searching for requirements.txt files..."
+          find . -name "requirements.txt" > requirements_files.txt
 
-      - name: Generate requirements-dev.txt
+          echo "Merging requirements..."
+          > merged_requirements.in
+
+          while read -r file; do
+            echo "# From $file" >> merged_requirements.in
+            cat "$file" >> merged_requirements.in
+            echo "" >> merged_requirements.in
+          done < requirements_files.txt
+
+          echo "Compiling merged requirements..."
+          set +e
+          pip-compile merged_requirements.in --output-file=requirements-dev.txt
+          RESULT=$?
+          set -e
+
+          if [ $RESULT -ne 0 ]; then
+            echo "❌ Conflict detected during pip-compile:"
+            pip-compile merged_requirements.in --output-file=requirements-dev.txt || true
+            exit 1
+          fi
+
+          echo "✅ requirements-dev.txt successfully created:"
+          cat requirements-dev.txt
+
+      - name: Commit and push requirements-dev.txt
         run: |
-          pipreqs . --force --ignore .venv --savepath requirements-dev.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Commit & Push changes
-        uses: actions-js/push@master
-        with:
-          github_token: ${{ secrets.GH_PAT }}
-          message: "Update requirements-dev.txt [skip ci]"
+          if git diff --quiet requirements-dev.txt; then
+            echo "No changes to commit."
+          else
+            git add requirements-dev.txt
+            git commit -m "Update requirements-dev.txt [ci-skip-auto]"
+            git push origin main
+          fi
