@@ -23,6 +23,9 @@ ScanSync is a Python application designed to streamline document management by:
 - **Redundancy**: Reliable document handling with RabbitMQ.
 - **Multiple Sync Targets**: Flexibility to sync across various locations.
 
+## Why this project?
+I ran into the following issue: I wanted to scan a document using a regular network scanner, OCR that file and move it automatically to SharePoint or OneDrive. There are ver expensive scanners that do have that option, but buying new hardware was out of scope. Then there also is 3rd party software, but it usually requires paid cloud services and subscriptions: Not suitable for a small business or even personal use. Therefore this application, that enables you to use a regular network scanner, make the document searchable by running OCR and then automatically pushing it into your desired OneDrive location. No big hastle, everything local and for free (except the optional OpenAI file naming, but the cost is in the cents.)
+
 
 ## 📦 Installation
 
