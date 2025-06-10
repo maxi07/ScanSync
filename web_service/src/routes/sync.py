@@ -7,6 +7,8 @@ import math
 from scansynclib.sqlite_wrapper import execute_query
 from scansynclib.config import config
 from scansynclib.helpers import validate_smb_filename
+import io
+import csv
 
 sync_bp = Blueprint('sync', __name__)
 
@@ -197,3 +199,48 @@ def deleteFailedPDF():
     except Exception as ex:
         logger.exception(f"Error deleting file: {ex}")
         return "Failed deleting requested item", 500
+
+
+@sync_bp.get("/sync/export")
+def export_sync_data():
+    """Exports the sync data as a CSV file."""
+    try:
+        logger.info("Exporting sync data to CSV")
+        smb_shares = onedrive_smb_manager.get_all(order='created ASC')
+
+        str_io = io.StringIO()
+        writer = csv.writer(str_io)
+        writer.writerow(['id', 'smb_name', 'onedrive_path', 'drive_id', 'folder_id', 'web_url', 'created'])
+
+        errors = 0
+        logger.debug(f"Exporting {len(smb_shares)} SMB shares to CSV")
+        for smb in smb_shares:
+            try:
+                writer.writerow([
+                    smb['id'],
+                    smb['smb_name'],
+                    smb['onedrive_path'],
+                    smb['drive_id'],
+                    smb['folder_id'],
+                    smb['web_url'],
+                    smb['created']
+                ])
+            except Exception as ex:
+                logger.exception(f"Failed writing SMB share {smb['id']} to CSV: {ex}")
+                errors += 1
+
+        if errors > 0:
+            logger.warning(f"Exported sync data with {errors} errors.")
+        else:
+            logger.info("Exported sync data successfully without errors.")
+
+        # String in Bytes umwandeln
+        byte_io = io.BytesIO()
+        byte_io.write(str_io.getvalue().encode('utf-8'))
+        byte_io.seek(0)
+
+        return send_file(byte_io, mimetype='text/csv', as_attachment=True, download_name='sync_data.csv')
+
+    except Exception as ex:
+        logger.exception(f"Failed exporting sync data: {ex}")
+        return "Failed exporting sync data", 500
