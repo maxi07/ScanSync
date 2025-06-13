@@ -20,6 +20,92 @@ document.addEventListener('DOMContentLoaded', function () {
     setSortByDropdown();
 });
 
+function importPathMappingsCSV(input) {
+    if (input.files.length === 0) return;
+    const file = input.files[0];
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+        alert('Please select a CSV file.');
+        input.value = ""; // Reset the input
+        return;
+    }
+    const modalHtml = `
+        <div class="modal fade" id="csvUploadModal" tabindex="-1" aria-labelledby="csvUploadModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="csvUploadModalLabel">Uploading CSV...</h5>
+                    </div>
+                    <div class="modal-body d-flex align-items-center">
+                        <div class="spinner-border text-primary me-3" role="status">
+                            <span class="visually-hidden">Uploading...</span>
+                        </div>
+                        <span>Please wait while your CSV is being uploaded.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    let modalDiv = document.createElement('div');
+    modalDiv.innerHTML = modalHtml;
+    document.body.appendChild(modalDiv);
+
+    const uploadModal = new bootstrap.Modal(document.getElementById('csvUploadModal'));
+    uploadModal.show();
+    const formData = new FormData();
+    formData.append('csv', file);
+
+    fetch('/sync/upload', {
+        method: 'PUT',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        const modalBody = document.querySelector('#csvUploadModal .modal-body');
+        const modalTitle = document.getElementById('csvUploadModalLabel');
+        if (data.success) {
+            modalBody.innerHTML = `<div class="w-100"><div class="alert alert-success mb-0">CSV uploaded successfully.<br><strong>${data.added}</strong> item(s) added.</div></div>`;
+            modalTitle.textContent = "Upload Complete";
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        } else {
+            showCsvUploadErrorModal(data.error || 'Failed to upload CSV.');
+        }
+    })
+    .catch(error => {
+        console.error(error);
+        showCsvUploadErrorModal('An error occurred while uploading the CSV.<br>' + error);
+    });
+}
+
+function showCsvUploadErrorModal(message) {
+    const modalBody = document.querySelector('#csvUploadModal .modal-body');
+    const modalTitle = document.getElementById('csvUploadModalLabel');
+    if (modalBody && modalTitle) {
+        modalBody.innerHTML = `
+            <div class="w-100">
+                <div class="alert alert-danger mb-3">${message}</div>
+                <div class="text-end">
+                    <button type="button" class="btn btn-secondary" id="csvUploadModalCloseBtn">Close</button>
+                </div>
+            </div>
+        `;
+        modalTitle.textContent = "Upload Failed";
+        document.getElementById('csvUploadModalCloseBtn').onclick = function() {
+            const csvModal = document.getElementById('csvUploadModal');
+            const uploadModal = bootstrap.Modal.getInstance(csvModal);
+            uploadModal.hide();
+            setTimeout(() => {
+                csvModal.remove();
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) backdrop.remove();
+            }, 500);
+        };
+    } else {
+        alert(message);
+    }
+}
+
 function setSortByDropdown() {
     const urlParams = new URLSearchParams(window.location.search);
     const orderParam = urlParams.get('order');
