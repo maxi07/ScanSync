@@ -148,7 +148,7 @@ pytest==8.4.0
     #   pytest-mock
 pytest-mock==3.14.1
     # via -r merged_requirements.in
-requests==2.32.3
+requests==2.32.4
     # via
     #   -r merged_requirements.in
     #   msal
