@@ -60,67 +60,50 @@ function importPathMappingsCSV(input) {
     })
     .then(response => response.json())
     .then(data => {
+        const modalBody = document.querySelector('#csvUploadModal .modal-body');
+        const modalTitle = document.getElementById('csvUploadModalLabel');
         if (data.success) {
-            // Hide spinner and show result in modal
-            const modalBody = document.querySelector('#csvUploadModal .modal-body');
-            const modalTitle = document.getElementById('csvUploadModalLabel');
             modalBody.innerHTML = `<div class="w-100"><div class="alert alert-success mb-0">CSV uploaded successfully.<br><strong>${data.added}</strong> item(s) added.</div></div>`;
             modalTitle.textContent = "Upload Complete";
             setTimeout(() => {
                 window.location.reload();
             }, 3000);
         } else {
-            // Show error in modal with close button
-            const modalBody = document.querySelector('#csvUploadModal .modal-body');
-            const modalTitle = document.getElementById('csvUploadModalLabel');
-            modalBody.innerHTML = `
-                <div class="w-100">
-                    <div class="alert alert-danger mb-3">${data.error || 'Failed to upload CSV.'}</div>
-                    <div class="text-end">
-                        <button type="button" class="btn btn-secondary" id="csvUploadModalCloseBtn">Close</button>
-                    </div>
-                </div>
-            `;
-            modalTitle.textContent = "Upload Failed";
-            document.getElementById('csvUploadModalCloseBtn').onclick = function() {
-                const csvModal = document.getElementById('csvUploadModal');
-                const uploadModal = bootstrap.Modal.getInstance(csvModal);
-                uploadModal.hide();
-                setTimeout(() => {
-                    csvModal.remove();
-                    const backdrop = document.querySelector('.modal-backdrop');
-                    if (backdrop) backdrop.remove();
-                }, 500);
-            };
+            showCsvUploadErrorModal(data.error || 'Failed to upload CSV.');
         }
     })
     .catch(error => {
         console.error(error);
-        // Show error in modal with close button
-        const modalBody = document.querySelector('#csvUploadModal .modal-body');
-        const modalTitle = document.getElementById('csvUploadModalLabel');
-        if (modalBody && modalTitle) {
-            modalBody.innerHTML = `
-                <div class="alert alert-danger mb-0">An error occurred while uploading the CSV.<br>${error}</div>
-                <div class="mt-3 text-end">
+        showCsvUploadErrorModal('An error occurred while uploading the CSV.<br>' + error);
+    });
+}
+
+function showCsvUploadErrorModal(message) {
+    const modalBody = document.querySelector('#csvUploadModal .modal-body');
+    const modalTitle = document.getElementById('csvUploadModalLabel');
+    if (modalBody && modalTitle) {
+        modalBody.innerHTML = `
+            <div class="w-100">
+                <div class="alert alert-danger mb-3">${message}</div>
+                <div class="text-end">
                     <button type="button" class="btn btn-secondary" id="csvUploadModalCloseBtn">Close</button>
                 </div>
-            `;
-            modalTitle.textContent = "Upload Failed";
-            document.getElementById('csvUploadModalCloseBtn').onclick = function() {
-                const csvModal = document.getElementById('csvUploadModal');
-                const uploadModal = bootstrap.Modal.getInstance(csvModal);
-                uploadModal.hide();
-                setTimeout(() => {
-                    csvModal.remove();
-                    const backdrop = document.querySelector('.modal-backdrop');
-                    if (backdrop) backdrop.remove();
-                }, 500);
-            };
-        } else {
-            alert('An error occurred while uploading the CSV.');
-        }
-    });
+            </div>
+        `;
+        modalTitle.textContent = "Upload Failed";
+        document.getElementById('csvUploadModalCloseBtn').onclick = function() {
+            const csvModal = document.getElementById('csvUploadModal');
+            const uploadModal = bootstrap.Modal.getInstance(csvModal);
+            uploadModal.hide();
+            setTimeout(() => {
+                csvModal.remove();
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) backdrop.remove();
+            }, 500);
+        };
+    } else {
+        alert(message);
+    }
 }
 
 function setSortByDropdown() {
