@@ -244,3 +244,67 @@ def export_sync_data():
     except Exception as ex:
         logger.exception(f"Failed exporting sync data: {ex}")
         return "Failed exporting sync data", 500
+
+
+@sync_bp.put("/sync/upload")
+def upload_sync_data():
+    """Uploads a CSV file and imports new SMB shares."""
+    try:
+        if 'csv' not in request.files:
+            logger.error("No file part in request")
+            return jsonify({'error': 'No file part'}), 400
+        file = request.files['csv']
+        if file.filename == '':
+            logger.error("No selected file")
+            return jsonify({'error': 'No selected file'}), 400
+        if not file.filename.lower().endswith('.csv'):
+            logger.error("Uploaded file is not a CSV")
+            return jsonify({'error': 'File is not a CSV'}), 400
+
+        # CSV einlesen
+        try:
+            stream = io.StringIO(file.stream.read().decode("utf-8"))
+            reader = csv.DictReader(stream)
+        except Exception:
+            logger.exception("Failed to read or decode CSV file")
+            return jsonify({'error': 'Failed to read or decode CSV file'}), 400
+
+        expected_fields = ['id', 'smb_name', 'onedrive_path', 'drive_id', 'folder_id', 'web_url', 'created']
+        logger.debug(f"Found fields in CSV: {reader.fieldnames}, expected: {expected_fields}")
+        if reader.fieldnames != expected_fields:
+            logger.error(f"CSV header mismatch: {reader.fieldnames} != {expected_fields}")
+            return jsonify({'error': 'CSV header does not match required fields'}), 400
+
+        # Bestehende SMBs holen
+        try:
+            existing = onedrive_smb_manager.get_all()
+            existing_keys = set((e['smb_name'], e['onedrive_path'], e['drive_id'], e['folder_id']) for e in existing)
+        except Exception:
+            logger.exception("Failed to fetch existing SMB shares")
+            return jsonify({'error': 'Failed to fetch existing SMB shares'}), 500
+
+        added_count = 0
+        for row in reader:
+            try:
+                key = (row['smb_name'], row['onedrive_path'], row['drive_id'], row['folder_id'])
+                if key not in existing_keys:
+                    db_id = onedrive_smb_manager.add(
+                        row['smb_name'],
+                        row['drive_id'],
+                        row['folder_id'],
+                        row['onedrive_path'],
+                        row['web_url']
+                    )
+                    if db_id != -1:
+                        added_count += 1
+                        existing_keys.add(key)
+            except Exception:
+                logger.exception(f"Failed to add SMB share from row: {row}")
+                continue
+
+        logger.info(f"Imported sync data: {added_count} new items added.")
+        return jsonify({'success': True, 'added': added_count}), 200
+
+    except Exception as ex:
+        logger.exception(f"Failed uploading sync data: {ex}")
+        return jsonify({'error': 'Failed uploading sync data'}), 500

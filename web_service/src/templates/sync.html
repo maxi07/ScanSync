@@ -16,7 +16,7 @@
             </button>
             <ul class="dropdown-menu">
                 <li>
-                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#pathmappingmodal" id="add_path_mapping_dropdown">
+                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#pathmappingmodal" id="add_path_mapping_button">
                         <i class="bi bi-plus-circle"></i> Add
                     </a>
                 </li>
@@ -26,8 +26,11 @@
                     </a>
                 </li>
                 <li>
-                    <a class="dropdown-item disabled" href="#" id="import_path_mappings_button">
-                        <i class="bi bi-box-arrow-in-down"></i> Import (Coming soon)
+                    <a class="dropdown-item" href="#" id="import_path_mappings_button">
+                        <input type="file" accept=".csv" id="import_csv_input" style="display: none;" onchange="importPathMappingsCSV(this)">
+                        <label for="import_csv_input" style="margin-bottom: 0; cursor: pointer;">
+                            <i class="bi bi-box-arrow-in-down"></i> Import CSV
+                        </label>
                     </a>
                 </li>
             </ul>
