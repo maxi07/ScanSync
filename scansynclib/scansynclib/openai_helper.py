@@ -1,10 +1,9 @@
 from openai import OpenAI, AuthenticationError, RateLimitError
 from scansynclib.ProcessItem import ProcessItem
 from scansynclib.logging import logger
-from pypdf import PdfReader
 from scansynclib.openai_settings import openai_settings
 from tenacity import Retrying, RetryError, stop_after_attempt, wait_random_exponential, retry_if_exception_type
-from scansynclib.helpers import validate_smb_filename
+from scansynclib.helpers import validate_smb_filename, extract_text
 
 
 OPENAI_MODEL = "gpt-4.1-nano"
@@ -119,22 +118,3 @@ def generate_filename(item: ProcessItem) -> str:
     finally:
         # Close the OpenAI client connection
         client.close()
-
-
-def extract_text(pdf_path: str) -> str:
-    """Extracts text from a PDF file.
-
-    Args:
-        pdf_path (str): The path to the PDF file.
-
-    Returns:
-        str: The extracted text from the PDF. An empty string is returned if the extraction fails.
-    """
-    try:
-        reader = PdfReader(pdf_path)
-        page = reader.pages[0]
-        text = page.extract_text()
-        return text
-    except Exception as ex:
-        logger.exception(f"Failed extracting text: {ex}")
-        return ""

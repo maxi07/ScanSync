@@ -9,7 +9,7 @@ from scansynclib.openai_helper import generate_filename
 from scansynclib.sqlite_wrapper import update_scanneddata_database
 
 
-RABBITQUEUE = "openai_queue"
+RABBITQUEUE = "file_naming_queue"
 
 
 def callback(ch, method, properties, body):

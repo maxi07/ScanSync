@@ -9,6 +9,7 @@ from scansynclib.ProcessItem import ProcessItem
 from scansynclib.config import config
 import pika.exceptions
 from scansynclib.logging import logger
+from pypdf import PdfReader
 
 
 def connect_rabbitmq(queue_names: list = None, heartbeat: int = 30):
@@ -210,3 +211,22 @@ def validate_smb_filename(filename: str) -> str:
         filename = "default_filename"
 
     return filename
+
+
+def extract_text(pdf_path: str) -> str:
+    """Extracts text from a PDF file.
+
+    Args:
+        pdf_path (str): The path to the PDF file.
+
+    Returns:
+        str: The extracted text from the PDF. An empty string is returned if the extraction fails.
+    """
+    try:
+        reader = PdfReader(pdf_path)
+        page = reader.pages[0]
+        text = page.extract_text()
+        return text
+    except Exception as ex:
+        logger.exception(f"Failed extracting text: {ex}")
+        return ""

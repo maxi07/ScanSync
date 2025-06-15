@@ -70,7 +70,7 @@ def start_processing(item: ProcessItem):
             if openai_settings.api_key:
                 logger.info(f"Forwarding item {item.filename} to OpenAI service.")
                 item.status = ProcessStatus.FILENAME_PENDING
-                forward_to_rabbitmq("openai_queue", item)
+                forward_to_rabbitmq("file_naming_queue", item)
             else:
                 logger.info(f"Forwarding item {item.filename} to Upload service.")
                 item.status = ProcessStatus.SYNC_PENDING

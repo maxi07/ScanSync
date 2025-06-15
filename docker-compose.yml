@@ -31,10 +31,10 @@ services:
       replicas: 2
     command: ["python", "main.py"]
 
-  openai_service:
+  file_naming_service:
     build:
       context: .
-      dockerfile: openai_service/Dockerfile
+      dockerfile: file_naming_service/Dockerfile
     restart: unless-stopped
     volumes:
       - scans:/mnt/scans
