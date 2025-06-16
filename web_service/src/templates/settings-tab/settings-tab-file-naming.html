@@ -1,0 +1,35 @@
+<div class="tab-pane" id="openai-tabpanel" role="tabpanel" aria-labelledby="openai-tab">
+    <p>
+        Using OpenAI, we can add automatic file names to your scanned files. The content of the first page will be submitted
+        to OpenAI to generate a file name.
+        By entering your OpenAI API key, you agree to OpenAI's <a href="https://openai.com/terms/" target="_blank">Terms of
+            Service</a> and <a href="https://openai.com/enterprise-privacy" target="_blank">Privacy
+            Policy</a>.<br>
+        <a href="https://openai.com/en-US/policies/privacy-policy/" role="button">Does OpenAI store my data?</a>
+    </p>
+    <div class="alert alert-dark d-flex align-items-center" role="alert" id="openAIDataAlert">
+        <i class="bi bi-info-circle-fill me-2" style="font-size: 1.25rem;"></i>
+        <div>
+            You can find more info on API keys <a href="https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key"
+                target="_blank" style="color: var(--bs-alert-link-color)">here</a> or get your API key <a
+                href="https://platform.openai.com/api-keys" target="_blank" style="color: var(--bs-alert-link-color)"> from
+                here</a>.
+        </div>
+    </div>
+    <form id="openai-form">
+        <div class="input-group">
+            <span class="input-group-text" id="addon-wrapping"><i class="bi bi-key"></i></span>
+            <input type="password" class="form-control" placeholder="OpenAI Key" aria-label="OpenAI key"
+                aria-describedby="addon-wrapping" id="openai_key" name="openai_key" value="{{ openai_key }}"
+                pattern="^sk-.{17,}$" required>
+        </div>
+        <br>
+        {% if not openai_key %}
+        <button type="submit" class="btn btn-primary animated-button" id="save-openai-button">
+            <i class="bi bi-stars me-1"></i>Enable automatic file names with OpenAI
+        </button>
+        {% else %}
+        <button type="button" class="btn btn-danger animated-button" id="delete-openai-button" onclick="deleteOpenAi()"><i class="bi bi-x-circle me-1"></i>Disable OpenAI filenames</button>
+        {% endif %}
+    </form>
+</div>
