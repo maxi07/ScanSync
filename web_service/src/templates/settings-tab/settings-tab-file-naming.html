@@ -88,15 +88,28 @@
                 </button>
             </div>
             <div id="ollama-version-info" class="alert alert-success mb-4 d-none"></div>
-            <div id="ollama-models-section" style="display:none;">
+            <div id="ollama-models-section" style="display:{% if not ollama_server_url or not ollama_model %}none{% else %}block{% endif %};">
                 <label for="ollama_model_select" class="form-label">Select Model</label>
-                <select class="form-select" id="ollama_model_select" name="ollama_model_select" required>
-                    <!-- Models will be populated here -->
-                </select>
+                <div class="input-group mb-2">
+                    <span class="input-group-text"><i class="bi bi-database"></i></span>
+                    <select class="form-select" id="ollama_model_select" name="ollama_model_select" required>
+                        <!-- Models will be populated here -->
+                    </select>
+                    <button type="submit" value="update_model" class="btn btn-primary {% if not ollama_enabled %}d-none{% endif %}" id="ollama-refresh-models-btn">
+                        <i class="bi bi-check"></i> Select Model
+                    </button>
+                </div>
                 <div id="ollama-model-info" class="form-text"></div>
             </div>
             <div id="ollama-error" class="alert alert-danger mt-2 d-none"></div>
+            {% if not ollama_enabled %}
             <button type="submit" class="btn btn-success mt-3" id="ollama-save-btn" disabled><i class="bi bi-stars me-1"></i>Enable automatic file names with Ollama</button>
+            {% else %}
+            <button type="button" class="btn btn-danger mt-3" id="ollama-delete-btn" onclick="deleteOllama()"><i class="bi bi-x-circle me-1"></i>Disable Ollama filenames</button>
+            {% endif %}
         </form>
     </div>
 </div>
+<script>
+    let ollama_enabled = {{ ollama_enabled | tojson }};
+</script>

@@ -161,6 +161,15 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
         console.error('Error attaching file_naming_method change listeners:', error);
     }
+
+    if (ollama_enabled) {
+        // Auto-click Ollama connect button if it exists
+        try {
+            document.getElementById('ollama-connect-btn').click();
+        } catch (error) {
+            console.error('Error auto-clicking Ollama connect button:', error);
+        }
+    }
 });
 
 function openLoginPopup() {
@@ -176,8 +185,11 @@ function openLoginPopup() {
     }, 1000);
 }
 
- document.getElementById('ollama-connect-btn').addEventListener('click', async function() {
+document.getElementById('ollama-connect-btn').addEventListener('click', async function() {
     const scheme = document.getElementById('ollama_server_scheme').value.trim();
+    const schemeDropdown = document.getElementById('ollama_server_scheme');
+    const urlInput = document.getElementById('ollama_server_address');
+    const portInput = document.getElementById('ollama_server_port');
     const url = document.getElementById('ollama_server_address').value.trim().replace(/\/$/, '');
     const port = document.getElementById('ollama_server_port').value.trim();
     const connectBtn = this;
@@ -188,13 +200,16 @@ function openLoginPopup() {
     const modelSelect = document.getElementById('ollama_model_select');
     const modelInfo = document.getElementById('ollama-model-info');
     const errorDiv = document.getElementById('ollama-error');
-    const saveBtn = document.getElementById('ollama-save-btn');
+    const saveBtn = document.getElementById('ollama-save-btn') || document.getElementById('ollama-delete-btn');
     errorDiv.classList.add('d-none');
     versionInfo.classList.add('d-none');
     modelsSection.style.display = 'none';
     saveBtn.disabled = true;
     modelSelect.innerHTML = '';
     modelInfo.textContent = '';
+    schemeDropdown.readOnly = true;
+    urlInput.readOnly = true;
+    portInput.readOnly = true;
 
     connectBtnHTMLBefore = connectBtn.innerHTML;
     btnText.textContent = '';
@@ -267,11 +282,16 @@ function openLoginPopup() {
             console.error('Fehler beim Verbinden mit Ollama:', err);
         }
         errorDiv.classList.remove('d-none');
+        schemeDropdown.readOnly = false;
+        urlInput.readOnly = false;
+        portInput.readOnly = false;
     } finally {
         btnText.innerHTML = connectBtnHTMLBefore;
         spinner.classList.add('d-none');
     }
-    isRequestPending = true;
+    if (!ollama_enabled) {
+        isRequestPending = true;
+    }
 });
 
 function disableFileNaming() {
@@ -303,12 +323,14 @@ function showStatusBox(message, type) {
 
 document.getElementById('ollama-form').addEventListener('submit', async function (event) {
     event.preventDefault();
-        event.preventDefault();
-    const confirmed = confirm('Enabling OpenAI file naming will disable other file naming services. Do you want to continue?');
-    if (!confirmed) {
-        this.reset();
-        return;
+    if (!ollama_enabled) {
+        const confirmed = confirm('Enabling Ollama file naming will disable other file naming services. Do you want to continue?');
+        if (!confirmed) {
+            this.reset();
+            return;
+        }
     }
+
     isRequestPending = true;
     const submitButton = this.querySelector('button[type="submit"]');
     const originalButtonHtml = submitButton.innerHTML;
@@ -351,3 +373,31 @@ document.getElementById('ollama-form').addEventListener('submit', async function
         isRequestPending = false;
     }
 });
+
+function deleteOllama() {
+    const deleteButton = document.getElementById('ollama-delete-btn');
+    const originalButtonHtml = deleteButton.innerHTML;
+
+    deleteButton.disabled = true;
+    deleteButton.textContent = 'Deleting...';
+
+    fetch('/api/ollama-settings', {
+        method: 'DELETE'
+    })
+        .then((response) => {
+            if (response.ok) {
+                alert('Ollama file naming disabled successfully.');
+                window.location.reload();
+            } else {
+                alert('An error occurred while deleting Ollama settings.');
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+            alert('An unexpected error occurred. Please try again.');
+        })
+        .finally(() => {
+            deleteButton.disabled = false;
+            deleteButton.innerHTML = originalButtonHtml;
+        });
+}

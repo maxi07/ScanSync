@@ -19,6 +19,11 @@ def index():
     user_picture = ""
     openai_key = ""
 
+    ollama_server_url = ""
+    ollama_server_port = ""
+    ollama_model = ""
+    ollama_enabled = False
+
     try:
         client_id = onedrive_settings.client_id or ""
     except Exception:
@@ -46,6 +51,13 @@ def index():
 
     try:
         ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and ollama_settings.model)
+        if ollama_enabled:
+            ollama_server_url = ollama_settings.server_url
+            ollama_server_port = ollama_settings.server_port
+            ollama_model = ollama_settings.model
+            logger.debug("Ollama settings found")
+        else:
+            logger.info("Ollama settings not configured")
     except Exception:
         logger.exception("Failed to retrieve Ollama settings")
         ollama_enabled = False
@@ -59,4 +71,7 @@ def index():
                            user_email=user_email,
                            user_picture=user_picture,
                            openai_key=openai_key,
-                           ollama_enabled=ollama_enabled,)
+                           ollama_enabled=ollama_enabled,
+                           ollama_server_url=ollama_server_url,
+                           ollama_server_port=ollama_server_port,
+                           ollama_model=ollama_model)

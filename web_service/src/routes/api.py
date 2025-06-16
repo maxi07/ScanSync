@@ -48,6 +48,11 @@ def save_openai_settings():
             return jsonify({'error': message}), code
         openai_settings.api_key = api_key
         openai_settings.save()
+
+        # Disable Ollama settings if OpenAI key is set
+        if ollama_settings.server_url or ollama_settings.server_port or ollama_settings.model:
+            logger.info("Disabling Ollama settings due to OpenAI key being set.")
+            ollama_settings.delete()
         return jsonify({'message': 'OpenAI API key saved successfully! ScanSync now uses ChatGPT for automatic file names.'}), 200
     else:
         return jsonify({'error': 'Invalid data'}), 400
@@ -110,3 +115,47 @@ def disable_file_naming():
         err = f"Error disabling file naming: {e}"
         logger.exception(err)
         return "Error disabling file naming: {err}", 500
+
+
+@api_bp.post('/api/ollama-settings')
+def save_ollama_settings():
+    logger.info("Received request to save Ollama settings")
+    if not request.is_json:
+        logger.error("Invalid request format: Expected JSON")
+        return jsonify({'error': 'Invalid request format'}), 400
+
+    try:
+        logger.debug(f"Request data: {request.json}")
+        data = request.json
+        server_url = data.get('ollama_server_address')
+        server_port = data.get('ollama_server_port')
+        model = data.get('ollama_model_select')
+
+        if server_url and server_port and model:
+            # TODO: Test Ollama server connection here
+            ollama_settings.server_url = server_url
+            ollama_settings.server_port = server_port
+            ollama_settings.model = model
+            ollama_settings.save()
+
+            # Disable OpenAI settings if Ollama settings are set
+            if openai_settings.api_key:
+                logger.info("Disabling OpenAI settings due to Ollama settings being set.")
+                openai_settings.delete()
+            return jsonify({'message': 'Ollama settings saved successfully!'}), 200
+        else:
+            return jsonify({'error': 'Invalid data'}), 400
+    except Exception as e:
+        err = f"Error saving Ollama settings: {e}"
+        logger.exception(err)
+        return jsonify({'error': err}), 500
+
+
+@api_bp.delete('/api/ollama-settings')
+def delete_ollama_settings():
+    logger.info("Received request to delete Ollama settings")
+    res = ollama_settings.delete()
+    if res:
+        return jsonify({'message': 'Ollama settings deleted successfully!'}), 200
+    else:
+        return jsonify({'error': 'Failed to delete Ollama settings'}), 500
