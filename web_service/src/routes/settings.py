@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template
 from scansynclib.logging import logger
 from scansynclib.onedrive_settings import onedrive_settings
+from scansynclib.ollama_settings import ollama_settings
 from scansynclib.onedrive_api import get_user_info, get_user_photo
 from scansynclib.openai_settings import openai_settings
 
@@ -43,9 +44,19 @@ def index():
         openai_key = ""
         logger.info("No OpenAI key available")
 
+    try:
+        ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and ollama_settings.model)
+    except Exception:
+        logger.exception("Failed to retrieve Ollama settings")
+        ollama_enabled = False
+
+    if ollama_enabled and openai_key:
+        logger.warning("Both OpenAI and Ollama are enabled, this is not recommended. Please disable one of them in the settings.")
+
     return render_template('settings.html',
                            client_id=client_id,
                            user_name=user_name,
                            user_email=user_email,
                            user_picture=user_picture,
-                           openai_key=openai_key,)
+                           openai_key=openai_key,
+                           ollama_enabled=ollama_enabled,)

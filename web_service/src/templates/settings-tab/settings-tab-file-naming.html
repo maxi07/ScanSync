@@ -1,35 +1,98 @@
 <div class="tab-pane" id="openai-tabpanel" role="tabpanel" aria-labelledby="openai-tab">
     <p>
-        Using OpenAI, we can add automatic file names to your scanned files. The content of the first page will be submitted
-        to OpenAI to generate a file name.
-        By entering your OpenAI API key, you agree to OpenAI's <a href="https://openai.com/terms/" target="_blank">Terms of
-            Service</a> and <a href="https://openai.com/enterprise-privacy" target="_blank">Privacy
-            Policy</a>.<br>
-        <a href="https://openai.com/en-US/policies/privacy-policy/" role="button">Does OpenAI store my data?</a>
+        Choose your automatic file naming method:
     </p>
-    <div class="alert alert-dark d-flex align-items-center" role="alert" id="openAIDataAlert">
-        <i class="bi bi-info-circle-fill me-2" style="font-size: 1.25rem;"></i>
-        <div>
-            You can find more info on API keys <a href="https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key"
-                target="_blank" style="color: var(--bs-alert-link-color)">here</a> or get your API key <a
-                href="https://platform.openai.com/api-keys" target="_blank" style="color: var(--bs-alert-link-color)"> from
-                here</a>.
+    <form id="file-naming-method-form">
+        <div class="btn-group mb-3" role="group" aria-label="File naming method">
+            <input type="radio" class="btn-check" name="file_naming_method" id="file_naming_none" value="none" autocomplete="off" {% if not openai_key and not ollama_enabled %}checked{% endif %}>
+            <label class="btn btn-outline-light" for="file_naming_none">No automatic file naming</label>
+
+            <input type="radio" class="btn-check" name="file_naming_method" id="file_naming_openai" value="openai" autocomplete="off" {% if openai_key %}checked{% endif %}>
+            <label class="btn btn-outline-light" for="file_naming_openai">Use OpenAI</label>
+
+            <input type="radio" class="btn-check" name="file_naming_method" id="file_naming_ollama" value="ollama" autocomplete="off" {% if ollama_enabled %}checked{% endif %}>
+            <label class="btn btn-outline-light" for="file_naming_ollama">Use Ollama server</label>
         </div>
-    </div>
-    <form id="openai-form">
-        <div class="input-group">
-            <span class="input-group-text" id="addon-wrapping"><i class="bi bi-key"></i></span>
-            <input type="password" class="form-control" placeholder="OpenAI Key" aria-label="OpenAI key"
-                aria-describedby="addon-wrapping" id="openai_key" name="openai_key" value="{{ openai_key }}"
-                pattern="^sk-.{17,}$" required>
-        </div>
-        <br>
-        {% if not openai_key %}
-        <button type="submit" class="btn btn-primary animated-button" id="save-openai-button">
-            <i class="bi bi-stars me-1"></i>Enable automatic file names with OpenAI
-        </button>
-        {% else %}
-        <button type="button" class="btn btn-danger animated-button" id="delete-openai-button" onclick="deleteOpenAi()"><i class="bi bi-x-circle me-1"></i>Disable OpenAI filenames</button>
-        {% endif %}
     </form>
+    <div id="none-options" style="display: {% if not openai_key and not ollama_enabled %}block{% else %}none{% endif %};">
+        <p>Saving will disable and delete existing OpenAI or Ollama configurations.</p>
+        <div id="file-naming-status" class="alert d-none" role="alert">
+            <!-- Status message will appear here -->
+        </div>
+        <button class="btn btn-primary" id="save-none-button" onclick="disableFileNaming()">
+            <i class="bi bi-floppy"></i> Save
+        </button>
+    </div>
+    <div id="openai-options" style="display: {% if openai_key %}block{% else %}none{% endif %};">
+        <p>
+            Using OpenAI, we can add automatic file names to your scanned files. The content of the first page will be submitted
+            to OpenAI to generate a file name.
+            By entering your OpenAI API key, you agree to OpenAI's <a href="https://openai.com/terms/" target="_blank">Terms of
+                Service</a> and <a href="https://openai.com/enterprise-privacy" target="_blank">Privacy
+                Policy</a>.<br>
+            <a href="https://openai.com/en-US/policies/privacy-policy/" role="button">Does OpenAI store my data?</a>
+        </p>
+        <div class="alert alert-dark d-flex align-items-center" role="alert" id="openAIDataAlert">
+            <i class="bi bi-info-circle-fill me-2" style="font-size: 1.25rem;"></i>
+            <div>
+                You can find more info on API keys <a href="https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key"
+                    target="_blank" style="color: var(--bs-alert-link-color)">here</a> or get your API key <a
+                    href="https://platform.openai.com/api-keys" target="_blank" style="color: var(--bs-alert-link-color)"> from
+                    here</a>.
+            </div>
+        </div>
+        <form id="openai-form">
+            <div class="input-group">
+                <span class="input-group-text" id="addon-wrapping"><i class="bi bi-key"></i></span>
+                <input type="password" class="form-control" placeholder="OpenAI Key" aria-label="OpenAI key"
+                    aria-describedby="addon-wrapping" id="openai_key" name="openai_key" value="{{ openai_key }}"
+                    pattern="^sk-.{17,}$" required>
+            </div>
+            <br>
+            {% if not openai_key %}
+            <button type="submit" class="btn btn-primary animated-button" id="save-openai-button">
+                <i class="bi bi-stars me-1"></i>Enable automatic file names with OpenAI
+            </button>
+            {% else %}
+            <button type="button" class="btn btn-danger animated-button" id="delete-openai-button" onclick="deleteOpenAi()"><i class="bi bi-x-circle me-1"></i>Disable OpenAI filenames</button>
+            {% endif %}
+        </form>
+    </div>
+    <div id="ollama-options" style="display: {% if ollama_enabled %}block{% else %}none{% endif %};">
+        <p>
+            Use your own Ollama server for automatic file naming. The content of the first page will be sent to your Ollama server.
+        </p>
+        <form id="ollama-form">
+            <div class="row g-2 align-items-center mb-2">
+                <div class="col-auto">
+                    <label for="ollama_server_url" class="col-form-label">Server URL</label>
+                </div>
+                <div class="col-auto">
+                    <input type="text" class="form-control" id="ollama_server_url" name="ollama_server_url" placeholder="http://localhost" value="{{ ollama_server_url or 'http://localhost' }}" required>
+                </div>
+                <div class="col-auto">
+                    <label for="ollama_server_port" class="col-form-label">Port</label>
+                </div>
+                <div class="col-auto">
+                    <input type="number" class="form-control" id="ollama_server_port" name="ollama_server_port" value="{{ ollama_server_port or '11434' }}" required>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-primary" id="ollama-connect-btn">
+                        <span id="ollama-connect-btn-text">Connect</span>
+                        <span id="ollama-connect-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+            <div id="ollama-version-info" class="mb-2" style="display:none;"></div>
+            <div id="ollama-models-section" style="display:none;">
+                <label for="ollama_model_select" class="form-label">Select Model</label>
+                <select class="form-select" id="ollama_model_select" name="ollama_model_select" required>
+                    <!-- Models will be populated here -->
+                </select>
+                <div id="ollama-model-info" class="form-text"></div>
+            </div>
+            <div id="ollama-error" class="alert alert-danger mt-2 d-none"></div>
+            <button type="submit" class="btn btn-success mt-3" id="ollama-save-btn" disabled>Enable automatic file names with Ollama</button>
+        </form>
+    </div>
 </div>

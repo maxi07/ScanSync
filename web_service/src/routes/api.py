@@ -4,6 +4,7 @@ from scansynclib.onedrive_settings import onedrive_settings
 from scansynclib.openai_settings import openai_settings
 from scansynclib.openai_helper import test_and_add_key
 from scansynclib.sqlite_wrapper import execute_query
+from scansynclib.ollama_settings import ollama_settings
 
 api_bp = Blueprint('api', __name__)
 
@@ -94,3 +95,18 @@ def get_status():
         err = f"Error fetching status: {e}"
         logger.exception(err)
         return jsonify({'error': err}), 500
+
+
+@api_bp.post('/api/disable-file-naming')
+def disable_file_naming():
+    logger.info("Received request to disable file naming")
+    try:
+        openai_settings.delete()
+        ollama_settings.delete()
+
+        logger.info("File naming disabled successfully")
+        return "File naming disabled successfully. ScanSync will use default file names.", 200
+    except Exception as e:
+        err = f"Error disabling file naming: {e}"
+        logger.exception(err)
+        return "Error disabling file naming: {err}", 500

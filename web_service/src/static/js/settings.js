@@ -144,6 +144,18 @@ document.addEventListener('DOMContentLoaded', () => {
             activeTab.click();
         }
     }
+
+    try {
+        document.querySelectorAll('input[name="file_naming_method"]').forEach(el => {
+        el.addEventListener('change', function() {
+            document.getElementById('openai-options').style.display = this.value === 'openai' ? 'block' : 'none';
+            document.getElementById('ollama-options').style.display = this.value === 'ollama' ? 'block' : 'none';
+            document.getElementById('none-options').style.display = this.value === 'none' ? 'block' : 'none';
+        });
+    });
+    } catch (error) {
+        console.error('Error attaching file_naming_method change listeners:', error);
+    }
 });
 
 function openLoginPopup() {
@@ -157,4 +169,100 @@ function openLoginPopup() {
             window.location.reload();
         }
     }, 1000);
+}
+
+ document.getElementById('ollama-connect-btn').addEventListener('click', async function() {
+    const url = document.getElementById('ollama_server_url').value.trim().replace(/\/$/, '');
+    const port = document.getElementById('ollama_server_port').value.trim();
+    const connectBtn = this;
+    const spinner = document.getElementById('ollama-connect-spinner');
+    const btnText = document.getElementById('ollama-connect-btn-text');
+    const versionInfo = document.getElementById('ollama-version-info');
+    const modelsSection = document.getElementById('ollama-models-section');
+    const modelSelect = document.getElementById('ollama_model_select');
+    const modelInfo = document.getElementById('ollama-model-info');
+    const errorDiv = document.getElementById('ollama-error');
+    const saveBtn = document.getElementById('ollama-save-btn');
+    errorDiv.classList.add('d-none');
+    versionInfo.style.display = 'none';
+    modelsSection.style.display = 'none';
+    saveBtn.disabled = true;
+    modelSelect.innerHTML = '';
+    modelInfo.textContent = '';
+
+    btnText.textContent = '';
+    spinner.classList.remove('d-none');
+
+    try {
+        // Check version
+        const versionResp = await fetch(`${url}:${port}/api/version`);
+        if (!versionResp.ok) throw new Error('Could not connect to Ollama server.');
+        const versionData = await versionResp.json();
+        versionInfo.textContent = `Ollama version: ${versionData.version || 'unknown'}`;
+        versionInfo.style.display = 'block';
+
+        // Get models
+        const tagsResp = await fetch(`${url}:${port}/api/tags`);
+        if (!tagsResp.ok) throw new Error('Could not fetch models from Ollama.');
+        const tagsData = await tagsResp.json();
+        if (!tagsData.models || tagsData.models.length === 0) {
+            throw new Error('No models found on Ollama server.');
+        }
+        // Populate models
+        tagsData.models.forEach(model => {
+            const opt = document.createElement('option');
+            opt.value = model.name;
+            opt.textContent = `${model.name} (${model.details?.parameter_size || 'n/a'})`;
+            opt.dataset.info = JSON.stringify(model);
+            modelSelect.appendChild(opt);
+        });
+        modelsSection.style.display = 'block';
+        // Show info for first model
+        const showModelInfo = (model) => {
+            modelInfo.innerHTML = `
+                <strong>Name:</strong> ${model.name}<br>
+                <strong>Model:</strong> ${model.model}<br>
+                <strong>Modified:</strong> ${model.modified_at}<br>
+                <strong>Parameter size:</strong> ${model.details?.parameter_size || 'n/a'}
+            `;
+        };
+        showModelInfo(tagsData.models[0]);
+        modelSelect.onchange = function() {
+            const selected = tagsData.models.find(m => m.name === this.value);
+            if (selected) showModelInfo(selected);
+        };
+        saveBtn.disabled = false;
+    } catch (err) {
+        errorDiv.textContent = err.message;
+        errorDiv.classList.remove('d-none');
+    } finally {
+        btnText.textContent = 'Connect';
+        spinner.classList.add('d-none');
+    }
+});
+
+function disableFileNaming() {
+    fetch('/api/disable-file-naming', {
+        method: 'POST'
+    })
+    .then(async response => {
+        const message = await response.text();
+        
+        showStatusBox(message, response.ok ? 'alert-success' : 'alert-danger');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showStatusBox('An unexpected error occurred. Please try again.', 'alert-danger');
+    });
+}
+
+function showStatusBox(message, type) {
+    let statusBox = document.getElementById('file-naming-status');
+    if (!statusBox) {
+        alert(message)
+        return;
+    }
+    statusBox.className = `alert ${type}`;
+    statusBox.textContent = message;
+    statusBox.style.display = 'block';
 }
