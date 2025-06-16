@@ -37,7 +37,7 @@ def send_request_to_ollama(server_url: str, model: str, pdftext: str) -> str:
     Returns:
         str: The generated filename.
     """
-    systemprompt = "Identify a suitable filename for the following pdf content. Keep the language of the file name in the original language and do not add any other language. Make the filename safe for SMB. Do not add a file extension. Seperate words with a underscore. Have a maximum filename length of 50 characters."
+    systemprompt = "Identify a suitable filename for the following pdf content. Keep the language of the file name in the original language and do not add any other language. Make the filename safe for SMB. Do not add a file extension. Seperate words with a underscore. Have a maximum filename length of 50 characters. Only respond with the filename."
 
     try:
         res = request.post(
