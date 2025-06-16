@@ -68,9 +68,12 @@
     </div>
     <div id="ollama-options" style="display: {% if ollama_enabled %}block{% else %}none{% endif %};">
         <p>
-            Use your own Ollama server for automatic file naming. The content of the first page will be sent to your Ollama server.
+            Use your own Ollama server for automatic file naming. The content of the first page will be sent to your Ollama server. Find the
+            <a href="https://github.com/ollama/ollama?tab=readme-ov-file#ollama" target="_blank" role="button">Ollama setup guide</a> here.
+            Make sure that your Ollama server is running and <a href="https://medium.com/@szz185/how-to-make-ollama-accessible-on-the-local-network-with-a-mac-mini-m-4-15e2d5364fdc" target="_blank">accessible from this device.</a>
         </p>
         <form id="ollama-form">
+            <label for="ollama_server_scheme" class="form-label">Ollama Server URL</label>
             <div class="input-group mb-2">
                 <select class="form-select" id="ollama_server_scheme" name="ollama_server_scheme" style="max-width: 90px;">
                     <option value="http" {% if (ollama_server_url or 'http://localhost').startswith('http://') %}selected{% endif %}>http</option>
@@ -84,7 +87,7 @@
                     <span id="ollama-connect-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                 </button>
             </div>
-            <div id="ollama-version-info" class="mb-2" style="display:none;"></div>
+            <div id="ollama-version-info" class="alert alert-success mb-4 d-none"></div>
             <div id="ollama-models-section" style="display:none;">
                 <label for="ollama_model_select" class="form-label">Select Model</label>
                 <select class="form-select" id="ollama_model_select" name="ollama_model_select" required>

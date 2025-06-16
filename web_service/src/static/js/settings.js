@@ -51,6 +51,11 @@ window.addEventListener('beforeunload', function (e) {
 
 document.getElementById('openai-form').addEventListener('submit', async function (event) {
     event.preventDefault();
+    const confirmed = confirm('Enabling OpenAI file naming will disable other file naming services. Do you want to continue?');
+    if (!confirmed) {
+        this.reset();
+        return;
+    }
     isRequestPending = true;
     const submitButton = this.querySelector('button[type="submit"]');
     const originalButtonText = submitButton.textContent;
@@ -185,7 +190,7 @@ function openLoginPopup() {
     const errorDiv = document.getElementById('ollama-error');
     const saveBtn = document.getElementById('ollama-save-btn');
     errorDiv.classList.add('d-none');
-    versionInfo.style.display = 'none';
+    versionInfo.classList.add('d-none');
     modelsSection.style.display = 'none';
     saveBtn.disabled = true;
     modelSelect.innerHTML = '';
@@ -200,8 +205,8 @@ function openLoginPopup() {
         const versionResp = await fetch(`${scheme}://${url}:${port}/api/version`);
         if (!versionResp.ok) throw new Error('Could not connect to Ollama server.');
         const versionData = await versionResp.json();
-        versionInfo.textContent = `Detected Ollama version: ${versionData.version || 'unknown'}`;
-        versionInfo.style.display = 'block';
+        versionInfo.innerHTML = `<span class="text-success me-2">&#10003;</span>Detected Ollama version: ${versionData.version || 'unknown'}`;
+        versionInfo.classList.remove('d-none');
 
         // Get models
         const tagsResp = await fetch(`${scheme}://${url}:${port}/api/tags`);
@@ -266,6 +271,7 @@ function openLoginPopup() {
         btnText.innerHTML = connectBtnHTMLBefore;
         spinner.classList.add('d-none');
     }
+    isRequestPending = true;
 });
 
 function disableFileNaming() {
@@ -293,3 +299,55 @@ function showStatusBox(message, type) {
     statusBox.textContent = message;
     statusBox.style.display = 'block';
 }
+
+
+document.getElementById('ollama-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+        event.preventDefault();
+    const confirmed = confirm('Enabling OpenAI file naming will disable other file naming services. Do you want to continue?');
+    if (!confirmed) {
+        this.reset();
+        return;
+    }
+    isRequestPending = true;
+    const submitButton = this.querySelector('button[type="submit"]');
+    const originalButtonHtml = submitButton.innerHTML;
+    const errBox = document.getElementById('ollama-error');
+
+    submitButton.disabled = true;
+    submitButton.textContent = 'Saving...';
+
+    const formData = new FormData(this);
+    const data = {};
+    formData.forEach((value, key) => {
+        data[key] = value.trim();
+    });
+
+    try {
+        const response = await fetch('/api/ollama-settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            alert(result.message || 'Ollama settings saved successfully.');
+            window.location.reload();
+        } else {
+            const result = await response.json().catch(() => ({}));
+            errBox.textContent = result.error || 'An error occurred while saving Ollama settings.';
+            errBox.classList.remove('d-none');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        errBox.textContent = 'An unexpected error occurred. Please try again.';
+        errBox.classList.remove('d-none');
+    } finally {
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonHtml;
+        isRequestPending = false;
+    }
+});
