@@ -172,7 +172,8 @@ function openLoginPopup() {
 }
 
  document.getElementById('ollama-connect-btn').addEventListener('click', async function() {
-    const url = document.getElementById('ollama_server_url').value.trim().replace(/\/$/, '');
+    const scheme = document.getElementById('ollama_server_scheme').value.trim();
+    const url = document.getElementById('ollama_server_address').value.trim().replace(/\/$/, '');
     const port = document.getElementById('ollama_server_port').value.trim();
     const connectBtn = this;
     const spinner = document.getElementById('ollama-connect-spinner');
@@ -190,19 +191,20 @@ function openLoginPopup() {
     modelSelect.innerHTML = '';
     modelInfo.textContent = '';
 
+    connectBtnHTMLBefore = connectBtn.innerHTML;
     btnText.textContent = '';
     spinner.classList.remove('d-none');
 
     try {
         // Check version
-        const versionResp = await fetch(`${url}:${port}/api/version`);
+        const versionResp = await fetch(`${scheme}://${url}:${port}/api/version`);
         if (!versionResp.ok) throw new Error('Could not connect to Ollama server.');
         const versionData = await versionResp.json();
-        versionInfo.textContent = `Ollama version: ${versionData.version || 'unknown'}`;
+        versionInfo.textContent = `Detected Ollama version: ${versionData.version || 'unknown'}`;
         versionInfo.style.display = 'block';
 
         // Get models
-        const tagsResp = await fetch(`${url}:${port}/api/tags`);
+        const tagsResp = await fetch(`${scheme}://${url}:${port}/api/tags`);
         if (!tagsResp.ok) throw new Error('Could not fetch models from Ollama.');
         const tagsData = await tagsResp.json();
         if (!tagsData.models || tagsData.models.length === 0) {
@@ -219,10 +221,29 @@ function openLoginPopup() {
         modelsSection.style.display = 'block';
         // Show info for first model
         const showModelInfo = (model) => {
+            let modifiedStr = model.modified_at;
+            try {
+                if (modifiedStr) {
+                    const date = new Date(modifiedStr);
+                    if (!isNaN(date.getTime())) {
+                        // Format nach Locale
+                        modifiedStr = date.toLocaleString(undefined, {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                        });
+                    }
+                }
+            } catch (e) {
+                // Fallback: original string
+            }
             modelInfo.innerHTML = `
                 <strong>Name:</strong> ${model.name}<br>
                 <strong>Model:</strong> ${model.model}<br>
-                <strong>Modified:</strong> ${model.modified_at}<br>
+                <strong>Modified:</strong> ${modifiedStr}<br>
                 <strong>Parameter size:</strong> ${model.details?.parameter_size || 'n/a'}
             `;
         };
@@ -233,10 +254,16 @@ function openLoginPopup() {
         };
         saveBtn.disabled = false;
     } catch (err) {
-        errorDiv.textContent = err.message;
+        if (err instanceof TypeError) {
+            console.error('Network error or invalid URL:', err);
+            errorDiv.textContent = 'Network error or invalid URL. Please check your Ollama server settings and spelling.';
+        } else {
+            errorDiv.textContent = err.message
+            console.error('Fehler beim Verbinden mit Ollama:', err);
+        }
         errorDiv.classList.remove('d-none');
     } finally {
-        btnText.textContent = 'Connect';
+        btnText.innerHTML = connectBtnHTMLBefore;
         spinner.classList.add('d-none');
     }
 });
