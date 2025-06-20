@@ -5,6 +5,7 @@ from scansynclib.openai_settings import openai_settings
 from scansynclib.openai_helper import test_and_add_key
 from scansynclib.sqlite_wrapper import execute_query
 from scansynclib.ollama_settings import ollama_settings
+from scansynclib.ollama_helper import test_ollama_server
 
 api_bp = Blueprint('api', __name__)
 
@@ -127,13 +128,21 @@ def save_ollama_settings():
     try:
         logger.debug(f"Request data: {request.json}")
         data = request.json
+        http_scheme = data.get('ollama_server_scheme', 'http')
         server_url = data.get('ollama_server_address')
         server_port = data.get('ollama_server_port')
         model = data.get('ollama_model_select')
 
-        if server_url and server_port and model:
+        if server_url and http_scheme and server_port and model:
             # TODO: Test Ollama server connection here
-            ollama_settings.server_url = server_url
+            if server_url == 'localhost':
+                logger.warning("User requested localhost as Ollama server, will replace with host.docker.internal")
+                server_url = 'host.docker.internal'
+            baseurl = f"{http_scheme}://{server_url}"
+            success, message = test_ollama_server(baseurl, server_port, model)
+            if not success:
+                return jsonify({'error': message}), 500
+            ollama_settings.server_url = baseurl
             ollama_settings.server_port = server_port
             ollama_settings.model = model
             ollama_settings.save()

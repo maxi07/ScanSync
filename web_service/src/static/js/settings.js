@@ -288,6 +288,10 @@ document.getElementById('ollama-connect-btn').addEventListener('click', async fu
     } finally {
         btnText.innerHTML = connectBtnHTMLBefore;
         spinner.classList.add('d-none');
+        const deletebtn = document.getElementById('ollama-delete-btn');
+        if (deletebtn) {
+            deletebtn.disabled = false;
+        }
     }
     if (!ollama_enabled) {
         isRequestPending = true;

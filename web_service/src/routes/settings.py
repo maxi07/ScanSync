@@ -53,6 +53,10 @@ def index():
         ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and ollama_settings.model)
         if ollama_enabled:
             ollama_server_url = ollama_settings.server_url
+            if "host.docker.internal" in ollama_server_url:
+                # Special case for Docker, use localhost instead
+                ollama_server_url = "localhost"
+                logger.warning("Ollama server URL is set to 'host.docker.internal', replacing with 'localhost' for Docker compatibility.")
             ollama_server_port = ollama_settings.server_port
             ollama_model = ollama_settings.model
             logger.debug("Ollama settings found")
