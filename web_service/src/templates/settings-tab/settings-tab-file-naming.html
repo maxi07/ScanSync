@@ -3,20 +3,20 @@
         Choose your automatic file naming method:
     </p>
     <form id="file-naming-method-form">
-        <div class="btn-group mb-3 align-items-stretch" role="group" aria-label="File naming method" style="display: flex;">
+        <div class="btn-group mb-3 w-100" role="group" aria-label="File naming method" style="flex-wrap: wrap;">
             <input type="radio" class="btn-check" name="file_naming_method" id="file_naming_none" value="none" autocomplete="off" {% if not openai_key and not ollama_enabled %}checked{% endif %}>
-            <label class="btn btn-outline-light d-flex flex-row justify-content-center align-items-center py-2" for="file_naming_none" style="min-width: 110px; height: 48px;">
+            <label class="btn btn-outline-light d-flex flex-row justify-content-center align-items-center py-2 flex-fill" for="file_naming_none" style="min-width: 90px; height: 48px;">
                 None
             </label>
 
             <input type="radio" class="btn-check svg-icon" name="file_naming_method" id="file_naming_openai" value="openai" autocomplete="off" {% if openai_key %}checked{% endif %}>
-            <label class="btn btn-outline-light d-flex flex-row justify-content-center align-items-center py-2" for="file_naming_openai" style="min-width: 110px; height: 48px;">
+            <label class="btn btn-outline-light d-flex flex-row justify-content-center align-items-center py-2 flex-fill" for="file_naming_openai" style="min-width: 90px; height: 48px;">
                 <img src="/static/images/openai.svg" alt="OpenAI" style="height: 1.5em; vertical-align: middle; margin-right: 0.5em;">
                 <span style="font-size: 0.95em;">OpenAI</span>
             </label>
 
             <input type="radio" class="btn-check svg-icon" name="file_naming_method" id="file_naming_ollama" value="ollama" autocomplete="off" {% if ollama_enabled %}checked{% endif %}>
-            <label class="btn btn-outline-light d-flex flex-row justify-content-center align-items-center py-2" for="file_naming_ollama" style="min-width: 110px; height: 48px;">
+            <label class="btn btn-outline-light d-flex flex-row justify-content-center align-items-center py-2 flex-fill" for="file_naming_ollama" style="min-width: 90px; height: 48px;">
                 <img src="/static/images/ollama.svg" alt="Ollama" style="height: 1em; margin-right: 0.5em;">
                 <span style="font-size: 0.95em;">Ollama</span>
             </label>
