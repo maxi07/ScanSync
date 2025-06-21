@@ -52,7 +52,7 @@ def test_and_add_key(key) -> tuple[int, str]:
         return 400, "An error occurred while testing OpenAI key"
 
 
-def generate_filename(item: ProcessItem) -> str:
+def generate_filename_openai(item: ProcessItem) -> str:
     """
     Generates a filename for a PDF based on its content using OpenAI.
 
@@ -65,7 +65,8 @@ def generate_filename(item: ProcessItem) -> str:
     Returns:
     - str: The generated filename if successful, otherwise the original filename without extension.
     """
-    logger.info(f"Generating filename for {item.filename}")
+    # TODO: Make the class update the database.
+    logger.info(f"Generating filename using OpenAI for {item.filename}")
     if not item.ocr_file:
         logger.warning("No OCR file found. Using default filename.")
         return item.filename_without_extension
@@ -95,7 +96,7 @@ def generate_filename(item: ProcessItem) -> str:
             with attempt:
                 openai_filename = client.responses.create(
                     model=OPENAI_MODEL,
-                    instructions="Identify a suitable filename for the following pdf content. Keep the language of the file name in the original language and do not add any other language. Make the filename safe for SMB. Do not add a file extension. Seperate words with a underscore. Have a maximum filename length of 50 characters.",
+                    instructions="Identify a suitable filename for the following pdf content. Keep the language of the file name in the original language and do not add any other language. Make the filename safe for SMB. Do not add a file extension. Seperate words with a underscore. Have a maximum filename length of 30 characters.",
                     input=pdf_text,
                 )
         if openai_filename:

@@ -217,7 +217,7 @@ def validate_smb_filename(filename: str) -> str:
 
 
 def extract_text(pdf_path: str) -> str:
-    """Extracts text from a PDF file.
+    """Extracts text from a PDF file, only the first page.
 
     Args:
         pdf_path (str): The path to the PDF file.

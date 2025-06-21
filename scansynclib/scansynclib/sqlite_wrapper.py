@@ -122,14 +122,14 @@ def notify_sse_clients(item: ProcessItem, retry_count=0, max_retries=3):
 
 
 db_path = config.get("db.path")
-if not os.path.exists(db_path):
-    logger.info("Initializing database...")
-    with db_connection() as conn:
-        logger.debug(f"Creating database at {os.path.abspath(db_path)}")
-        schema_path = "scansynclib/scansynclib/db/schema.sql"
-        if not os.path.exists(schema_path):
-            logger.error(f"Schema file not found: {schema_path}")
-            raise FileNotFoundError(f"Schema file not found: {schema_path}")
-        with open(schema_path, "r") as f:
-            conn.executescript(f.read())
-    logger.info("Database initialized successfully.")
+
+logger.info("Initializing database...")
+with db_connection() as conn:
+    logger.debug(f"Working with database at {os.path.abspath(db_path)}")
+    schema_path = "scansynclib/scansynclib/db/schema.sql"
+    if not os.path.exists(schema_path):
+        logger.error(f"Schema file not found: {schema_path}")
+        raise FileNotFoundError(f"Schema file not found: {schema_path}")
+    with open(schema_path, "r") as f:
+        conn.executescript(f.read())
+logger.info("Database initialized successfully.")

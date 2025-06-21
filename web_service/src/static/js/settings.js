@@ -272,6 +272,36 @@ document.getElementById('ollama-connect-btn').addEventListener('click', async fu
             const selected = tagsData.models.find(m => m.name === this.value);
             if (selected) showModelInfo(selected);
         };
+        if (typeof ollamaModel !== 'undefined' && ollamaModel) {
+            let found = false;
+            for (let i = 0; i < modelSelect.options.length; i++) {
+                if (modelSelect.options[i].value === ollamaModel) {
+                    modelSelect.selectedIndex = i;
+                    showModelInfo(tagsData.models.find(m => m.name === ollamaModel));
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                const opt = document.createElement('option');
+                opt.value = ollamaModel;
+                opt.textContent = `${ollamaModel} (Not available)`;
+                opt.selected = true;
+                opt.dataset.info = JSON.stringify({
+                    name: ollamaModel,
+                    model: 'N/A',
+                    modified_at: 'N/A',
+                    details: { parameter_size: 'N/A' }
+                });
+                modelSelect.appendChild(opt);
+                modelInfo.innerHTML = `
+                    <strong>Name:</strong> ${ollamaModel}<br>
+                    <strong>Model:</strong> N/A<br>
+                    <strong>Modified:</strong> N/A<br>
+                    <strong>Parameter size:</strong> N/A
+                `;
+            }
+        }
         saveBtn.disabled = false;
     } catch (err) {
         if (err instanceof TypeError) {

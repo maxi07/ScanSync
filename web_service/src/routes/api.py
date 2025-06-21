@@ -134,7 +134,6 @@ def save_ollama_settings():
         model = data.get('ollama_model_select')
 
         if server_url and http_scheme and server_port and model:
-            # TODO: Test Ollama server connection here
             if server_url == 'localhost':
                 logger.warning("User requested localhost as Ollama server, will replace with host.docker.internal")
                 server_url = 'host.docker.internal'

@@ -1,3 +1,4 @@
+from scansynclib.ollama_settings import ollama_settings
 from scansynclib.logging import logger
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus, OCRStatus
 from scansynclib.sqlite_wrapper import update_scanneddata_database
@@ -66,9 +67,11 @@ def start_processing(item: ProcessItem):
         item.status = ProcessStatus.SYNC_PENDING
 
         try:
-            logger.debug("Checking if OpenAI key is set")
-            if openai_settings.api_key:
-                logger.info(f"Forwarding item {item.filename} to OpenAI service.")
+            logger.debug("Checking if File Naming is enabled")
+            ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and ollama_settings.model)
+            openai_enabled = bool(openai_settings.api_key)
+            if openai_enabled or ollama_enabled:
+                logger.info(f"Forwarding item {item.filename} to File Naming service.")
                 item.status = ProcessStatus.FILENAME_PENDING
                 forward_to_rabbitmq("file_naming_queue", item)
             else:

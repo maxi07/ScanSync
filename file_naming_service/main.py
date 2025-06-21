@@ -1,12 +1,15 @@
 import os
 import pickle
-from scansynclib.ProcessItem import ProcessItem, ProcessStatus
+from scansynclib.openai_settings import openai_settings
+from scansynclib.ollama_settings import ollama_settings
+from scansynclib.ProcessItem import ProcessItem, ProcessStatus, FileNamingStatus
 from scansynclib.logging import logger
 from scansynclib.helpers import connect_rabbitmq, forward_to_rabbitmq
 import time
 import pika.exceptions
-from scansynclib.openai_helper import generate_filename
-from scansynclib.sqlite_wrapper import update_scanneddata_database
+from scansynclib.openai_helper import generate_filename_openai
+from scansynclib.ollama_helper import generate_filename_ollama
+from scansynclib.sqlite_wrapper import execute_query, update_scanneddata_database
 
 
 RABBITQUEUE = "file_naming_queue"
@@ -18,8 +21,31 @@ def callback(ch, method, properties, body):
         if not isinstance(item, ProcessItem):
             logger.warning("Received object, that is not of type ProcessItem. Skipping.")
             return
-        logger.debug(f"Received PDF for OPENAI renaming: {item.filename}")
-        new_filename = generate_filename(item)
+        logger.debug(f"Received PDF for automatic file naming: {item.filename}")
+
+        # Create db element
+        item.file_naming_db_id = execute_query('INSERT INTO file_naming_jobs (scanneddata_id, file_naming_status) VALUES (?, ?)', (item.db_id, FileNamingStatus.PENDING.name), return_last_id=True)
+        logger.debug(f"Added file naming job for {item.filename} to database with id {item.file_naming_db_id}")
+
+        # test if openai or ollama will be used
+        ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and ollama_settings.model)
+        openai_enabled = bool(openai_settings.api_key)
+
+        if openai_enabled and ollama_enabled:
+            logger.error("Both OpenAI and Ollama are enabled. Please disable one of them in the settings.")
+            return
+
+        if not openai_enabled and not ollama_enabled:
+            logger.error("Neither OpenAI nor Ollama is enabled. Please enable one of them in the settings.")
+        execute_query('UPDATE file_naming_jobs SET file_naming_status = ? WHERE id = ?', (FileNamingStatus.PROCESSING.name, item.file_naming_db_id))
+
+        if openai_enabled:
+            new_filename = generate_filename_openai(item)
+        elif ollama_enabled:
+            new_filename = generate_filename_ollama(item)
+        else:
+            logger.info("No file naming method configured. Using default filename.")
+            new_filename = item.filename_without_extension
         if new_filename and os.path.exists(item.ocr_file):
             os.rename(item.ocr_file, os.path.join(item.local_directory, new_filename + "_OCR.pdf"))
             item.filename_without_extension = new_filename
@@ -32,8 +58,9 @@ def callback(ch, method, properties, body):
             logger.error("Connection lost while acknowledging message. Reconnecting...")
             connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=120)
             channel.basic_ack(delivery_tag=method.delivery_tag)
-    except Exception:
-        logger.exception(f"Failed processing {item.filename} with openai.")
+    except Exception as e:
+        logger.exception(f"Failed processing {item.filename}.")
+        execute_query('UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ? WHERE id = ?', (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
     finally:
         item.status = ProcessStatus.SYNC_PENDING
         update_scanneddata_database(item, {"file_status": item.status.value})
@@ -46,7 +73,7 @@ def start_consuming_with_reconnect():
         try:
             connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=120)
             channel.basic_consume(queue=RABBITQUEUE, on_message_callback=callback)
-            logger.info("OpenAI service started, waiting for messages...")
+            logger.info("File naming service started, waiting for messages...")
             channel.start_consuming()
         except pika.exceptions.AMQPConnectionError as e:
             logger.error(f"Connection lost: {e}. Reconnecting in 5 seconds...")

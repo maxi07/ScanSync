@@ -112,4 +112,5 @@
 </div>
 <script>
     let ollama_enabled = {{ ollama_enabled | tojson }};
+    let ollamaModel = "{{ ollama_model | default('') }}";
 </script>

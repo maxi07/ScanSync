@@ -59,7 +59,7 @@ def index():
                 logger.warning("Ollama server URL is set to 'host.docker.internal', replacing with 'localhost' for Docker compatibility.")
             ollama_server_port = ollama_settings.server_port
             ollama_model = ollama_settings.model
-            logger.debug("Ollama settings found")
+            logger.debug(f"Ollama settings found: url={ollama_server_url}, port={ollama_server_port}, model={ollama_model}")
         else:
             logger.info("Ollama settings not configured")
     except Exception:

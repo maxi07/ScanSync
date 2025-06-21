@@ -82,6 +82,26 @@ class OCRStatus(Enum):
     OUTPUT_ERROR = -6
 
 
+class FileNamingStatus(Enum):
+    """Enumeration of possible file naming statuses.
+
+    PENDING: File naming is pending.
+    PROCESSING: File naming is currently being processed.
+    COMPLETED: File naming completed successfully.
+    FAILED: File naming failed.
+    SKIPPED: File naming was skipped.
+    """
+    PENDING = 0
+    PROCESSING = 1
+    COMPLETED = 2
+    FAILED = -1
+    SKIPPED = -2
+    NO_OCR_FILE = -3
+    NO_PDF_TEXT = -4
+    NO_SERVER_CONNECTION = -5
+    MODEL_NOT_FOUND = -6
+
+
 class ItemType(Enum):
     PDF = 1
     IMAGE = 2
@@ -134,6 +154,15 @@ class ProcessItem:
         self.remote_drive_id = None
         self.preview_image_path = None
         self.web_url = None
+
+        self.ocr_db_id = None
+        """The ID of the OCR entry in the database, if applicable."""
+
+        self.file_naming_db_id = None
+        """The ID of the file naming entry in the database, if applicable."""
+
+        self.file_naming_status = FileNamingStatus.PENDING
+        """The status of the file naming process."""
 
         # PDF Status
         self.pdf_pages = 0
