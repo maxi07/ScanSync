@@ -196,6 +196,9 @@ def validate_smb_filename(filename: str) -> str:
     invalid_chars = r'[<>:"/\\|?*\x00-\x1F]'
     filename = re.sub(invalid_chars, '', filename)
 
+    # Make sure there is no file extension
+    filename = os.path.splitext(filename)[0]
+
     # Trim whitespace and dots before length cutoff
     filename = filename.strip().strip('.')
 
