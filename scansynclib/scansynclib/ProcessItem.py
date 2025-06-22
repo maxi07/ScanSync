@@ -100,6 +100,8 @@ class FileNamingStatus(Enum):
     NO_PDF_TEXT = -4
     NO_SERVER_CONNECTION = -5
     MODEL_NOT_FOUND = -6
+    AUTHENTICATION_ERROR = -7
+    RATE_LIMIT_ERROR = -8
 
 
 class ItemType(Enum):

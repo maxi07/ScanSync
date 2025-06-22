@@ -1,9 +1,10 @@
 from openai import OpenAI, AuthenticationError, RateLimitError
-from scansynclib.ProcessItem import ProcessItem
+from scansynclib.ProcessItem import FileNamingStatus, ProcessItem
 from scansynclib.logging import logger
 from scansynclib.openai_settings import openai_settings
 from tenacity import Retrying, RetryError, stop_after_attempt, wait_random_exponential, retry_if_exception_type
 from scansynclib.helpers import validate_smb_filename, extract_text
+from scansynclib.sqlite_wrapper import execute_query
 
 
 OPENAI_MODEL = "gpt-4.1-nano"
@@ -65,10 +66,17 @@ def generate_filename_openai(item: ProcessItem) -> str:
     Returns:
     - str: The generated filename if successful, otherwise the original filename without extension.
     """
-    # TODO: Make the class update the database.
     logger.info(f"Generating filename using OpenAI for {item.filename}")
+    execute_query(
+        "UPDATE file_naming_jobs SET file_naming_status = ?, model = ?, method = ? WHERE id = ?",
+        (FileNamingStatus.PROCESSING.name, OPENAI_MODEL, "openai", item.file_naming_db_id)
+    )
     if not item.ocr_file:
         logger.warning("No OCR file found. Using default filename.")
+        execute_query(
+            "UPDATE file_naming_jobs SET file_naming_status = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.NO_OCR_FILE.name, item.file_naming_db_id)
+        )
         return item.filename_without_extension
 
     # Get PDF Text
@@ -76,6 +84,10 @@ def generate_filename_openai(item: ProcessItem) -> str:
 
     if not pdf_text:
         logger.warning("Failed to extract text from PDF. Using default filename.")
+        execute_query(
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.NO_PDF_TEXT.name, "No text was detected on PDF", item.file_naming_db_id)
+        )
         return item.filename_without_extension
 
     client = OpenAI(
@@ -103,18 +115,38 @@ def generate_filename_openai(item: ProcessItem) -> str:
             logger.debug(f"Received OpenAI filename: {openai_filename.output_text}")
             sanitized_filename = validate_smb_filename(openai_filename.output_text)
             logger.debug(f"Sanitized OpenAI filename: {sanitized_filename}")
+            execute_query(
+                "UPDATE file_naming_jobs SET file_naming_status = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+                (FileNamingStatus.COMPLETED.name, item.file_naming_db_id)
+            )
             return sanitized_filename
         else:
             logger.warning("OpenAI key worked, but did not return any result.")
+            execute_query(
+                "UPDATE file_naming_jobs SET file_naming_status = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+                (FileNamingStatus.FAILED.name, item.file_naming_db_id)
+            )
             return item.filename_without_extension
     except AuthenticationError:
         logger.warning("OpenAI key is invalid or wrong permissions set.")
+        execute_query(
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.AUTHENTICATION_ERROR.name, "OpenAI key is invalid or wrong permissions set.", item.file_naming_db_id)
+        )
         return item.filename_without_extension
     except RetryError as retryerr:
         logger.warning(f"OpenAI rate limit reached! Either not enough credits or too many requests. Tried {retryerr.last_attempt.attempt_number} times.")
+        execute_query(
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.RATE_LIMIT_ERROR.name, f"OpenAI rate limit reached! Either not enough credits or too many requests. Tried {retryerr.last_attempt.attempt_number} times.", item.file_naming_db_id)
+        )
         return item.filename_without_extension
-    except Exception:
+    except Exception as ex:
         logger.exception("An error occurred while creating a file name.")
+        execute_query(
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.FAILED.name, str(ex), item.file_naming_db_id)
+        )
         return item.filename_without_extension
     finally:
         # Close the OpenAI client connection

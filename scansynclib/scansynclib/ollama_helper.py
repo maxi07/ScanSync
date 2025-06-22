@@ -70,7 +70,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
     logger.info(f"Generating filename using Ollama for {item.filename}")
 
     execute_query(
-            "UPDATE file_naming_jobs SET file_naming_status = ?, model = ?, method = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            "UPDATE file_naming_jobs SET file_naming_status = ?, model = ?, method = ? WHERE id = ?",
             (FileNamingStatus.PROCESSING.name, ollama_settings.model, "ollama", item.file_naming_db_id)
         )
 
