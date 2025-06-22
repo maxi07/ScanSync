@@ -3,7 +3,7 @@ from tenacity import RetryError, retry, retry_if_exception, stop_after_attempt, 
 import urllib3
 from scansynclib.ollama_settings import ollama_settings
 from scansynclib.ProcessItem import FileNamingStatus, ProcessItem
-from scansynclib.helpers import extract_text
+from scansynclib.helpers import extract_text, validate_smb_filename
 from scansynclib.logging import logger
 from scansynclib.sqlite_wrapper import execute_query
 
@@ -115,11 +115,13 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             new_filename = response.json().get('response', '').strip()
             if new_filename:
                 logger.info(f"Extracted filename from Ollama response: {new_filename}")
+                sanitized_filename = validate_smb_filename(new_filename)
+                logger.debug(f"Sanitized Ollama filename: {sanitized_filename}")
                 execute_query(
                     "UPDATE file_naming_jobs SET file_naming_status = ?, success = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
                     (FileNamingStatus.COMPLETED.name, True, item.file_naming_db_id)
                 )
-                return new_filename
+                return sanitized_filename
         elif response.status_code == 404:
             # Handle 404 error specifically as it indicates the model was not found but also Page not found
             content_type = response.headers.get('Content-Type', '')
