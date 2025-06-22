@@ -14,7 +14,7 @@ def test_ollama_server(server_url, server_port, model):
         logger.info(f"Testing Ollama server at {url} with model {model}")
         response = requests.get(url)
         if response.status_code != 200 or "Ollama is running" not in response.text:
-            logger.error(f"Failed to reach Ollama server: {response.status_code} - {response.text}")    
+            logger.error(f"Failed to reach Ollama server: {response.status_code} - {response.text}")
             return False, f"Failed to reach Ollama server: {response.status_code} - {response.text}"
         logger.info("Ollama server is reachable")
 
@@ -95,7 +95,6 @@ def generate_filename_ollama(item: ProcessItem) -> str:
 
     # Send text to Ollama for filename generation
     try:
-        url = f"{ollama_settings.server_url}:{ollama_settings.server_port}/api/generate"
         system_prompt = (
             "Identify a suitable filename for the following pdf content. "
             "Keep the language of the file name in the original language and do not mix languages. "
@@ -117,8 +116,8 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             if new_filename:
                 logger.info(f"Extracted filename from Ollama response: {new_filename}")
                 execute_query(
-                    "UPDATE file_naming_jobs SET file_naming_status = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
-                    (FileNamingStatus.COMPLETED.name, item.file_naming_db_id)
+                    "UPDATE file_naming_jobs SET file_naming_status = ?, success = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+                    (FileNamingStatus.COMPLETED.name, True, item.file_naming_db_id)
                 )
                 return new_filename
         elif response.status_code == 404:

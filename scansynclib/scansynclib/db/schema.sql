@@ -39,5 +39,6 @@ CREATE TABLE IF NOT EXISTS file_naming_jobs (
     method TEXT,
     model TEXT,
     file_naming_status TEXT NOT NULL,
+    success Boolean NOT NULL DEFAULT 0,
     error_description TEXT
 );
