@@ -116,8 +116,8 @@ def generate_filename_openai(item: ProcessItem) -> str:
             sanitized_filename = validate_smb_filename(openai_filename.output_text)
             logger.debug(f"Sanitized OpenAI filename: {sanitized_filename}")
             execute_query(
-                "UPDATE file_naming_jobs SET file_naming_status = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
-                (FileNamingStatus.COMPLETED.name, item.file_naming_db_id)
+                "UPDATE file_naming_jobs SET file_naming_status = ?, success = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+                (FileNamingStatus.COMPLETED.name, True, item.file_naming_db_id)
             )
             return sanitized_filename
         else:
