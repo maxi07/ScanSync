@@ -13,16 +13,16 @@ services:
       - preview_images_test:/app/src/static/images/pdfpreview
     networks:
       - test-network
-    depends_on:
-      - rabbitmq
+    # depends_on:
+    #   - rabbitmq
 
-  rabbitmq:
-    image: rabbitmq:4.0.7-management
-    ports:
-    - "5673:5672"
-    - "15673:15672"
-    networks:
-      - test-network
+  # rabbitmq:
+  #   image: rabbitmq:4.0.7-management
+  #   ports:
+  #   - "5673:5672"
+  #   - "15673:15672"
+  #   networks:
+  #     - test-network
 
   test_service:
     build:
