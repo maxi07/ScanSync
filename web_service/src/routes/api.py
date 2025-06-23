@@ -115,7 +115,7 @@ def disable_file_naming():
     except Exception as e:
         err = f"Error disabling file naming: {e}"
         logger.exception(err)
-        return "Error disabling file naming: {err}", 500
+        return f"Error disabling file naming: {err}", 500
 
 
 @api_bp.post('/api/ollama-settings')
