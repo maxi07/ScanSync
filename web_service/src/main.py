@@ -178,4 +178,3 @@ start_rabbitmq_listener()
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
     logger.info("Web service started.")
-    logger.info("Web service started.")
