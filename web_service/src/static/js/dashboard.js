@@ -402,6 +402,10 @@ function getStatusIcon(file_status) {
         status_icon = "bi-check-circle";
     } else if (status.includes("failed")) {
         status_icon = "bi-x-circle";
+    } else if (status.includes("deleted")) {
+        status_icon = "bi-trash";
+    } else if (status.includes("invalid file")) {
+        status_icon = "bi-exclamation-circle";
     }
 
     return status_icon;
