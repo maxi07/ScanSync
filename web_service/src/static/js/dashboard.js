@@ -58,7 +58,7 @@ function updateCard(updateData) {
     const cardElement = document.getElementById(cardId);
 
     if (!cardElement) {
-        console.warn(`Card with ID ${cardId} not found.`);
+        console.log(`Card with ID ${cardId} not found.`);
         const existingCards = document.querySelectorAll('[id$="_pdf_card"]');
         let highestId = 0;
 
@@ -72,6 +72,9 @@ function updateCard(updateData) {
         if (updateData.id > highestId) {
             console.log(`New card with ID ${updateData.id} is higher than the current highest ID ${highestId}. Adding new card.`);
             addPdfCard(updateData);
+        } else {
+            console.log(`Card with ID ${updateData.id} is not higher than the current highest ID ${highestId}. Skipping Update.`);
+            return;
         }
     }
 
