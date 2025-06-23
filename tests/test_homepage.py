@@ -68,10 +68,10 @@ def test_dashboard_settings_tabs(driver):
 
     assert "OCR settings will be available in the future." in driver.page_source
 
-    file_naming_tab = driver.find_element(By.ID, "openai-tab")
+    file_naming_tab = driver.find_element(By.ID, "file-naming-tab")
     file_naming_tab.click()
     WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located((By.ID, "openai-tabpanel"))
+        EC.visibility_of_element_located((By.ID, "file-naming-tabpanel"))
     )
     assert "Choose your automatic file naming method:" in driver.page_source
 
@@ -93,7 +93,7 @@ def test_dashboard_settings_file_naming_first_start(driver):
 
 
 def test_dashboard_settings_ollama_first_start(driver):
-    driver.get("http://web_service:5001/settings?tab=openai-tab")
+    driver.get("http://web_service:5001/settings?tab=file-naming-tab")
     WebDriverWait(driver, 10).until(EC.title_contains("ScanSync"))
     assert "ScanSync" in driver.title
 
