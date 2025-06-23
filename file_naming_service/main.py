@@ -20,6 +20,12 @@ def callback(ch, method, properties, body):
         item: ProcessItem = pickle.loads(body)
         if not isinstance(item, ProcessItem):
             logger.warning("Received object, that is not of type ProcessItem. Skipping.")
+            try:
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+            except pika.exceptions.AMQPConnectionError:
+                logger.error("Connection lost while acknowledging message. Reconnecting...")
+                connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=120)
+                channel.basic_ack(delivery_tag=method.delivery_tag)
             return
         logger.debug(f"Received PDF for automatic file naming: {item.filename}")
 
@@ -33,7 +39,6 @@ def callback(ch, method, properties, body):
 
         if openai_enabled and ollama_enabled:
             logger.error("Both OpenAI and Ollama are enabled. Please disable one of them in the settings.")
-            return
 
         if not openai_enabled and not ollama_enabled:
             logger.error("Neither OpenAI nor Ollama is enabled. Please enable one of them in the settings.")
