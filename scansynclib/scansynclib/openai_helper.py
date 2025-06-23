@@ -108,7 +108,7 @@ def generate_filename_openai(item: ProcessItem) -> str:
             with attempt:
                 openai_filename = client.responses.create(
                     model=OPENAI_MODEL,
-                    instructions="Identify a suitable filename for the following pdf content. Keep the language of the file name in the original language and do not add any other language. Make the filename safe for SMB. Do not add a file extension. Separate words with a underscore. Have a maximum filename length of 30 characters.",
+                    instructions="Identify a suitable filename for the following pdf content. Keep the language of the file name in the original language and do not add any other language. Make the filename safe for SMB. Do not add a file extension. Separate words with a underscore. Have a maximum filename length of 30 characters. Only return the filename without any additional text.",
                     input=pdf_text,
                 )
         if openai_filename:

@@ -205,6 +205,9 @@ def validate_smb_filename(filename: str) -> str:
     # Trim whitespace and dots before length cutoff
     filename = filename.strip().strip('.')
 
+    # Replace spaces with underscores
+    filename = filename.replace(' ', '_')
+
     # Ensure the filename is at most 50 characters
     if len(filename) > 50:
         filename = filename[:50]

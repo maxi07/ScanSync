@@ -96,11 +96,18 @@ def generate_filename_ollama(item: ProcessItem) -> str:
     # Send text to Ollama for filename generation
     try:
         system_prompt = (
-            "Identify a suitable filename for the following pdf content. "
-            "Keep the language of the file name in the original language and do not mix languages. "
-            "Make the filename safe for SMB. Do not add a file extension. "
-            "Separate words with a underscore, replace spaces with underscores. "
-            "Have a maximum filename length of 30 characters."
+            "You are a filename generator. "
+            "Given the content of a PDF, respond with a single, suitable filename only. "
+            "Do not include any explanations or additional text. "
+            "Do not use quotation marks. "
+            "Do not add a file extension. "
+            "The filename must be in the original language of the content. "
+            "Do not mix languages. "
+            "Make the filename safe for SMB: no special characters, only use letters, numbers, and underscores. "
+            "Replace all spaces with underscores. "
+            "Seperate words using underscores, do not use spaces. "
+            "Maximum filename length is 30 characters. "
+            "Return only the filename – nothing else, also no notes."
         )
         payload = {
             "model": ollama_settings.model,

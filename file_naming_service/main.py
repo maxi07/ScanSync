@@ -18,20 +18,18 @@ RABBITQUEUE = "file_naming_queue"
 def callback(ch, method, properties, body):
     try:
         item: ProcessItem = pickle.loads(body)
+
         if not isinstance(item, ProcessItem):
             logger.warning("Received object, that is not of type ProcessItem. Skipping.")
-            try:
-                ch.basic_ack(delivery_tag=method.delivery_tag)
-            except pika.exceptions.AMQPConnectionError:
-                logger.error("Connection lost while acknowledging message. Reconnecting...")
-                connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=120)
-                channel.basic_ack(delivery_tag=method.delivery_tag)
-            return
+            raise TypeError("Received object is not a ProcessItem")
         logger.debug(f"Received PDF for automatic file naming: {item.filename}")
 
         # Create db element
         item.file_naming_db_id = execute_query('INSERT INTO file_naming_jobs (scanneddata_id, file_naming_status) VALUES (?, ?)', (item.db_id, FileNamingStatus.PENDING.name), return_last_id=True)
         logger.debug(f"Added file naming job for {item.filename} to database with id {item.file_naming_db_id}")
+
+        if not os.path.exists(item.ocr_file):
+            raise FileNotFoundError(f"OCR file does not exist: {item.ocr_file}")
 
         # test if openai or ollama will be used
         ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and ollama_settings.model)
@@ -57,19 +55,30 @@ def callback(ch, method, properties, body):
             item.filename = new_filename + ".pdf"
             item.ocr_file = os.path.join(item.local_directory, new_filename + "_OCR.pdf")
             logger.info(f"Generated filename: {new_filename}")
+
+    except FileNotFoundError:
+        logger.error(f"OCR file does not exist: {item.ocr_file}. Cannot generate filename.")
+        execute_query('UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ? WHERE id = ?', (FileNamingStatus.FAILED.name, "OCR file does not exist", item.file_naming_db_id))
+    except TypeError as e:
+        logger.error(f"Received object is not a ProcessItem: {e}. Skipping.")
+        execute_query('UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ? WHERE id = ?', (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
+        return
+    except Exception as e:
+        logger.exception(f"Failed processing {item.filename}.")
+        execute_query('UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ? WHERE id = ?', (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
+    finally:
         try:
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except pika.exceptions.AMQPConnectionError:
             logger.error("Connection lost while acknowledging message. Reconnecting...")
             connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=120)
             channel.basic_ack(delivery_tag=method.delivery_tag)
-    except Exception as e:
-        logger.exception(f"Failed processing {item.filename}.")
-        execute_query('UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ? WHERE id = ?', (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
-    finally:
-        item.status = ProcessStatus.SYNC_PENDING
-        update_scanneddata_database(item, {"file_status": item.status.value})
-        forward_to_rabbitmq("upload_queue", item)
+        if item:
+            item.status = ProcessStatus.SYNC_PENDING
+            update_scanneddata_database(item, {"file_status": item.status.value})
+            forward_to_rabbitmq("upload_queue", item)
+        else:
+            logger.error("Item is None, cannot forward to upload queue.")
 
 
 def start_consuming_with_reconnect():
