@@ -244,5 +244,3 @@ def export_sync_data():
     except Exception as ex:
         logger.exception(f"Failed exporting sync data: {ex}")
         return "Failed exporting sync data", 500
-
-
