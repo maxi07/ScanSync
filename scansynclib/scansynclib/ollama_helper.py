@@ -6,6 +6,7 @@ from scansynclib.ProcessItem import FileNamingStatus, ProcessItem
 from scansynclib.helpers import extract_text, validate_smb_filename
 from scansynclib.logging import logger
 from scansynclib.sqlite_wrapper import execute_query
+from scansynclib.settings import settings
 
 
 def test_ollama_server(server_url, server_port, model):
@@ -71,7 +72,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
 
     execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, model = ?, method = ? WHERE id = ?",
-            (FileNamingStatus.PROCESSING.name, ollama_settings.model, "ollama", item.file_naming_db_id)
+            (FileNamingStatus.PROCESSING.name, settings.file_naming.model, "ollama", item.file_naming_db_id)
         )
 
     if not item.ocr_file:
@@ -110,7 +111,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             "Return only the filename – nothing else, also no notes."
         )
         payload = {
-            "model": ollama_settings.model,
+            "model": settings.file_naming.model,
             "system": system_prompt,
             "prompt": pdf_text,
             "stream": False
@@ -135,7 +136,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             if 'application/json' in content_type:
                 try:
                     error_info = response.json()
-                    logger.error(f"Ollama model {ollama_settings.model} not found on the server: {error_info}")
+                    logger.error(f"Ollama model {settings.file_naming.model} not found on the server: {error_info}")
                     execute_query(
                         "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
                         (FileNamingStatus.MODEL_NOT_FOUND.name, FileNamingStatus.MODEL_NOT_FOUND.value, item.file_naming_db_id)

@@ -10,6 +10,7 @@ import pika.exceptions
 from scansynclib.openai_helper import generate_filename_openai
 from scansynclib.ollama_helper import generate_filename_ollama
 from scansynclib.sqlite_wrapper import execute_query, update_scanneddata_database
+from scansynclib.settings import settings
 
 
 RABBITQUEUE = "file_naming_queue"
@@ -32,7 +33,7 @@ def callback(ch, method, properties, body):
             raise FileNotFoundError(f"OCR file does not exist: {item.ocr_file}")
 
         # test if openai or ollama will be used
-        ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and ollama_settings.model)
+        ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and settings.file_naming.model)
         openai_enabled = bool(openai_settings.api_key)
 
         if openai_enabled and ollama_enabled:

@@ -135,6 +135,15 @@ services:
     networks:
       - app-network
 
+  redis:
+    image: redis:latest
+    restart: unless-stopped
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
 volumes:
   scans:
   preview-images:

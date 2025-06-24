@@ -6,6 +6,7 @@ from scansynclib.openai_helper import test_and_add_key
 from scansynclib.sqlite_wrapper import execute_query
 from scansynclib.ollama_settings import ollama_settings
 from scansynclib.ollama_helper import test_ollama_server
+from scansynclib.settings import settings
 
 api_bp = Blueprint('api', __name__)
 
@@ -51,7 +52,7 @@ def save_openai_settings():
         openai_settings.save()
 
         # Disable Ollama settings if OpenAI key is set
-        if ollama_settings.server_url or ollama_settings.server_port or ollama_settings.model:
+        if ollama_settings.server_url or ollama_settings.server_port or settings.file_naming.model:
             logger.info("Disabling Ollama settings due to OpenAI key being set.")
             ollama_settings.delete()
         return jsonify({'message': 'OpenAI API key saved successfully! ScanSync now uses ChatGPT for automatic file names.'}), 200
@@ -152,7 +153,7 @@ def save_ollama_settings():
                 return jsonify({'error': message}), 500
             ollama_settings.server_url = baseurl
             ollama_settings.server_port = server_port
-            ollama_settings.model = model
+            settings.file_naming.model = model
             ollama_settings.save()
 
             # Disable OpenAI settings if Ollama settings are set

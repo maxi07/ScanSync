@@ -9,6 +9,7 @@ import ocrmypdf
 from datetime import datetime
 import time
 import pika.exceptions
+from scansynclib.settings import settings
 
 logger.info("Starting OCR service...")
 RABBITQUEUE = "ocr_queue"
@@ -68,7 +69,7 @@ def start_processing(item: ProcessItem):
 
         try:
             logger.debug("Checking if File Naming is enabled")
-            ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and ollama_settings.model)
+            ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and settings.file_naming.model)
             openai_enabled = bool(openai_settings.api_key)
             if openai_enabled or ollama_enabled:
                 logger.info(f"Forwarding item {item.filename} to File Naming service.")
