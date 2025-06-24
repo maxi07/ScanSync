@@ -77,8 +77,8 @@ def generate_filename_ollama(item: ProcessItem) -> str:
     if not item.ocr_file:
         logger.warning("No OCR file found. Using default filename.")
         execute_query(
-            "UPDATE file_naming_jobs SET file_naming_status = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
-            (FileNamingStatus.NO_OCR_FILE.name, item.file_naming_db_id)
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.NO_OCR_FILE.name, FileNamingStatus.NO_OCR_FILE.value, item.file_naming_db_id)
         )
         return item.filename_without_extension
 
@@ -88,8 +88,8 @@ def generate_filename_ollama(item: ProcessItem) -> str:
     if not pdf_text:
         logger.warning("Failed to extract text from PDF. Using default filename.")
         execute_query(
-            "UPDATE file_naming_jobs SET file_naming_status = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
-            (FileNamingStatus.NO_PDF_TEXT.name, item.file_naming_db_id)
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.NO_PDF_TEXT.name, FileNamingStatus.NO_PDF_TEXT.value, item.file_naming_db_id)
         )
         return item.filename_without_extension
 
@@ -137,14 +137,14 @@ def generate_filename_ollama(item: ProcessItem) -> str:
                     error_info = response.json()
                     logger.error(f"Ollama model {ollama_settings.model} not found on the server: {error_info}")
                     execute_query(
-                        "UPDATE file_naming_jobs SET file_naming_status = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
-                        (FileNamingStatus.MODEL_NOT_FOUND.name, item.file_naming_db_id)
+                        "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+                        (FileNamingStatus.MODEL_NOT_FOUND.name, FileNamingStatus.MODEL_NOT_FOUND.value, item.file_naming_db_id)
                     )
                 except Exception as e:
                     logger.error(f"Failed to parse error response from Ollama: {str(e)}")
                     execute_query(
-                        "UPDATE file_naming_jobs SET file_naming_status = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
-                        (FileNamingStatus.MODEL_NOT_FOUND.name, item.file_naming_db_id)
+                        "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+                        (FileNamingStatus.MODEL_NOT_FOUND.name, FileNamingStatus.MODEL_NOT_FOUND.value, item.file_naming_db_id)
                     )
                 finally:
                     return item.filename_without_extension
@@ -165,8 +165,8 @@ def generate_filename_ollama(item: ProcessItem) -> str:
     except RetryError as retryerr:
         logger.error(f"Error connecting to Ollama server: {str(retryerr)}")
         execute_query(
-            "UPDATE file_naming_jobs SET file_naming_status = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
-            (FileNamingStatus.NO_SERVER_CONNECTION.name, item.file_naming_db_id)
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.NO_SERVER_CONNECTION.name, FileNamingStatus.NO_SERVER_CONNECTION.value, item.file_naming_db_id)
         )
         return item.filename_without_extension
 

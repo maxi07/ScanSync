@@ -204,7 +204,7 @@
         empty.classList.add('d-none');
         document.getElementById('logs-table').classList.remove('d-none');
         logs.forEach((log, idx) => {
-            const statusBadge = getStatusBadge(log.file_naming_status);
+            const statusBadge = getStatusBadge(log.file_naming_status, log.success);
             // Show full error on click for mobile (and always show truncated with tooltip on desktop)
             let error = '';
             if (log.error_description) {
@@ -267,7 +267,7 @@
         });
     }
 
-    function getStatusBadge(status) {
+    function getStatusBadge(status, success) {
         switch (status) {
             case 'COMPLETED':
                 return '<span class="badge bg-success">Completed</span>';
@@ -276,7 +276,7 @@
             case 'PROCESSING':
                 return '<span class="badge bg-warning text-dark">Processing</span>';
             default:
-                return `<span class="badge bg-danger">${escapeHtml(status)}</span>`;
+                return `<span class="badge bg-danger">${escapeHtml("Failed")}</span>`;
         }
     }
 

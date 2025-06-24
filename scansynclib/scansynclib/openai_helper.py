@@ -74,8 +74,8 @@ def generate_filename_openai(item: ProcessItem) -> str:
     if not item.ocr_file:
         logger.warning("No OCR file found. Using default filename.")
         execute_query(
-            "UPDATE file_naming_jobs SET file_naming_status = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
-            (FileNamingStatus.NO_OCR_FILE.name, item.file_naming_db_id)
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.NO_OCR_FILE.name, FileNamingStatus.NO_OCR_FILE.value, item.file_naming_db_id)
         )
         return item.filename_without_extension
 
@@ -86,7 +86,7 @@ def generate_filename_openai(item: ProcessItem) -> str:
         logger.warning("Failed to extract text from PDF. Using default filename.")
         execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
-            (FileNamingStatus.NO_PDF_TEXT.name, "No text was detected on PDF", item.file_naming_db_id)
+            (FileNamingStatus.NO_PDF_TEXT.name, FileNamingStatus.NO_PDF_TEXT.value, item.file_naming_db_id)
         )
         return item.filename_without_extension
 
@@ -123,8 +123,8 @@ def generate_filename_openai(item: ProcessItem) -> str:
         else:
             logger.warning("OpenAI key worked, but did not return any result.")
             execute_query(
-                "UPDATE file_naming_jobs SET file_naming_status = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
-                (FileNamingStatus.FAILED.name, item.file_naming_db_id)
+                "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+                (FileNamingStatus.FAILED.name, "OpenAI key worked, but did not return any result.", item.file_naming_db_id)
             )
             return item.filename_without_extension
     except AuthenticationError:
