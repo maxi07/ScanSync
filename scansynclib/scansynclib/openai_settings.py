@@ -35,19 +35,28 @@ class OpenAISettings:
         except Exception:
             logger.exception("Error saving OpenAISettings")
 
-    def delete(self):
+    def delete(self) -> int:
+        """
+        Deletes the OpenAI settings file and clears the API key.
+
+        Returns:
+            int: Status code indicating the result of the operation.
+                1  - Settings file deleted successfully.
+                2  - Settings file does not exist.
+               -1  - An error occurred during deletion.
+        """
         try:
             self.api_key = None
             if os.path.exists(OPENAI_SETTINGS_FILE):
                 os.remove(OPENAI_SETTINGS_FILE)
                 logger.info("OpenAISettings deleted successfully")
-                return True
+                return 1
             else:
                 logger.warning("OpenAISettings file does not exist")
-                return False
+                return 2
         except Exception:
             logger.exception("Error deleting OpenAISettings")
-            return False
+            return -1
 
 
 openai_settings = OpenAISettings.from_file()

@@ -107,15 +107,24 @@ def get_status():
 def disable_file_naming():
     logger.info("Received request to disable file naming")
     try:
-        openai_settings.delete()
-        ollama_settings.delete()
+        res_openai = openai_settings.delete()
+        res_ollama = ollama_settings.delete()
+        logger.debug(f"OpenAI settings delete result: {res_openai}, Ollama settings delete result: {res_ollama}")
 
-        logger.info("File naming disabled successfully")
-        return "File naming disabled successfully. ScanSync will use default file names.", 200
+        if res_openai < 0 and res_ollama < 0:
+            return "Error deleting both OpenAI and Ollama settings.", 500
+        elif res_openai < 0:
+            return "Error deleting OpenAI settings.", 500
+        elif res_ollama < 0:
+            return "Error deleting Ollama settings.", 500
+        elif res_openai == 2 and res_ollama == 2:
+            return "File naming is already disabled. No settings to delete.", 200
+        else:
+            logger.info("File naming disabled successfully")
+            return "File naming disabled successfully. ScanSync will use default file names.", 200
     except Exception as e:
-        err = f"Error disabling file naming: {e}"
-        logger.exception(err)
-        return f"Error disabling file naming: {err}", 500
+        logger.exception("Error disabling file naming")
+        return f"Error disabling file naming: {e}", 500
 
 
 @api_bp.post('/api/ollama-settings')

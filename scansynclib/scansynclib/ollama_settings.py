@@ -41,7 +41,16 @@ class OllamaSettings:
         except Exception:
             logger.exception("Error saving OllamaSettings")
 
-    def delete(self):
+    def delete(self) -> int:
+        """
+        Deletes the Ollama settings by resetting instance attributes and removing the settings file.
+
+        Returns:
+            int: Status code indicating the result of the operation.
+                1  - Settings file deleted successfully.
+                2  - Settings file does not exist.
+               -1  - An error occurred during deletion.
+        """
         try:
             self.server_url = None
             self.server_port = None
@@ -49,13 +58,13 @@ class OllamaSettings:
             if os.path.exists(OLLAMA_SETTINGS_FILE):
                 os.remove(OLLAMA_SETTINGS_FILE)
                 logger.info("OllamaSettings deleted successfully")
-                return True
+                return 1
             else:
                 logger.warning("Cannot delete OllamaSettings file: does not exist")
-                return False
+                return 2
         except Exception:
             logger.exception("Error deleting OllamaSettings")
-            return False
+            return -1
 
 
 ollama_settings = OllamaSettings.from_file()
