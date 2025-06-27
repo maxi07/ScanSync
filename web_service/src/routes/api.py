@@ -110,7 +110,7 @@ def disable_file_naming():
             return "File naming is already disabled. No settings to delete.", 200
         else:
             logger.info("File naming disabled successfully")
-            return "File naming disabled successfully. ScanSync will use default file names.", 200
+            return "File naming disabled successfully. ScanSync will use default file names.", 204
     except Exception as e:
         logger.exception("Error disabling file naming")
         return f"Error disabling file naming: {e}", 500

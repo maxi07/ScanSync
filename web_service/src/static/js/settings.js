@@ -151,6 +151,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
+        const fileNamingDisabled = urlParams.get('disable-file-naming');
+        if (fileNamingDisabled === 'success') {
+            showStatusBox('File naming disabled successfully. ScanSync will use default file names.', 'alert-success');
+        } else if (fileNamingDisabled === 'already-disabled') {
+            showStatusBox('File naming is already disabled. ScanSync will use default file names.', 'alert-info');
+        }
+    } catch (error) {
+        console.error('Error processing URL parameters:', error);
+    }
+
+
+    try {
         document.querySelectorAll('input[name="file_naming_method"]').forEach(el => {
         el.addEventListener('change', function() {
             document.getElementById('openai-options').style.display = this.value === 'openai' ? 'block' : 'none';
@@ -336,8 +348,17 @@ function disableFileNaming() {
     })
     .then(async response => {
         const message = await response.text();
-        
-        showStatusBox(message, response.ok ? 'alert-success' : 'alert-danger');
+        if (response.ok) {
+            console.log('File naming disabled successfully:', message);
+            if (response.status === 200) {
+                window.location.href = '/settings?disable-file-naming=success&tab=file-naming-tab';
+            } else if (response.status === 204) {
+                window.location.href = '/settings?disable-file-naming=already-disabled&tab=file-naming-tab';
+            }
+        } else {
+            console.error('Error disabling file naming:', message);
+            showStatusBox(message || 'An error occurred while disabling file naming.', 'alert-danger');
+        }
     })
     .catch(error => {
         console.error('Error:', error);
@@ -354,6 +375,9 @@ function showStatusBox(message, type) {
     statusBox.className = `alert ${type}`;
     statusBox.textContent = message;
     statusBox.style.display = 'block';
+    setTimeout(() => {
+        statusBox.style.display = 'none';
+    }, 5000);
 }
 
 
