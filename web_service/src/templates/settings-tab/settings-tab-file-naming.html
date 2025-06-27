@@ -141,9 +141,9 @@
                                         <th scope="col">File Name</th>
                                         <th scope="col">Method</th>
                                         <th scope="col">Model</th>
-                                        <th scope="col">Started</th>
-                                        <th scope="col">Finished</th>
-                                        <th scope="col">Error</th>
+                                        <th scope="col" style="min-width: 120px;">Started</th>
+                                        <th scope="col" style="min-width: 120px;">Finished</th>
+                                        <th scope="col" style="min-width: 150px;">Error</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -210,7 +210,7 @@
             if (log.error_description) {
                 const truncated = truncate(log.error_description, 40);
                 error = `
-                    <span class="text-danger" title="${log.error_description}" style="cursor:pointer;" onclick="if(window.innerWidth<768)alert('${log.error_description.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
+                    <span class="text-danger" title="${log.error_description}" style="cursor:pointer;" onclick="alert('${log.error_description.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
                         ${truncated}
                     </span>
                 `;
@@ -220,7 +220,7 @@
             let fileNameHtml = '';
             if (log.file_name && log.file_name.length > 15) {
                 fileNameHtml = `
-                    <span title="${escapeHtml(log.file_name)}" style="cursor:pointer;" onclick="if(window.innerWidth<768)alert('${escapeHtml(log.file_name).replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
+                    <span title="${escapeHtml(log.file_name)}" style="cursor:pointer;" onclick="alert('${escapeHtml(log.file_name).replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
                         ${escapeHtml(truncatedFileName)}
                     </span>
                 `;
