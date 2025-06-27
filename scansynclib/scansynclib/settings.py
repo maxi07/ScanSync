@@ -63,7 +63,7 @@ class SettingsProxy:
         return self._model.model_dump_json()
 
     def update_from_json(self, json_str: str):
-        new_model = SettingsSchema.parse_raw(json_str)
+        new_model = SettingsSchema.model_validate_json(json_str)
         logger.debug(f"Updating SettingsProxy: {new_model}")
         self._model = new_model
 
@@ -102,7 +102,7 @@ class SettingsManager:
 
         raw = self._redis.get(REDIS_KEY)
         if raw:
-            model = SettingsSchema.parse_raw(raw)
+            model = SettingsSchema.model_validate_json(raw)
         else:
             model = SettingsSchema()  # Set defaults
             self._redis.set(REDIS_KEY, model.model_dump_json())

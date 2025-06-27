@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Annotated
 from pydantic import BaseModel, Field
 
 
@@ -21,8 +22,7 @@ class FileNamingSettings(BaseModel):
     ollama_server_url: str = Field("", description="Ollama server URL for file naming")
     """Ollama server URL for file naming, eg 'localhost'."""
 
-    ollama_server_port: int = Field(11434, description="Ollama server port for file naming")
-    """Ollama server port for file naming, default is 11434."""
+    ollama_server_port: Annotated[int, Field(strict=True, ge=1, le=65535, description="Ollama server port for file naming")] = 11434
 
     ollama_model: str = Field("", description="Ollama model for file naming")
     """Ollama model for file naming, e.g., 'llama2'."""
