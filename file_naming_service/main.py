@@ -9,6 +9,7 @@ import time
 import pika.exceptions
 from scansynclib.openai_helper import generate_filename_openai
 from scansynclib.ollama_helper import generate_filename_ollama
+from scansynclib.settings_schema import FileNamingMethod
 from scansynclib.sqlite_wrapper import execute_query, update_scanneddata_database
 from scansynclib.settings import settings
 
@@ -43,9 +44,11 @@ def callback(ch, method, properties, body):
             logger.error("Neither OpenAI nor Ollama is enabled. Please enable one of them in the settings.")
         execute_query('UPDATE file_naming_jobs SET file_naming_status = ? WHERE id = ?', (FileNamingStatus.PROCESSING.name, item.file_naming_db_id))
 
-        if openai_enabled:
+        method = settings.file_naming.method
+
+        if method == FileNamingMethod.OPENAI:
             new_filename = generate_filename_openai(item)
-        elif ollama_enabled:
+        elif method == FileNamingMethod.OLLAMA:
             new_filename = generate_filename_ollama(item)
         else:
             logger.info("No file naming method configured. Using default filename.")

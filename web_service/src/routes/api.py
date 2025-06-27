@@ -2,7 +2,7 @@ from flask import Blueprint, Response, json, request, jsonify
 from scansynclib.logging import logger
 from scansynclib.onedrive_settings import onedrive_settings
 
-from scansynclib.openai_helper import test_and_add_key
+from scansynclib.openai_helper import test_key
 from scansynclib.sqlite_wrapper import execute_query
 
 from scansynclib.ollama_helper import test_ollama_server
@@ -46,7 +46,7 @@ def save_openai_settings():
         if api_key:
             # Test API key
             logger.debug("Testing OpenAI API key...")
-            code, message = test_and_add_key(api_key)
+            code, message = test_key(api_key)
             if code != 200:
                 logger.warning(f"Failed to validate OpenAI key: {message}")
                 return jsonify({'error': message}), code
@@ -113,7 +113,6 @@ def disable_file_naming():
         if was_disabled:
             return "File naming is already disabled. No settings to delete.", 200
         else:
-            settings.file_naming.method = FileNamingMethod.NONE
             logger.info("File naming disabled successfully")
             return "File naming disabled successfully. ScanSync will use default file names.", 200
     except Exception as e:

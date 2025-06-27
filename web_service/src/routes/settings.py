@@ -3,6 +3,7 @@ from scansynclib.logging import logger
 from scansynclib.onedrive_settings import onedrive_settings
 from scansynclib.onedrive_api import get_user_info, get_user_photo
 from scansynclib.settings import settings
+from scansynclib.settings_schema import FileNamingMethod
 
 settings_bp = Blueprint('settings', __name__)
 
@@ -49,7 +50,7 @@ def index():
         logger.info("No OpenAI key available")
 
     try:
-        ollama_enabled = bool(settings.file_naming.ollama_server_url and settings.file_naming.ollama_server_port and settings.file_naming.ollama_model)
+        ollama_enabled = settings.file_naming.method == FileNamingMethod.OLLAMA
         if ollama_enabled:
             ollama_server_url = settings.file_naming.ollama_server_url
             if "host.docker.internal" in ollama_server_url:

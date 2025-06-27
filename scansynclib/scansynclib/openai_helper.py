@@ -13,7 +13,7 @@ USER_PROFILE_FILE = '/app/data/user_profile_openai.json'
 USER_IMAGE_FILE = '/app/data/user_image_openai.jpeg'
 
 
-def test_and_add_key(key) -> tuple[int, str]:
+def test_key(key) -> tuple[int, str]:
     """
     Tests if an OpenAI API key is valid, adds it to the environment if so,
     and returns a status code indicating whether it was valid.
@@ -36,11 +36,9 @@ def test_and_add_key(key) -> tuple[int, str]:
         )
         if response.output_text.lower() == "it works":
             logger.info("OppenAI key is valid")
-            settings.file_naming.openai_api_key = key
             return 200, "OpenAI key is valid"
         else:
             logger.warning(f"OpenAI key worked, but did not return expected result. Result is: {response.output_text}")
-            settings.file_naming.openai_api_key = key
             return 200, "OpenAI key worked, but something was off"
     except AuthenticationError:
         return 401, "OpenAI key is invalid or wrong permissions set."
