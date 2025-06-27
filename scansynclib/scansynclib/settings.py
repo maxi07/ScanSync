@@ -1,4 +1,5 @@
 # shared/settings.py
+import os
 import threading
 from pydantic import BaseModel
 import redis
@@ -56,10 +57,10 @@ class SettingsProxy:
         self._on_change()
 
     def dict(self):
-        return self._model.dict()
+        return self._model.model_dump()
 
     def json(self):
-        return self._model.json()
+        return self._model.model_dump_json()
 
     def update_from_json(self, json_str: str):
         new_model = SettingsSchema.parse_raw(json_str)
@@ -91,7 +92,9 @@ class SettingsManager:
         manager = SettingsManager()
         manager.settings.some_option = "new_value"
     """
-    def __init__(self, redis_url="redis://redis:6379"):
+    def __init__(self, redis_url=None):
+        if not redis_url:
+            redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
         self._redis = redis.Redis.from_url(redis_url, decode_responses=True)
         self._pubsub = self._redis.pubsub()
         self._pubsub.subscribe(REDIS_CHANNEL)
@@ -102,7 +105,7 @@ class SettingsManager:
             model = SettingsSchema.parse_raw(raw)
         else:
             model = SettingsSchema()  # Set defaults
-            self._redis.set(REDIS_KEY, model.json())
+            self._redis.set(REDIS_KEY, model.model_dump_json())
 
         # Proxy for Autoupdate
         self.settings = SettingsProxy(model, self._on_change)
