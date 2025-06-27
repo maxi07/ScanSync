@@ -1,7 +1,7 @@
 import os
 import pickle
-from scansynclib.openai_settings import openai_settings
-from scansynclib.ollama_settings import ollama_settings
+
+
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus, FileNamingStatus
 from scansynclib.logging import logger
 from scansynclib.helpers import connect_rabbitmq, forward_to_rabbitmq
@@ -33,8 +33,8 @@ def callback(ch, method, properties, body):
             raise FileNotFoundError(f"OCR file does not exist: {item.ocr_file}")
 
         # test if openai or ollama will be used
-        ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and settings.file_naming.model)
-        openai_enabled = bool(openai_settings.api_key)
+        ollama_enabled = bool(settings.file_naming.ollama_server_url and settings.file_naming.ollama_server_port and settings.file_naming.ollama_model)
+        openai_enabled = bool(settings.file_naming.openai_api_key)
 
         if openai_enabled and ollama_enabled:
             logger.error("Both OpenAI and Ollama are enabled. Please disable one of them in the settings.")

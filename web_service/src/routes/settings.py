@@ -1,9 +1,7 @@
 from flask import Blueprint, render_template
 from scansynclib.logging import logger
 from scansynclib.onedrive_settings import onedrive_settings
-from scansynclib.ollama_settings import ollama_settings
 from scansynclib.onedrive_api import get_user_info, get_user_photo
-from scansynclib.openai_settings import openai_settings
 from scansynclib.settings import settings
 
 settings_bp = Blueprint('settings', __name__)
@@ -41,7 +39,7 @@ def index():
             logger.info("No user info available")
 
     try:
-        res = openai_settings.api_key
+        res = settings.file_naming.openai_api_key
         if res:
             logger.debug("Found OpenAI key")
             openai_key = "x" * 40
@@ -51,15 +49,15 @@ def index():
         logger.info("No OpenAI key available")
 
     try:
-        ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and settings.file_naming.model)
+        ollama_enabled = bool(settings.file_naming.ollama_server_url and settings.file_naming.ollama_server_port and settings.file_naming.ollama_model)
         if ollama_enabled:
-            ollama_server_url = ollama_settings.server_url
+            ollama_server_url = settings.file_naming.ollama_server_url
             if "host.docker.internal" in ollama_server_url:
                 # Special case for Docker, use localhost instead
                 ollama_server_url = "localhost"
                 logger.warning("Ollama server URL is set to 'host.docker.internal', replacing with 'localhost' for Docker compatibility.")
-            ollama_server_port = ollama_settings.server_port
-            ollama_model = settings.file_naming.model
+            ollama_server_port = settings.file_naming.ollama_server_port
+            ollama_model = settings.file_naming.ollama_model
             logger.debug(f"Ollama settings found: url={ollama_server_url}, port={ollama_server_port}, model={ollama_model}")
         else:
             logger.info("Ollama settings not configured")

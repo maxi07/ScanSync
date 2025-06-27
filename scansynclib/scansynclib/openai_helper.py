@@ -1,10 +1,10 @@
 from openai import OpenAI, AuthenticationError, RateLimitError
 from scansynclib.ProcessItem import FileNamingStatus, ProcessItem
 from scansynclib.logging import logger
-from scansynclib.openai_settings import openai_settings
 from tenacity import Retrying, RetryError, stop_after_attempt, wait_random_exponential, retry_if_exception_type
 from scansynclib.helpers import validate_smb_filename, extract_text
 from scansynclib.sqlite_wrapper import execute_query
+from scansynclib.settings import settings
 
 
 OPENAI_MODEL = "gpt-4.1-nano"
@@ -36,13 +36,11 @@ def test_and_add_key(key) -> tuple[int, str]:
         )
         if response.output_text.lower() == "it works":
             logger.info("OppenAI key is valid")
-            openai_settings.api_key = key
-            openai_settings.save()
+            settings.file_naming.openai_api_key = key
             return 200, "OpenAI key is valid"
         else:
             logger.warning(f"OpenAI key worked, but did not return expected result. Result is: {response.output_text}")
-            openai_settings.api_key = key
-            openai_settings.save()
+            settings.file_naming.openai_api_key = key
             return 200, "OpenAI key worked, but something was off"
     except AuthenticationError:
         return 401, "OpenAI key is invalid or wrong permissions set."
@@ -91,7 +89,7 @@ def generate_filename_openai(item: ProcessItem) -> str:
         return item.filename_without_extension
 
     client = OpenAI(
-        api_key=openai_settings.api_key,
+        api_key=settings.file_naming.openai_api_key,
     )
 
     try:

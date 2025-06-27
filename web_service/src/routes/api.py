@@ -1,12 +1,13 @@
 from flask import Blueprint, Response, json, request, jsonify
 from scansynclib.logging import logger
 from scansynclib.onedrive_settings import onedrive_settings
-from scansynclib.openai_settings import openai_settings
+
 from scansynclib.openai_helper import test_and_add_key
 from scansynclib.sqlite_wrapper import execute_query
-from scansynclib.ollama_settings import ollama_settings
+
 from scansynclib.ollama_helper import test_ollama_server
 from scansynclib.settings import settings
+from scansynclib.settings_schema import FileNamingMethod, FileNamingSettings
 
 api_bp = Blueprint('api', __name__)
 
@@ -41,33 +42,32 @@ def save_openai_settings():
     data = request.json
     api_key = data.get('openai_key')
 
-    if api_key:
-        # Test API key
-        logger.debug("Testing OpenAI API key...")
-        code, message = test_and_add_key(api_key)
-        if code != 200:
-            logger.warning(f"Failed to validate OpenAI key: {message}")
-            return jsonify({'error': message}), code
-        openai_settings.api_key = api_key
-        openai_settings.save()
-
-        # Disable Ollama settings if OpenAI key is set
-        if ollama_settings.server_url or ollama_settings.server_port or settings.file_naming.model:
-            logger.info("Disabling Ollama settings due to OpenAI key being set.")
-            ollama_settings.delete()
-        return jsonify({'message': 'OpenAI API key saved successfully! ScanSync now uses ChatGPT for automatic file names.'}), 200
-    else:
-        return jsonify({'error': 'Invalid data'}), 400
+    try:
+        if api_key:
+            # Test API key
+            logger.debug("Testing OpenAI API key...")
+            code, message = test_and_add_key(api_key)
+            if code != 200:
+                logger.warning(f"Failed to validate OpenAI key: {message}")
+                return jsonify({'error': message}), code
+            settings.file_naming = FileNamingSettings(
+                openai_api_key=api_key,
+                method=FileNamingMethod.OPENAI
+            )
+            return jsonify({'message': 'OpenAI API key saved successfully! ScanSync now uses ChatGPT for automatic file names.'}), 200
+        else:
+            return jsonify({'error': 'Invalid data'}), 400
+    except Exception as e:
+        err = f"Error saving OpenAI settings: {e}"
+        logger.exception(err)
+        return jsonify({'error': err}), 500
 
 
 @api_bp.delete('/api/openai-settings')
 def delete_openai_settings():
     logger.info("Received request to delete OpenAI settings")
-    res = openai_settings.delete()
-    if res:
-        return jsonify({'message': 'Settings deleted successfully!'}), 200
-    else:
-        return jsonify({'error': 'Failed to delete settings'}), 500
+    settings.file_naming = FileNamingSettings()
+    return jsonify({'message': 'Settings deleted successfully!'}), 200
 
 
 @api_bp.get('/api/status')
@@ -108,19 +108,12 @@ def get_status():
 def disable_file_naming():
     logger.info("Received request to disable file naming")
     try:
-        res_openai = openai_settings.delete()
-        res_ollama = ollama_settings.delete()
-        logger.debug(f"OpenAI settings delete result: {res_openai}, Ollama settings delete result: {res_ollama}")
-
-        if res_openai < 0 and res_ollama < 0:
-            return "Error deleting both OpenAI and Ollama settings.", 500
-        elif res_openai < 0:
-            return "Error deleting OpenAI settings.", 500
-        elif res_ollama < 0:
-            return "Error deleting Ollama settings.", 500
-        elif res_openai == 2 and res_ollama == 2:
+        was_disabled = settings.file_naming.method == FileNamingMethod.NONE
+        settings.file_naming = FileNamingSettings()  # Reset to default settings
+        if was_disabled:
             return "File naming is already disabled. No settings to delete.", 200
         else:
+            settings.file_naming.method = FileNamingMethod.NONE
             logger.info("File naming disabled successfully")
             return "File naming disabled successfully. ScanSync will use default file names.", 200
     except Exception as e:
@@ -151,15 +144,12 @@ def save_ollama_settings():
             success, message = test_ollama_server(baseurl, server_port, model)
             if not success:
                 return jsonify({'error': message}), 500
-            ollama_settings.server_url = baseurl
-            ollama_settings.server_port = server_port
-            settings.file_naming.model = model
-            ollama_settings.save()
-
-            # Disable OpenAI settings if Ollama settings are set
-            if openai_settings.api_key:
-                logger.info("Disabling OpenAI settings due to Ollama settings being set.")
-                openai_settings.delete()
+            settings.file_naming = FileNamingSettings(
+                ollama_server_url=baseurl,
+                ollama_server_port=int(server_port),
+                ollama_model=model,
+                method=FileNamingMethod.OLLAMA
+            )
             return jsonify({'message': 'Ollama settings saved successfully!'}), 200
         else:
             return jsonify({'error': 'Invalid data'}), 400
@@ -172,11 +162,8 @@ def save_ollama_settings():
 @api_bp.delete('/api/ollama-settings')
 def delete_ollama_settings():
     logger.info("Received request to delete Ollama settings")
-    res = ollama_settings.delete()
-    if res:
-        return jsonify({'message': 'Ollama settings deleted successfully!'}), 200
-    else:
-        return jsonify({'error': 'Failed to delete Ollama settings'}), 500
+    settings.file_naming = FileNamingSettings()
+    return jsonify({'message': 'Ollama settings deleted successfully!'}), 200
 
 
 @api_bp.get('/api/file-naming-logs')

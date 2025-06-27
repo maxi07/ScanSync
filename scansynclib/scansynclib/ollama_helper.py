@@ -1,7 +1,6 @@
 import requests
 from tenacity import RetryError, retry, retry_if_exception, stop_after_attempt, wait_random_exponential
 import urllib3
-from scansynclib.ollama_settings import ollama_settings
 from scansynclib.ProcessItem import FileNamingStatus, ProcessItem
 from scansynclib.helpers import extract_text, validate_smb_filename
 from scansynclib.logging import logger
@@ -72,7 +71,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
 
     execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, model = ?, method = ? WHERE id = ?",
-            (FileNamingStatus.PROCESSING.name, settings.file_naming.model, "ollama", item.file_naming_db_id)
+            (FileNamingStatus.PROCESSING.name, settings.file_naming.ollama_model, "ollama", item.file_naming_db_id)
         )
 
     if not item.ocr_file:
@@ -111,7 +110,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             "Return only the filename – nothing else, also no notes."
         )
         payload = {
-            "model": settings.file_naming.model,
+            "model": settings.file_naming.ollama_model,
             "system": system_prompt,
             "prompt": pdf_text,
             "stream": False
@@ -136,7 +135,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             if 'application/json' in content_type:
                 try:
                     error_info = response.json()
-                    logger.error(f"Ollama model {settings.file_naming.model} not found on the server: {error_info}")
+                    logger.error(f"Ollama model {settings.file_naming.ollama_model} not found on the server: {error_info}")
                     execute_query(
                         "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
                         (FileNamingStatus.MODEL_NOT_FOUND.name, FileNamingStatus.MODEL_NOT_FOUND.value, item.file_naming_db_id)
@@ -176,5 +175,5 @@ def generate_filename_ollama(item: ProcessItem) -> str:
        wait=wait_random_exponential(multiplier=1, min=2, max=10),
        retry=retry_if_exception(is_retryable_exception))
 def post_to_ollama(payload, headers):
-    url = f"{ollama_settings.server_url}:{ollama_settings.server_port}/api/generate"
+    url = f"{settings.file_naming.ollama_server_url}:{settings.file_naming.ollama_server_port}/api/generate"
     return requests.post(url, json=payload, headers=headers, timeout=120)
