@@ -210,6 +210,7 @@ document.getElementById('ollama-connect-btn').addEventListener('click', async fu
     schemeDropdown.readOnly = true;
     urlInput.readOnly = true;
     portInput.readOnly = true;
+    connectBtn.disabled = true;
 
     connectBtnHTMLBefore = connectBtn.innerHTML;
     btnText.textContent = '';
@@ -315,6 +316,7 @@ document.getElementById('ollama-connect-btn').addEventListener('click', async fu
         schemeDropdown.readOnly = false;
         urlInput.readOnly = false;
         portInput.readOnly = false;
+        connectBtn.disabled = false;
     } finally {
         btnText.innerHTML = connectBtnHTMLBefore;
         spinner.classList.add('d-none');
@@ -366,11 +368,14 @@ document.getElementById('ollama-form').addEventListener('submit', async function
     }
 
     isRequestPending = true;
-    const submitButton = this.querySelector('button[type="submit"]');
+    const submitButton = document.getElementById('ollama-save-btn') || document.getElementById('ollama-refresh-models-btn');
     const originalButtonHtml = submitButton.innerHTML;
     const errBox = document.getElementById('ollama-error');
+    const disableOllamaButton = document.getElementById('ollama-delete-btn');
+    disableOllamaButton && (disableOllamaButton.disabled = true);
 
     submitButton.disabled = true;
+    console.log('Submitting Ollama settings form');
     submitButton.textContent = 'Saving...';
 
     const formData = new FormData(this);
@@ -405,6 +410,7 @@ document.getElementById('ollama-form').addEventListener('submit', async function
         submitButton.disabled = false;
         submitButton.innerHTML = originalButtonHtml;
         isRequestPending = false;
+        disableOllamaButton && (disableOllamaButton.disabled = false);
     }
 });
 

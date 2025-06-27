@@ -1,7 +1,7 @@
 import os
 import pickle
-from scansynclib.openai_settings import openai_settings
-from scansynclib.ollama_settings import ollama_settings
+
+
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus, FileNamingStatus
 from scansynclib.logging import logger
 from scansynclib.helpers import connect_rabbitmq, forward_to_rabbitmq
@@ -9,7 +9,9 @@ import time
 import pika.exceptions
 from scansynclib.openai_helper import generate_filename_openai
 from scansynclib.ollama_helper import generate_filename_ollama
+from scansynclib.settings_schema import FileNamingMethod
 from scansynclib.sqlite_wrapper import execute_query, update_scanneddata_database
+from scansynclib.settings import settings
 
 
 RABBITQUEUE = "file_naming_queue"
@@ -32,8 +34,8 @@ def callback(ch, method, properties, body):
             raise FileNotFoundError(f"OCR file does not exist: {item.ocr_file}")
 
         # test if openai or ollama will be used
-        ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and ollama_settings.model)
-        openai_enabled = bool(openai_settings.api_key)
+        ollama_enabled = bool(settings.file_naming.ollama_server_url and settings.file_naming.ollama_server_port and settings.file_naming.ollama_model)
+        openai_enabled = bool(settings.file_naming.openai_api_key)
 
         if openai_enabled and ollama_enabled:
             logger.error("Both OpenAI and Ollama are enabled. Please disable one of them in the settings.")
@@ -42,9 +44,11 @@ def callback(ch, method, properties, body):
             logger.error("Neither OpenAI nor Ollama is enabled. Please enable one of them in the settings.")
         execute_query('UPDATE file_naming_jobs SET file_naming_status = ? WHERE id = ?', (FileNamingStatus.PROCESSING.name, item.file_naming_db_id))
 
-        if openai_enabled:
+        method_setting = settings.file_naming.method
+
+        if method_setting == FileNamingMethod.OPENAI:
             new_filename = generate_filename_openai(item)
-        elif ollama_enabled:
+        elif method_setting == FileNamingMethod.OLLAMA:
             new_filename = generate_filename_ollama(item)
         else:
             logger.info("No file naming method configured. Using default filename.")

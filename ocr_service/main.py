@@ -1,14 +1,13 @@
-from scansynclib.ollama_settings import ollama_settings
 from scansynclib.logging import logger
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus, OCRStatus
 from scansynclib.sqlite_wrapper import update_scanneddata_database
 from scansynclib.helpers import connect_rabbitmq, forward_to_rabbitmq
-from scansynclib.openai_settings import openai_settings
 import pickle
 import ocrmypdf
 from datetime import datetime
 import time
 import pika.exceptions
+from scansynclib.settings import settings
 
 logger.info("Starting OCR service...")
 RABBITQUEUE = "ocr_queue"
@@ -68,8 +67,8 @@ def start_processing(item: ProcessItem):
 
         try:
             logger.debug("Checking if File Naming is enabled")
-            ollama_enabled = bool(ollama_settings.server_url and ollama_settings.server_port and ollama_settings.model)
-            openai_enabled = bool(openai_settings.api_key)
+            ollama_enabled = bool(settings.file_naming.ollama_server_url and settings.file_naming.ollama_server_port and settings.file_naming.ollama_model)
+            openai_enabled = bool(settings.file_naming.openai_api_key)
             if openai_enabled or ollama_enabled:
                 logger.info(f"Forwarding item {item.filename} to File Naming service.")
                 item.status = ProcessStatus.FILENAME_PENDING

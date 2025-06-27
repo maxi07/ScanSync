@@ -30,6 +30,7 @@ services:
       dockerfile: test_service/Dockerfile
     depends_on:
       - web_service
+      - redis
     networks:
       - test-network
     volumes:
@@ -37,6 +38,17 @@ services:
       - data_test:/app/data
       - preview_images_test:/app/preview-images
       - ./detection_service:/tests/tests/detection_service
+  
+  redis:
+    image: redis:latest
+    restart: unless-stopped
+    container_name: redis_test
+    ports:
+      - "6380:6379"
+    networks:
+      - test-network
+    environment:
+      - REDIS_URL=redis://redis:6379
 
 volumes:
   scans_test:

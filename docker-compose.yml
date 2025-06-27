@@ -44,6 +44,7 @@ services:
     depends_on:
       - smb_service
       - rabbitmq
+      - redis
     deploy:
       mode: replicated
       replicas: 1
@@ -134,11 +135,26 @@ services:
       retries: 5
     networks:
       - app-network
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+
+  redis:
+    image: redis:latest
+    restart: unless-stopped
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
 
 volumes:
   scans:
   preview-images:
   data:
+  redis_data:
 
 networks:
   app-network:
