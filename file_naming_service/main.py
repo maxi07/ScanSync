@@ -44,11 +44,11 @@ def callback(ch, method, properties, body):
             logger.error("Neither OpenAI nor Ollama is enabled. Please enable one of them in the settings.")
         execute_query('UPDATE file_naming_jobs SET file_naming_status = ? WHERE id = ?', (FileNamingStatus.PROCESSING.name, item.file_naming_db_id))
 
-        method = settings.file_naming.method
+        method_setting = settings.file_naming.method
 
-        if method == FileNamingMethod.OPENAI:
+        if method_setting == FileNamingMethod.OPENAI:
             new_filename = generate_filename_openai(item)
-        elif method == FileNamingMethod.OLLAMA:
+        elif method_setting == FileNamingMethod.OLLAMA:
             new_filename = generate_filename_ollama(item)
         else:
             logger.info("No file naming method configured. Using default filename.")

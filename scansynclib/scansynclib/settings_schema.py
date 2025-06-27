@@ -28,6 +28,22 @@ class FileNamingSettings(BaseModel):
     """Ollama model for file naming, e.g., 'llama2'."""
 
 
+class OneDriveSettings(BaseModel):
+    """Settings for OneDrive integration."""
+
+    client_id: str = Field("", description="OneDrive client ID")
+    """OneDrive client ID for authentication."""
+
+    authority: str = Field("https://login.microsoftonline.com/consumers", description="OneDrive authority URL")
+    """OneDrive authority URL for authentication."""
+
+    scope: list[str] = Field(default_factory=lambda: ['Files.ReadWrite', 'User.Read'], description="OneDrive scope for permissions")
+    """OneDrive scope for permissions, defaulting to read/write access."""
+
+
 class SettingsSchema(BaseModel):
     file_naming: FileNamingSettings = FileNamingSettings()
     """Settings for file naming, including OpenAI and Ollama configurations."""
+
+    onedrive: OneDriveSettings = OneDriveSettings()
+    """Settings for OneDrive integration, including client ID and authority URL."""

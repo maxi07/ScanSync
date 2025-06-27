@@ -1,10 +1,7 @@
 from flask import Blueprint, Response, json, request, jsonify
 from scansynclib.logging import logger
-from scansynclib.onedrive_settings import onedrive_settings
-
 from scansynclib.openai_helper import test_key
 from scansynclib.sqlite_wrapper import execute_query
-
 from scansynclib.ollama_helper import test_ollama_server
 from scansynclib.settings import settings
 from scansynclib.settings_schema import FileNamingMethod, FileNamingSettings
@@ -24,8 +21,7 @@ def save_onedrive_settings():
     client_id = data.get('clientID')
 
     if client_id:
-        onedrive_settings.client_id = client_id
-        onedrive_settings.save()
+        settings.onedrive.client_id = client_id
         return jsonify({'message': 'Settings saved successfully!'}), 200
     else:
         return jsonify({'error': 'Invalid data'}), 400

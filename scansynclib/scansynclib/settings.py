@@ -52,6 +52,8 @@ class SettingsProxy:
         if key in ("_model", "_on_change"):
             object.__setattr__(self, key, value)
             return
+        if getattr(self._model, key) == value:
+            return
         setattr(self._model, key, value)
         logger.debug(f"Setting attribute '{key}' to value: {value}")
         self._on_change()

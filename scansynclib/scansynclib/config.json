@@ -7,8 +7,5 @@
     "smb": {
         "path": "/mnt/scans",
         "keepOriginals": false
-    },
-    "openai": {
-        "enabled": false        
     }
 }

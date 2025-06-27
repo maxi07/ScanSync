@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template
+from enum import Enum
+from flask import Blueprint, redirect, render_template, request, url_for
 from scansynclib.logging import logger
-from scansynclib.onedrive_settings import onedrive_settings
 from scansynclib.onedrive_api import get_user_info, get_user_photo
 from scansynclib.settings import settings
 from scansynclib.settings_schema import FileNamingMethod
+from scansynclib.settings import settings_manager
 
 settings_bp = Blueprint('settings', __name__)
 
@@ -25,7 +26,7 @@ def index():
     ollama_enabled = False
 
     try:
-        client_id = onedrive_settings.client_id or ""
+        client_id = settings.onedrive.client_id or ""
     except Exception:
         logger.exception("Failed to retrieve OneDrive settings")
 
@@ -79,3 +80,53 @@ def index():
                            ollama_server_url=ollama_server_url,
                            ollama_server_port=ollama_server_port,
                            ollama_model=ollama_model)
+
+
+def flatten_settings(model, prefix=""):
+    """
+    Rekursive Funktion, die alle Einstellungen flach als Dict zurückgibt.
+    Schlüssel sind z.B. "file_naming.method" und Werte die Feldwerte.
+    """
+    result = {}
+    for field_name, value in model._model.model_fields.items():
+        attr = getattr(model, field_name)
+        full_key = f"{prefix}.{field_name}" if prefix else field_name
+        # Ist Wert selbst ein BaseModel Proxy? Dann rekursiv tiefer
+        if hasattr(attr, "_model"):  # Proxy-Erkennung
+            result.update(flatten_settings(attr, full_key))
+        else:
+            result[full_key] = attr
+    return result
+
+
+@settings_bp.route("/settings/advanced", methods=["GET", "POST"])
+def settings_view():
+    if request.method == "POST":
+        # Alle Felder durchgehen und updaten
+        for key, value in request.form.items():
+            # key ist z.B. "file_naming.method"
+            parts = key.split(".")
+            target = settings_manager.settings
+            # Bis zum letzten Attribut navigieren
+            for part in parts[:-1]:
+                target = getattr(target, part)
+            attr_name = parts[-1]
+
+            # Typ ermitteln für passende Umwandlung
+            current_value = getattr(target, attr_name)
+            if isinstance(current_value, int):
+                value = int(value)
+            elif isinstance(current_value, list):
+                value = [v.strip() for v in value.split(",")]
+            elif isinstance(current_value, Enum):
+                enum_cls = type(current_value)
+                value = enum_cls(value)
+            # Sonst string
+
+            setattr(target, attr_name, value)
+
+        return redirect(url_for("settings.settings_view"))
+
+    # GET: Settings flach auslesen und an Template geben
+    flat_settings = flatten_settings(settings_manager.settings)
+    return render_template("settings-advanced.html", settings=flat_settings)

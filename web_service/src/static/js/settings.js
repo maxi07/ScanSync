@@ -372,7 +372,7 @@ document.getElementById('ollama-form').addEventListener('submit', async function
     const originalButtonHtml = submitButton.innerHTML;
     const errBox = document.getElementById('ollama-error');
     const disableOllamaButton = document.getElementById('ollama-delete-btn');
-    disableOllamaButton.disabled = true;
+    disableOllamaButton && (disableOllamaButton.disabled = true);
 
     submitButton.disabled = true;
     console.log('Submitting Ollama settings form');
@@ -410,7 +410,7 @@ document.getElementById('ollama-form').addEventListener('submit', async function
         submitButton.disabled = false;
         submitButton.innerHTML = originalButtonHtml;
         isRequestPending = false;
-        disableOllamaButton.disabled = false;
+        disableOllamaButton && (disableOllamaButton.disabled = false);
     }
 });
 
