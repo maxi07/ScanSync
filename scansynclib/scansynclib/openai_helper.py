@@ -35,7 +35,7 @@ def test_key(key) -> tuple[int, str]:
             input="Please respond with the words 'it works'",
         )
         if response.output_text.lower() == "it works":
-            logger.info("OppenAI key is valid")
+            logger.info("OpenAI key is valid")
             return 200, "OpenAI key is valid"
         else:
             logger.warning(f"OpenAI key worked, but did not return expected result. Result is: {response.output_text}")
