@@ -375,9 +375,14 @@ function showStatusBox(message, type) {
     statusBox.className = `alert ${type}`;
     statusBox.textContent = message;
     statusBox.style.display = 'block';
-    setTimeout(() => {
-        statusBox.style.display = 'none';
-    }, 5000);
+    if (!statusBox.classList.contains('alert-danger')) {
+        setTimeout(() => {
+            statusBox.style.display = 'none';
+            const url = new URL(window.location);
+            url.searchParams.delete('disable-file-naming');
+            window.history.replaceState({}, '', url);
+        }, 5000);
+    }
 }
 
 
