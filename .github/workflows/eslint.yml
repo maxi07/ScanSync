@@ -2,7 +2,17 @@ name: ESLint Check
 
 on:
   pull_request:
+    paths:
+      - '**/*.js'
+      - '**/*.css'
+      - '**/*.md'
   push:
+    paths:
+      - '**/*.js'
+      - '**/*.css'
+      - '**/*.md'
+    branches:
+      - main
 
 jobs:
   eslint:
