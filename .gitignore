@@ -12,3 +12,4 @@ shared/db/scansync.db
 */data
 logfile.log
 *.db
+node_modules/

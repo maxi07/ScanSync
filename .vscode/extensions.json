@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "dbaeumer.vscode-eslint",
+        "ms-python.vscode-pylance",
+        "njpwerner.autodocstring",
+        "ms-python.flake8",
+        "ms-python.python",
+        "qwtel.sqlite-viewer"
+    ]
+}
