@@ -1,6 +1,11 @@
-let isRequestPending = false;
+/* global ollama_enabled ollamaModel */
 
-document.getElementById('onedrive-settings-form').addEventListener('submit', async function (event) {
+let isRequestPending = false;
+const LOGS_PER_PAGE = 5;
+let logsPage = 1;
+let logsSuccessFilter = 'all';
+
+document.getElementById('onedrive-settings-form').addEventListener('submit', async function(event) {
     event.preventDefault();
     const submitButton = this.querySelector('button[type="submit"]');
     const originalButtonText = submitButton.textContent;
@@ -18,7 +23,7 @@ document.getElementById('onedrive-settings-form').addEventListener('submit', asy
         const response = await fetch('/api/onedrive-settings', {
             method: 'POST',
             headers: {
-            'Content-Type': 'application/json',
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify(data),
         });
@@ -41,7 +46,7 @@ document.getElementById('onedrive-settings-form').addEventListener('submit', asy
 
 
 // Show warning if user leaves site
-window.addEventListener('beforeunload', function (e) {
+window.addEventListener('beforeunload', function(e) {
     if (isRequestPending) {
         console.log('Request is pending, preventing page unload.');
         e.preventDefault();
@@ -49,7 +54,7 @@ window.addEventListener('beforeunload', function (e) {
 });
 
 
-document.getElementById('openai-form').addEventListener('submit', async function (event) {
+document.getElementById('openai-form').addEventListener('submit', async function(event) {
     event.preventDefault();
     const confirmed = confirm('Enabling OpenAI file naming will disable other file naming services. Do you want to continue?');
     if (!confirmed) {
@@ -96,6 +101,7 @@ document.getElementById('openai-form').addEventListener('submit', async function
     }
 });
 
+/* exported deleteOpenAi */
 function deleteOpenAi() {
     const deleteButton = document.getElementById('delete-openai-button');
     const originalButtonText = deleteButton.textContent;
@@ -133,7 +139,7 @@ function updateTabUrlParameter(tabId) {
 
 // Add event listeners to tabs to update the URL parameter on click
 document.querySelectorAll('.nav-link').forEach(tab => {
-    tab.addEventListener('click', function () {
+    tab.addEventListener('click', function() {
         const tabId = this.getAttribute('id');
         updateTabUrlParameter(tabId);
     });
@@ -164,14 +170,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
         document.querySelectorAll('input[name="file_naming_method"]').forEach(el => {
-        el.addEventListener('change', function() {
-            document.getElementById('openai-options').style.display = this.value === 'openai' ? 'block' : 'none';
-            document.getElementById('ollama-options').style.display = this.value === 'ollama' ? 'block' : 'none';
-            document.getElementById('none-options').style.display = this.value === 'none' ? 'block' : 'none';
+            el.addEventListener('change', function() {
+                document.getElementById('openai-options').style.display = this.value === 'openai' ? 'block' : 'none';
+                document.getElementById('ollama-options').style.display = this.value === 'ollama' ? 'block' : 'none';
+                document.getElementById('none-options').style.display = this.value === 'none' ? 'block' : 'none';
+            });
         });
-    });
     } catch (error) {
         console.error('Error attaching file_naming_method change listeners:', error);
+    }
+
+    try {
+        // Only fetch logs when the accordion is opened for the first time
+        let loaded = false;
+        const logsCollapse = document.getElementById('logsCollapse');
+        logsCollapse.addEventListener('show.bs.collapse', function() {
+            if (!loaded) {
+                fetchLogs();
+                loaded = true;
+            }
+        });
+    } catch (error) {
+        console.error('Error attaching logsCollapse event listener:', error);
     }
 
     if (ollama_enabled) {
@@ -184,6 +204,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+document.getElementById('refresh-logs-btn').onclick = () => fetchLogs(logsPage, logsSuccessFilter);
+
+document.getElementById('logs-success-filter').addEventListener('change', function() {
+    logsSuccessFilter = this.value;
+    fetchLogs(1, logsSuccessFilter);
+});
+
+/* exported openLoginPopup */
 function openLoginPopup() {
     document.getElementById("onedrive-container").classList.add("d-none");
     document.getElementById("onedrive-loading-spinner").classList.remove("d-none");
@@ -224,7 +252,7 @@ document.getElementById('ollama-connect-btn').addEventListener('click', async fu
     portInput.readOnly = true;
     connectBtn.disabled = true;
 
-    connectBtnHTMLBefore = connectBtn.innerHTML;
+    const connectBtnHTMLBefore = connectBtn.innerHTML;
     btnText.textContent = '';
     spinner.classList.remove('d-none');
 
@@ -271,7 +299,7 @@ document.getElementById('ollama-connect-btn').addEventListener('click', async fu
                     }
                 }
             } catch (e) {
-                // Fallback: original string
+                console.log(e);
             }
             modelInfo.innerHTML = `
                 <strong>Name:</strong> ${model.name}<br>
@@ -321,7 +349,7 @@ document.getElementById('ollama-connect-btn').addEventListener('click', async fu
             console.error('Network error or invalid URL:', err);
             errorDiv.textContent = 'Network error or invalid URL. Please check your Ollama server settings and spelling.';
         } else {
-            errorDiv.textContent = err.message
+            errorDiv.textContent = err.message;
             console.error('Fehler beim Verbinden mit Ollama:', err);
         }
         errorDiv.classList.remove('d-none');
@@ -342,34 +370,35 @@ document.getElementById('ollama-connect-btn').addEventListener('click', async fu
     }
 });
 
+/* exported disableFileNaming */
 function disableFileNaming() {
     fetch('/api/disable-file-naming', {
         method: 'POST'
     })
-    .then(async response => {
-        const message = await response.text();
-        if (response.ok) {
-            console.log('File naming disabled successfully:', message);
-            if (response.status === 200) {
-                window.location.href = '/settings?disable-file-naming=success&tab=file-naming-tab';
-            } else if (response.status === 204) {
-                window.location.href = '/settings?disable-file-naming=already-disabled&tab=file-naming-tab';
+        .then(async response => {
+            const message = await response.text();
+            if (response.ok) {
+                console.log('File naming disabled successfully:', message);
+                if (response.status === 200) {
+                    window.location.href = '/settings?disable-file-naming=success&tab=file-naming-tab';
+                } else if (response.status === 204) {
+                    window.location.href = '/settings?disable-file-naming=already-disabled&tab=file-naming-tab';
+                }
+            } else {
+                console.error('Error disabling file naming:', message);
+                showStatusBox(message || 'An error occurred while disabling file naming.', 'alert-danger');
             }
-        } else {
-            console.error('Error disabling file naming:', message);
-            showStatusBox(message || 'An error occurred while disabling file naming.', 'alert-danger');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showStatusBox('An unexpected error occurred. Please try again.', 'alert-danger');
-    });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showStatusBox('An unexpected error occurred. Please try again.', 'alert-danger');
+        });
 }
 
 function showStatusBox(message, type) {
     let statusBox = document.getElementById('file-naming-status');
     if (!statusBox) {
-        alert(message)
+        alert(message);
         return;
     }
     statusBox.className = `alert ${type}`;
@@ -386,7 +415,7 @@ function showStatusBox(message, type) {
 }
 
 
-document.getElementById('ollama-form').addEventListener('submit', async function (event) {
+document.getElementById('ollama-form').addEventListener('submit', async function(event) {
     event.preventDefault();
     if (!ollama_enabled) {
         const confirmed = confirm('Enabling Ollama file naming will disable other file naming services. Do you want to continue?');
@@ -443,6 +472,7 @@ document.getElementById('ollama-form').addEventListener('submit', async function
     }
 });
 
+/* exported deleteOllama */
 function deleteOllama() {
     const deleteButton = document.getElementById('ollama-delete-btn');
     const originalButtonHtml = deleteButton.innerHTML;
@@ -469,4 +499,125 @@ function deleteOllama() {
             deleteButton.disabled = false;
             deleteButton.innerHTML = originalButtonHtml;
         });
+}
+
+function fetchLogs(page = 1, filter = logsSuccessFilter) {
+    document.querySelector('#refresh-logs-btn').disabled = true;
+    let url = `/api/file-naming-logs?page=${page}&per_page=${LOGS_PER_PAGE}`;
+    if (filter && filter !== 'all') {
+        url += `&filter=${filter}`;
+    }
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            renderLogsTable(data.logs, data.page, data.total_pages, data.total_count);
+        })
+        .catch(() => {
+            renderLogsTable([], 1, 1, 0);
+        })
+        .finally(() => {
+            document.querySelector('#refresh-logs-btn').disabled = false;
+        });
+}
+
+function renderLogsTable(logs, page, totalPages) {
+    const tbody = document.querySelector('#logs-table tbody');
+    const empty = document.getElementById('logs-empty');
+    const pagination = document.getElementById('logs-pagination');
+    tbody.innerHTML = '';
+    if (!logs || logs.length === 0) {
+        empty.classList.remove('d-none');
+        document.getElementById('logs-table').classList.add('d-none');
+        pagination.innerHTML = '';
+        return;
+    }
+    empty.classList.add('d-none');
+    document.getElementById('logs-table').classList.remove('d-none');
+    logs.forEach((log) => {
+        const statusBadge = getStatusBadge(log.file_naming_status);
+        // Show full error on click for mobile (and always show truncated with tooltip on desktop)
+        let error = '';
+        if (log.error_description) {
+            const truncated = truncate(log.error_description, 40);
+            error = `
+                <span class="text-danger" title="${log.error_description}" style="cursor:pointer;" onclick="alert('${log.error_description.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
+                    ${truncated}
+                </span>
+            `;
+        }
+        // Truncate file name to 15 characters
+        const truncatedFileName = truncate(log.file_name, 15);
+        let fileNameHtml = '';
+        if (log.file_name && log.file_name.length > 15) {
+            fileNameHtml = `
+                <span title="${escapeHtml(log.file_name)}" style="cursor:pointer;" onclick="alert('${escapeHtml(log.file_name).replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
+                    ${escapeHtml(truncatedFileName)}
+                </span>
+            `;
+        } else {
+            fileNameHtml = escapeHtml(log.file_name);
+        }
+        tbody.innerHTML += `
+            <tr>
+                <td>${log.id}</td>
+                <td>${statusBadge}</td>
+                <td>${fileNameHtml}</td>
+                <td>${escapeHtml(log.method)}</td>
+                <td>${escapeHtml(log.model)}</td>
+                <td><span class="text-secondary">${escapeHtml(log.started)}</span></td>
+                <td><span class="text-secondary">${escapeHtml(log.finished)}</span></td>
+                <td>${error}</td>
+            </tr>
+        `;
+    });
+    renderPagination(page, totalPages);
+}
+
+function renderPagination(page, totalPages) {
+    const pagination = document.getElementById('logs-pagination');
+    pagination.innerHTML = '';
+    if (totalPages <= 1) return;
+    let html = '';
+    html += `<li class="page-item${page === 1 ? ' disabled' : ''}"><a class="page-link" href="#" data-page="${page-1}">&laquo;</a></li>`;
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || Math.abs(i - page) <= 1) {
+            html += `<li class="page-item${i === page ? ' active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
+        } else if (i === page - 2 || i === page + 2) {
+            html += `<li class="page-item disabled"><span class="page-link">…</span></li>`;
+        }
+    }
+    html += `<li class="page-item${page === totalPages ? ' disabled' : ''}"><a class="page-link" href="#" data-page="${page+1}">&raquo;</a></li>`;
+    pagination.innerHTML = html;
+    pagination.querySelectorAll('a.page-link').forEach(link => {
+        link.onclick = (e) => {
+            e.preventDefault();
+            const p = parseInt(link.getAttribute('data-page'));
+            if (p >= 1 && p <= totalPages) fetchLogs(p, logsSuccessFilter);
+        };
+    });
+}
+
+function getStatusBadge(status) {
+    switch (status) {
+    case 'COMPLETED':
+        return '<span class="badge bg-success">Completed</span>';
+    case 'FAILED':
+        return '<span class="badge bg-danger">Failed</span>';
+    case 'PROCESSING':
+        return '<span class="badge bg-warning text-dark">Processing</span>';
+    default:
+        return `<span class="badge bg-danger">${escapeHtml("Failed")}</span>`;
+    }
+}
+
+function truncate(str, n) {
+    return str && str.length > n ? str.slice(0, n - 1) + '…' : str;
+}
+
+function escapeHtml(text) {
+    return text ? text.replace(/[&<>"']/g, function(m) {
+        return ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[m];
+    }) : '';
 }

@@ -1,25 +1,32 @@
+/* global bootstrap */
+
 const onedriveLocalListGroup = document.getElementById('onedrivelistgroup');
-var onedriveDirLevel = 1;
-var currentOneDrivePath = "/"; // The path we are currently in
-var currentOneDriveSelectedPath = ""; // The path the user actually selected
-var currentOneDriveSelectedID = ""; // The ID of the selected item
+let onedriveDirLevel = 1;
+let currentOneDrivePath = "/"; // The path we are currently in
+let currentOneDriveSelectedPath = ""; // The path the user actually selected
+let currentOneDriveSelectedID = ""; // The ID of the selected item
 
 // Add a stack to manage parent IDs
 const parentIDStack = [];
 
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function() {
     const remotepathselector = document.getElementById("remotepathselector");
-    remotepathselector.addEventListener('show.bs.collapse', function () {
+    remotepathselector.addEventListener('show.bs.collapse', function() {
         loadOneDriveDir();
     });
     // Enable popovers
-    const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]')
-    const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl))
-    replaceHostnamePopovers();
+    if (typeof bootstrap === 'undefined') {
+        console.error('Bootstrap JS is not loaded. Please include Bootstrap\'s JavaScript before this script.');
+    } else {
+        const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
+        [...popoverTriggerList].forEach(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
+        replaceHostnamePopovers();
+    }
     setSortByDropdown();
 });
 
+/* exported importPathMappingsCSV */
 function importPathMappingsCSV(input) {
     if (input.files.length === 0) return;
     const file = input.files[0];
@@ -58,24 +65,24 @@ function importPathMappingsCSV(input) {
         method: 'PUT',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        const modalBody = document.querySelector('#csvUploadModal .modal-body');
-        const modalTitle = document.getElementById('csvUploadModalLabel');
-        if (data.success) {
-            modalBody.innerHTML = `<div class="w-100"><div class="alert alert-success mb-0">CSV uploaded successfully.<br><strong>${data.added}</strong> item(s) added.</div></div>`;
-            modalTitle.textContent = "Upload Complete";
-            setTimeout(() => {
-                window.location.reload();
-            }, 3000);
-        } else {
-            showCsvUploadErrorModal(data.error || 'Failed to upload CSV.');
-        }
-    })
-    .catch(error => {
-        console.error(error);
-        showCsvUploadErrorModal('An error occurred while uploading the CSV.<br>' + error);
-    });
+        .then(response => response.json())
+        .then(data => {
+            const modalBody = document.querySelector('#csvUploadModal .modal-body');
+            const modalTitle = document.getElementById('csvUploadModalLabel');
+            if (data.success) {
+                modalBody.innerHTML = `<div class="w-100"><div class="alert alert-success mb-0">CSV uploaded successfully.<br><strong>${data.added}</strong> item(s) added.</div></div>`;
+                modalTitle.textContent = "Upload Complete";
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            } else {
+                showCsvUploadErrorModal(data.error || 'Failed to upload CSV.');
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            showCsvUploadErrorModal('An error occurred while uploading the CSV.<br>' + error);
+        });
 }
 
 function showCsvUploadErrorModal(message) {
@@ -118,26 +125,26 @@ function setSortByDropdown() {
 }
 
 // Add event listener for smb form submit
-document.getElementById("pathmappingmodal_add_smb_form").addEventListener('submit', async function (event) {
+document.getElementById("pathmappingmodal_add_smb_form").addEventListener('submit', async function(event) {
     // Validate for invalid chars
     const input = document.getElementById("local_path");
     const error = document.getElementById("error_message_local_path");
     const name = input.value;
 
     if (!isValidSmbName(name)) {
-      event.preventDefault(); // Verhindert das Absenden
-      error.textContent = "Invalid SMB name: Avoid < > : \" / \\ | ? * or reserved names.";
-      error.style.display = "block";
-      return;
+        event.preventDefault(); // Verhindert das Absenden
+        error.textContent = "Invalid SMB name: Avoid < > : \" / \\ | ? * or reserved names.";
+        error.style.display = "block";
+        return;
     } else {
-      error.style.display = "none";
+        error.style.display = "none";
     }
 
     console.log("Submitting SMB form");
     event.preventDefault();
     const form = event.target;
     const formData = new FormData(form);
-    const response = await fetch("/add-path-mapping" || window.location.pathname, {
+    const response = await fetch("/add-path-mapping", {
         method: 'POST',
         body: formData
     });
@@ -159,6 +166,7 @@ function replaceHostnamePopovers() {
     const popoverButtons = document.querySelectorAll('[data-bs-toggle="popover"]');
 
     popoverButtons.forEach((btn) => {
+        // eslint-disable-next-line no-unused-vars
         const popover = new bootstrap.Popover(btn, {
             trigger: 'focus', // or 'click', depending on your preference
             html: true
@@ -178,18 +186,18 @@ function replaceHostnamePopovers() {
 };
 
 // Reset form when opening
-document.getElementById("pathmappingmodal").addEventListener('show.bs.modal', function () {
+document.getElementById("pathmappingmodal").addEventListener('show.bs.modal', function() {
     const form = document.getElementById("pathmappingmodal_add_smb_form");
     form.reset(); // Reset the form fields
     console.log("Resetting form fields");
 });
 
-document.getElementById("add_path_mapping_button").addEventListener('click', function () {
+document.getElementById("add_path_mapping_button").addEventListener('click', function() {
     document.getElementById("submit_form_path_mapping_button").innerText = "Add";
 });
 
 // Update the back button event listener
-document.getElementById("remoteonedrivebackbutton").addEventListener('click', function () {
+document.getElementById("remoteonedrivebackbutton").addEventListener('click', function() {
     if (parentIDStack.length > 0) {
         const previous = parentIDStack.pop(); // Remove the last parent ID from the stack
         onedriveDirLevel -= 1; // Decrease directory level
@@ -210,7 +218,7 @@ function loadOneDriveDir(folderID = null, isSharedWithMe = false, driveID = null
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/get-user-drive-items', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function () {
+    xhr.onreadystatechange = function() {
         if (xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status !== 200) {
                 console.error(xhr.responseText);
@@ -220,7 +228,7 @@ function loadOneDriveDir(folderID = null, isSharedWithMe = false, driveID = null
                 console.log("Received " + jsonResponse.length + " items.");
 
                 listgroup.innerHTML = '';
-                itemcount = 0;
+                let itemcount = 0;
                 jsonResponse.forEach(item => {
                     if (!item.folder) return;
                     if (item.package) return;
@@ -290,8 +298,8 @@ function loadOneDriveDir(folderID = null, isSharedWithMe = false, driveID = null
                 listgroup.style.display = "block";
             };
         };
-    }
-    xhr.send(JSON.stringify({"folderID": folderID, "driveID": driveID, "isSharedWithMe": isSharedWithMe, "onedriveDirLevel": onedriveDirLevel}));
+    };
+    xhr.send(JSON.stringify({ "folderID": folderID, "driveID": driveID, "isSharedWithMe": isSharedWithMe, "onedriveDirLevel": onedriveDirLevel }));
 }
 
 
@@ -308,7 +316,7 @@ function handleRemotePathClick(event) {
     
     // Update currentOneDriveSelectedPath, so we can set it to active later 
     currentOneDriveSelectedID = event.currentTarget.dataset.itemId;
-    var parent = event.currentTarget.dataset.parentPath.split('root:')[1] || "";
+    let parent = event.currentTarget.dataset.parentPath.split('root:')[1] || "";
     currentOneDriveSelectedPath = parent + "/" + targetItem.textContent.trimStart();
     document.getElementById("remote_path").value = currentOneDriveSelectedPath;
     document.getElementById("folder_id_input").value = targetItem.dataset.itemId;
@@ -337,19 +345,21 @@ function handleRemotePathDoubleClick(event) {
     }
 }
 
+/* exported editPathMapping */
 function editPathMapping(id) {
-    var smb_title = document.getElementById(id + "_smb_path").innerText;
+    let smb_title = document.getElementById(id + "_smb_path").innerText;
     document.getElementById("local_path").value = smb_title.trim();
     document.getElementById("add_path_mapping_button").innerText = "Edit";
     document.getElementById("old_smb_id").value = id;
 }
 
+/* exported deletePathMapping */
 function deletePathMapping(id) {
     if (confirm("Are you sure you want to delete this path mapping?")) {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/delete-path-mapping', true);
         xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.onreadystatechange = function () {
+        xhr.onreadystatechange = function() {
             if (xhr.readyState === XMLHttpRequest.DONE) {
                 if (xhr.status === 200) {
                     window.location.reload();
@@ -365,15 +375,16 @@ function deletePathMapping(id) {
 
 function isValidSmbName(name) {
     const reservedNames = [
-      "CON", "PRN", "AUX", "NUL",
-      "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-      "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9", "failed-documents"
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9", "failed-documents"
     ];
+    // eslint-disable-next-line no-control-regex
     const forbiddenChars = /[<>:"/\\|?*\x00-\x1F]/;
     const endsWithDotOrSpace = /[. ]$/;
 
     return (
-      name.length > 0 &&
+        name.length > 0 &&
       name.length <= 255 &&
       !reservedNames.includes(name.toUpperCase()) &&
       !forbiddenChars.test(name) &&
@@ -382,15 +393,17 @@ function isValidSmbName(name) {
     );
 }
 
+/* exported downloadFailedSync */
 function downloadFailedSync(id) {
     window.open("/failedpdf?download_id=" + id);
 }
 
+/* exported deleteFailedSync */
 function deleteFailedSync(id) {
     const xhr = new XMLHttpRequest();
     xhr.open('DELETE', '/failedpdf', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function () {
+    xhr.onreadystatechange = function() {
         if (xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status !== 200) {
                 console.error(xhr.responseText);
@@ -408,10 +421,11 @@ function deleteFailedSync(id) {
                 }, 500);
             };
         };
-    }
+    };
     xhr.send(JSON.stringify({ "id": id }));
 }
 
+/* exported sortPathMappings */
 function sortPathMappings() {
     const sortBy = document.getElementById('sortDropdown').value;
     console.log(`Sorting by: ${sortBy}`);
