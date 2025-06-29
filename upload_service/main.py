@@ -21,7 +21,13 @@ def callback(ch, method, properties, body):
             logger.warning("Received object, that is not of type ProcessItem. Skipping.")
             return
         logger.info(f"Received PDF for Upload: {item.filename}")
-        start_processing(item)
+        if not os.path.exists(item.ocr_file):
+            logger.error(f"OCR file does not exist for upload: {item.ocr_file}")
+            item.status = ProcessStatus.SYNC_FAILED
+            update_scanneddata_database(item, {"file_status": item.status.value})
+            move_to_failed(item)
+        else:
+            start_processing(item)
         ch.basic_ack(delivery_tag=method.delivery_tag)
     except Exception:
         logger.exception(f"Failed processing {body}.")
