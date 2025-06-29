@@ -65,11 +65,11 @@ def callback(ch, method, properties, body):
         execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, "OCR file does not exist", item.file_naming_db_id))
     except TypeError as e:
         logger.error(f"Received object is not a ProcessItem: {e}. Skipping.")
-        execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime'), WHERE id = ?", (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
+        execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
         return
     except Exception as e:
         logger.exception(f"Failed processing {item.filename}.")
-        execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime'), WHERE id = ?", (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
+        execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
     finally:
         try:
             ch.basic_ack(delivery_tag=method.delivery_tag)
