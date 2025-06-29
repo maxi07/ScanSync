@@ -21,7 +21,7 @@
                     </a>
                 </li>
                 <li>
-                    <a class="dropdown-item" href="/sync/export" id="export_path_mappings_button">
+                    <a class="dropdown-item {% if not smb_shares %}disabled{% endif %}" {% if smb_shares %}href="/sync/export"{% endif %} id="export_path_mappings_button" {% if not smb_shares %}tabindex="-1" aria-disabled="true"{% endif %}>
                         <i class="bi bi-box-arrow-up"></i> Export
                     </a>
                 </li>
