@@ -68,6 +68,7 @@ def execute_query(
                 return True
     except Exception:
         logger.exception("Failed executing SQL query.")
+        return None
 
 
 def update_scanneddata_database(item: ProcessItem, update_values: dict):
