@@ -107,7 +107,7 @@ def disable_file_naming():
         was_disabled = settings.file_naming.method == FileNamingMethod.NONE
         settings.file_naming = FileNamingSettings()  # Reset to default settings
         if was_disabled:
-            return "File naming is already disabled. No settings to delete.", 200
+            return "File naming is already disabled. No settings to delete.", 204
         else:
             logger.info("File naming disabled successfully")
             return "File naming disabled successfully. ScanSync will use default file names.", 200
