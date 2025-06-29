@@ -1,12 +1,14 @@
-document.addEventListener('DOMContentLoaded', function () {
+/* global entries_per_page pdfsData */
+
+document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('top-progress-bar').style.display = 'block';
     console.log("Creating " + pdfsData.length + " pdf cards.");
     // Iterate over the PDF data and add cards dynamically
-    pdfsData.forEach(function (pdfData) {
+    pdfsData.forEach(function(pdfData) {
         addPdfCard(pdfData);
     });
 
-    eventSource = new EventSource("/stream");
+    let eventSource = new EventSource("/stream");
     eventSource.onmessage = function(event) {
         const data = JSON.parse(event.data);
         console.log("Received data:", data);
@@ -24,11 +26,11 @@ document.addEventListener('DOMContentLoaded', function () {
     eventSource.onopen = function() {
         console.log("SSE connection opened");
         document.getElementById('top-progress-bar').style.display = 'none';
-    }
+    };
 
     eventSource.onclose = function() {
         console.log("SSE connection closed");
-    }
+    };
 });
 
 
@@ -65,7 +67,7 @@ function updateCard(updateData) {
         existingCards.forEach(card => {
             const cardId = parseInt(card.dataset.id, 10);
             if (!isNaN(cardId) && cardId > highestId) {
-            highestId = cardId;
+                highestId = cardId;
             }
         });
 
@@ -225,28 +227,28 @@ function addPdfCard(pdfData) {
     checkWelcome();
 
     // Create elements for the card
-    var colDiv = document.createElement('div');
+    let colDiv = document.createElement('div');
     colDiv.id = pdfData.id + '_col';
     colDiv.classList.add('col');
 
-    var cardDiv = document.createElement('div');
+    let cardDiv = document.createElement('div');
     cardDiv.id = pdfData.id + '_pdf_card';
     cardDiv.dataset.id = pdfData.id;
     cardDiv.classList.add('card', 'rounded', 'h-100');
 
-    var imageDiv = document.createElement('div');
+    let imageDiv = document.createElement('div');
     imageDiv.id = pdfData.id + '_pdf_card_image';
     imageDiv.classList.add('bg-light', 'text-center', 'p-3', 'rounded-top', 'overflow-hidden');
 
     // Create badge span
-    var badgeSpan = document.createElement('span');
+    let badgeSpan = document.createElement('span');
     badgeSpan.id = pdfData.id + '_pdf_pages_badge';
     badgeSpan.classList.add('position-absolute', 'top-0', 'end-0', 'badge', 'bg-secondary');
     badgeSpan.style.marginTop = '10px';
     badgeSpan.style.marginRight = '10px';
     badgeSpan.textContent = pdfData.pdf_pages ? pdfData.pdf_pages : "N/A";
 
-    var imgElement = document.createElement('img');
+    let imgElement = document.createElement('img');
     imgElement.id = pdfData.id + '_pdf_preview_image';
     imgElement.classList.add('card-img-top', 'mx-auto');
     imgElement.style.height = '128px';
@@ -264,7 +266,7 @@ function addPdfCard(pdfData) {
         }
 
         // Create SVG element
-        var svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        let svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svgElement.id = pdfData.id + '_pdf_svg';
         svgElement.setAttribute("xmlns", "http://www.w3.org/2000/svg");
         svgElement.setAttribute("class", "bi bi-file-earmark-pdf-fill mx-auto");
@@ -281,23 +283,23 @@ function addPdfCard(pdfData) {
     // Append badge
     imageDiv.appendChild(badgeSpan);
 
-    var bodyDiv = document.createElement('div');
+    let bodyDiv = document.createElement('div');
     bodyDiv.id = pdfData.id + '_pdf_body';
     bodyDiv.classList.add('card-body');
 
-    var titleElement = document.createElement('h5');
+    let titleElement = document.createElement('h5');
     titleElement.id = pdfData.id + '_pdf_title';
     titleElement.classList.add('card-title');
     titleElement.textContent = pdfData.file_name || "N/A";
 
-    var infoParagraph = document.createElement('p');
+    let infoParagraph = document.createElement('p');
     infoParagraph.classList.add('pdf-info');
 
     const brElement = "<br>";
 
-    var modifiedText = document.createElement('span');
+    let modifiedText = document.createElement('span');
     modifiedText.innerHTML = `<i class="bi bi-clock"></i><strong> Updated:</strong> `;
-    var modifiedSpan = document.createElement('span');
+    let modifiedSpan = document.createElement('span');
     modifiedSpan.id = pdfData.id + '_pdf_modified';
     const now = new Date();
     const formattedDate = now.toLocaleDateString('de-DE').replace(/\./g, '.');
@@ -305,18 +307,18 @@ function addPdfCard(pdfData) {
     modifiedSpan.textContent = pdfData.local_modified || `${formattedDate} ${formattedTime}`;
     modifiedSpan.innerHTML += brElement;
 
-    var smbText = document.createElement('span');
+    let smbText = document.createElement('span');
     smbText.innerHTML = `<i class="bi bi-folder"></i><strong> SMB:</strong> `;
-    var smbSpan = document.createElement('span');
+    let smbSpan = document.createElement('span');
     smbSpan.id = pdfData.id + '_pdf_smb';
     smbSpan.textContent = pdfData.local_filepath || "N/A";
     smbSpan.innerHTML += brElement;
 
-    var cloudText = document.createElement('span');
+    let cloudText = document.createElement('span');
     cloudText.innerHTML = `<i class="bi bi-cloud"></i><strong> Cloud:</strong> `;
 
     if (pdfData.web_url) {
-        var cloudLink = document.createElement('a');
+        let cloudLink = document.createElement('a');
         cloudLink.id = pdfData.id + '_pdf_cloud';
         cloudLink.href = pdfData.web_url;
         cloudLink.title = "Open in OneDrive";
@@ -325,17 +327,17 @@ function addPdfCard(pdfData) {
         cloudLink.target = '_blank'; // Open link in a new tab
         cloudText.appendChild(cloudLink);
     } else {
-        var cloudSpan = document.createElement('span');
+        let cloudSpan = document.createElement('span');
         cloudSpan.id = pdfData.id + '_pdf_cloud';
         cloudSpan.textContent = pdfData.remote_filepath || "Not available";
         cloudSpan.innerHTML += brElement;
         cloudText.appendChild(cloudSpan);
     }
 
-    var statusText = document.createElement('span');
+    let statusText = document.createElement('span');
     const status_icon = getStatusIcon(pdfData.file_status);
     statusText.innerHTML = `<i class="bi ${status_icon}"></i><strong> Status:</strong> `;
-    var statusSpan = document.createElement('span');
+    let statusSpan = document.createElement('span');
     statusSpan.id = pdfData.id + '_pdf_status';
     statusSpan.textContent = pdfData.file_status || "N/A";
     statusSpan.innerHTML += brElement;
@@ -382,14 +384,14 @@ function addPdfCard(pdfData) {
     cardDiv.appendChild(progressContainer);
     colDiv.appendChild(cardDiv);
 
-    var pdfGrid = document.getElementById("pdfs_grid");
+    let pdfGrid = document.getElementById("pdfs_grid");
     if (pdfGrid.children.length >= entries_per_page) {
         pdfGrid.removeChild(pdfGrid.lastElementChild);
         console.log("Removed last child");
     }
     // Append the card to the container
-    var parentElement = document.getElementById('pdfs_grid');
-    var firstChild = parentElement.firstChild;
+    let parentElement = document.getElementById('pdfs_grid');
+    let firstChild = parentElement.firstChild;
     parentElement.insertBefore(colDiv, firstChild);
 }
 
