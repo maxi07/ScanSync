@@ -3,8 +3,8 @@ import msal
 from flask import Blueprint, jsonify, render_template, request, session, url_for, redirect
 from scansynclib.logging import logger
 from scansynclib.helpers import to_bool
-from scansynclib.onedrive_settings import onedrive_settings
 from scansynclib.onedrive_api import save_token, get_user_info, get_user_root_drive_id, get_user_drive_items, get_user_shared_drive_items, fetch_graph_api_data, delete_token
+from scansynclib.settings import settings
 
 onedrive_bp = Blueprint('onedrive', __name__)
 
@@ -25,13 +25,13 @@ def logout():
 @onedrive_bp.get('/initiate_device_flow')
 def initiate_device_flow():
     msal_app = msal.PublicClientApplication(
-        onedrive_settings.client_id,
-        authority=onedrive_settings.authority,
+        settings.onedrive.client_id,
+        authority=settings.onedrive.authority,
     )
 
-    logger.debug(f"Starting device flow for OneDrive authentication with scope {onedrive_settings.scope}")
+    logger.debug(f"Starting device flow for OneDrive authentication with scope {settings.onedrive.scope}")
     logger.debug(f"MSAL app: {msal_app}")
-    flow = msal_app.initiate_device_flow(scopes=onedrive_settings.scope)
+    flow = msal_app.initiate_device_flow(scopes=settings.onedrive.scope)
     logger.debug(f"Flow: {flow}")
 
     if "user_code" not in flow:
@@ -44,8 +44,8 @@ def initiate_device_flow():
 def poll_token():
     device_code = request.args.get('device_code')
     msal_app = msal.PublicClientApplication(
-        onedrive_settings.client_id,
-        authority=onedrive_settings.authority,
+        settings.onedrive.client_id,
+        authority=settings.onedrive.authority,
     )
     try:
         result = msal_app.acquire_token_by_device_flow({

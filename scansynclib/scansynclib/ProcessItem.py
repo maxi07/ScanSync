@@ -82,6 +82,28 @@ class OCRStatus(Enum):
     OUTPUT_ERROR = -6
 
 
+class FileNamingStatus(Enum):
+    """Enumeration of possible file naming statuses.
+
+    PENDING: File naming is pending.
+    PROCESSING: File naming is currently being processed.
+    COMPLETED: File naming completed successfully.
+    FAILED: File naming failed.
+    SKIPPED: File naming was skipped.
+    """
+    PENDING = "Waiting for file naming"
+    PROCESSING = "File naming in progress"
+    COMPLETED = "File naming completed"
+    FAILED = "File naming failed"
+    SKIPPED = "File naming skipped"
+    NO_OCR_FILE = "OCR failed on item, no OCR file available"
+    NO_PDF_TEXT = "No text found in PDF for file naming"
+    NO_SERVER_CONNECTION = "Could not connect to file naming server (ollama or OpenAI)"
+    MODEL_NOT_FOUND = "LLM model not found on server"
+    AUTHENTICATION_ERROR = "Authentication error with file naming server, check API key or permissions"
+    RATE_LIMIT_ERROR = "Rate limit exceeded on file naming server, try again later"
+
+
 class ItemType(Enum):
     PDF = 1
     IMAGE = 2
@@ -134,6 +156,15 @@ class ProcessItem:
         self.remote_drive_id = None
         self.preview_image_path = None
         self.web_url = None
+
+        self.ocr_db_id = None
+        """The ID of the OCR entry in the database, if applicable."""
+
+        self.file_naming_db_id = None
+        """The ID of the file naming entry in the database, if applicable."""
+
+        self.file_naming_status = FileNamingStatus.PENDING
+        """The status of the file naming process."""
 
         # PDF Status
         self.pdf_pages = 0

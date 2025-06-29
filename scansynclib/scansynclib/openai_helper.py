@@ -1,10 +1,10 @@
 from openai import OpenAI, AuthenticationError, RateLimitError
-from scansynclib.ProcessItem import ProcessItem
+from scansynclib.ProcessItem import FileNamingStatus, ProcessItem
 from scansynclib.logging import logger
-from pypdf import PdfReader
-from scansynclib.openai_settings import openai_settings
 from tenacity import Retrying, RetryError, stop_after_attempt, wait_random_exponential, retry_if_exception_type
-from scansynclib.helpers import validate_smb_filename
+from scansynclib.helpers import validate_smb_filename, extract_text
+from scansynclib.sqlite_wrapper import execute_query
+from scansynclib.settings import settings
 
 
 OPENAI_MODEL = "gpt-4.1-nano"
@@ -13,7 +13,7 @@ USER_PROFILE_FILE = '/app/data/user_profile_openai.json'
 USER_IMAGE_FILE = '/app/data/user_image_openai.jpeg'
 
 
-def test_and_add_key(key) -> tuple[int, str]:
+def test_key(key) -> tuple[int, str]:
     """
     Tests if an OpenAI API key is valid, adds it to the environment if so,
     and returns a status code indicating whether it was valid.
@@ -35,14 +35,10 @@ def test_and_add_key(key) -> tuple[int, str]:
             input="Please respond with the words 'it works'",
         )
         if response.output_text.lower() == "it works":
-            logger.info("OppenAI key is valid")
-            openai_settings.api_key = key
-            openai_settings.save()
+            logger.info("OpenAI key is valid")
             return 200, "OpenAI key is valid"
         else:
             logger.warning(f"OpenAI key worked, but did not return expected result. Result is: {response.output_text}")
-            openai_settings.api_key = key
-            openai_settings.save()
             return 200, "OpenAI key worked, but something was off"
     except AuthenticationError:
         return 401, "OpenAI key is invalid or wrong permissions set."
@@ -53,7 +49,7 @@ def test_and_add_key(key) -> tuple[int, str]:
         return 400, "An error occurred while testing OpenAI key"
 
 
-def generate_filename(item: ProcessItem) -> str:
+def generate_filename_openai(item: ProcessItem) -> str:
     """
     Generates a filename for a PDF based on its content using OpenAI.
 
@@ -66,9 +62,17 @@ def generate_filename(item: ProcessItem) -> str:
     Returns:
     - str: The generated filename if successful, otherwise the original filename without extension.
     """
-    logger.info(f"Generating filename for {item.filename}")
+    logger.info(f"Generating filename using OpenAI for {item.filename}")
+    execute_query(
+        "UPDATE file_naming_jobs SET file_naming_status = ?, model = ?, method = ? WHERE id = ?",
+        (FileNamingStatus.PROCESSING.name, OPENAI_MODEL, "openai", item.file_naming_db_id)
+    )
     if not item.ocr_file:
         logger.warning("No OCR file found. Using default filename.")
+        execute_query(
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.NO_OCR_FILE.name, FileNamingStatus.NO_OCR_FILE.value, item.file_naming_db_id)
+        )
         return item.filename_without_extension
 
     # Get PDF Text
@@ -76,10 +80,14 @@ def generate_filename(item: ProcessItem) -> str:
 
     if not pdf_text:
         logger.warning("Failed to extract text from PDF. Using default filename.")
+        execute_query(
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.NO_PDF_TEXT.name, FileNamingStatus.NO_PDF_TEXT.value, item.file_naming_db_id)
+        )
         return item.filename_without_extension
 
     client = OpenAI(
-        api_key=openai_settings.api_key,
+        api_key=settings.file_naming.openai_api_key,
     )
 
     try:
@@ -96,45 +104,46 @@ def generate_filename(item: ProcessItem) -> str:
             with attempt:
                 openai_filename = client.responses.create(
                     model=OPENAI_MODEL,
-                    instructions="Identify a suitable filename for the following pdf content. Keep the language of the file name in the original language and do not add any other language. Make the filename safe for SMB. Do not add a file extension. Seperate words with a underscore. Have a maximum filename length of 50 characters.",
+                    instructions="Identify a suitable filename for the following pdf content. Keep the language of the file name in the original language and do not add any other language. Make the filename safe for SMB. Do not add a file extension. Separate words with a underscore. Have a maximum filename length of 30 characters. Only return the filename without any additional text.",
                     input=pdf_text,
                 )
         if openai_filename:
             logger.debug(f"Received OpenAI filename: {openai_filename.output_text}")
             sanitized_filename = validate_smb_filename(openai_filename.output_text)
             logger.debug(f"Sanitized OpenAI filename: {sanitized_filename}")
+            execute_query(
+                "UPDATE file_naming_jobs SET file_naming_status = ?, success = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+                (FileNamingStatus.COMPLETED.name, True, item.file_naming_db_id)
+            )
             return sanitized_filename
         else:
             logger.warning("OpenAI key worked, but did not return any result.")
+            execute_query(
+                "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+                (FileNamingStatus.FAILED.name, "OpenAI key worked, but did not return any result.", item.file_naming_db_id)
+            )
             return item.filename_without_extension
     except AuthenticationError:
         logger.warning("OpenAI key is invalid or wrong permissions set.")
+        execute_query(
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.AUTHENTICATION_ERROR.name, "OpenAI key is invalid or wrong permissions set.", item.file_naming_db_id)
+        )
         return item.filename_without_extension
     except RetryError as retryerr:
         logger.warning(f"OpenAI rate limit reached! Either not enough credits or too many requests. Tried {retryerr.last_attempt.attempt_number} times.")
+        execute_query(
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.RATE_LIMIT_ERROR.name, f"OpenAI rate limit reached! Either not enough credits or too many requests. Tried {retryerr.last_attempt.attempt_number} times.", item.file_naming_db_id)
+        )
         return item.filename_without_extension
-    except Exception:
+    except Exception as ex:
         logger.exception("An error occurred while creating a file name.")
+        execute_query(
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (FileNamingStatus.FAILED.name, str(ex), item.file_naming_db_id)
+        )
         return item.filename_without_extension
     finally:
         # Close the OpenAI client connection
         client.close()
-
-
-def extract_text(pdf_path: str) -> str:
-    """Extracts text from a PDF file.
-
-    Args:
-        pdf_path (str): The path to the PDF file.
-
-    Returns:
-        str: The extracted text from the PDF. An empty string is returned if the extraction fails.
-    """
-    try:
-        reader = PdfReader(pdf_path)
-        page = reader.pages[0]
-        text = page.extract_text()
-        return text
-    except Exception as ex:
-        logger.exception(f"Failed extracting text: {ex}")
-        return ""

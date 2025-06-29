@@ -24,7 +24,14 @@ def db_connection():
         conn.close()
 
 
-def execute_query(query: str, params=(), fetchone=False, fetchall=False, return_last_id=False):
+def execute_query(
+    query: str,
+    params=(),
+    fetchone=False,
+    fetchall=False,
+    return_last_id=False,
+    return_scalar=False
+):
     """Executes a SQLite3 query and handles cursor.
 
     Args:
@@ -33,6 +40,7 @@ def execute_query(query: str, params=(), fetchone=False, fetchall=False, return_
         fetchone (bool, optional): Return one result as dict. Defaults to False.
         fetchall (bool, optional): Return all results as list of dicts. Defaults to False.
         return_last_id (bool, optional): Return the last inserted row ID.
+        return_scalar (bool, optional): Return the first column of the first row (e.g. for COUNT(*)).
 
     Returns:
         Query result or None if not fetching.
@@ -44,7 +52,10 @@ def execute_query(query: str, params=(), fetchone=False, fetchall=False, return_
             cursor = conn.cursor()
             cursor.execute(query, params)
 
-            if fetchone:
+            if return_scalar:
+                row = cursor.fetchone()
+                return row[0] if row else None
+            elif fetchone:
                 row = cursor.fetchone()
                 return dict(row) if row else None
             elif fetchall:
@@ -57,6 +68,7 @@ def execute_query(query: str, params=(), fetchone=False, fetchall=False, return_
                 return True
     except Exception:
         logger.exception("Failed executing SQL query.")
+        return None
 
 
 def update_scanneddata_database(item: ProcessItem, update_values: dict):
@@ -122,14 +134,14 @@ def notify_sse_clients(item: ProcessItem, retry_count=0, max_retries=3):
 
 
 db_path = config.get("db.path")
-if not os.path.exists(db_path):
-    logger.info("Initializing database...")
-    with db_connection() as conn:
-        logger.debug(f"Creating database at {os.path.abspath(db_path)}")
-        schema_path = "scansynclib/scansynclib/db/schema.sql"
-        if not os.path.exists(schema_path):
-            logger.error(f"Schema file not found: {schema_path}")
-            raise FileNotFoundError(f"Schema file not found: {schema_path}")
-        with open(schema_path, "r") as f:
-            conn.executescript(f.read())
-    logger.info("Database initialized successfully.")
+
+logger.info("Initializing database...")
+with db_connection() as conn:
+    logger.debug(f"Working with database at {os.path.abspath(db_path)}")
+    schema_path = "scansynclib/scansynclib/db/schema.sql"
+    if not os.path.exists(schema_path):
+        logger.error(f"Schema file not found: {schema_path}")
+        raise FileNotFoundError(f"Schema file not found: {schema_path}")
+    with open(schema_path, "r") as f:
+        conn.executescript(f.read())
+logger.info("Database initialized successfully.")

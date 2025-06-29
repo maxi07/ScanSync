@@ -21,3 +21,24 @@ CREATE TABLE IF NOT EXISTS smb_onedrive (
     web_url TEXT,
     created DATETIME NOT NULL DEFAULT (DATETIME('now', 'localtime'))
 );
+
+CREATE TABLE IF NOT EXISTS ocr_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scanneddata_id INTEGER NOT NULL,
+    started DATETIME NOT NULL DEFAULT (DATETIME('now', 'localtime')),
+    finished DATETIME,
+    ocr_status TEXT NOT NULL,
+    ocr_error TEXT
+);
+
+CREATE TABLE IF NOT EXISTS file_naming_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scanneddata_id INTEGER NOT NULL,
+    started DATETIME NOT NULL DEFAULT (DATETIME('now', 'localtime')),
+    finished DATETIME,
+    method TEXT,
+    model TEXT,
+    file_naming_status TEXT NOT NULL,
+    success Boolean NOT NULL DEFAULT 0,
+    error_description TEXT
+);

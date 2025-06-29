@@ -52,8 +52,7 @@ def rabbitmq_listener():
     channel.queue_bind(exchange=exchange_name, queue=queue_name)
 
     def callback(ch, method, properties, body):
-        global connected_clients
-        if connected_clients > 0:  # Nur wenn Clients verbunden sindd
+        if connected_clients > 0:
             item: ProcessItem = pickle.loads(body)
             payload = dict(
                 id=item.db_id,
@@ -145,8 +144,6 @@ def inject_config():
 
 @app.route("/stream")
 def stream():
-    global connected_clients
-
     def event_stream():
         global connected_clients
         connected_clients += 1

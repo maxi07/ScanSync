@@ -9,6 +9,7 @@ from scansynclib.ProcessItem import ProcessItem
 from scansynclib.config import config
 import pika.exceptions
 from scansynclib.logging import logger
+from pypdf import PdfReader
 
 
 def connect_rabbitmq(queue_names: list = None, heartbeat: int = 30):
@@ -195,8 +196,17 @@ def validate_smb_filename(filename: str) -> str:
     invalid_chars = r'[<>:"/\\|?*\x00-\x1F]'
     filename = re.sub(invalid_chars, '', filename)
 
+    # Remove special chars from the beginning and end
+    filename = re.sub(r'^[\s._]+|[\s._]+$', '', filename)
+
+    # Make sure there is no file extension
+    filename = os.path.splitext(filename)[0]
+
     # Trim whitespace and dots before length cutoff
     filename = filename.strip().strip('.')
+
+    # Replace spaces with underscores
+    filename = filename.replace(' ', '_')
 
     # Ensure the filename is at most 50 characters
     if len(filename) > 50:
@@ -210,3 +220,22 @@ def validate_smb_filename(filename: str) -> str:
         filename = "default_filename"
 
     return filename
+
+
+def extract_text(pdf_path: str) -> str:
+    """Extracts text from a PDF file, only the first page.
+
+    Args:
+        pdf_path (str): The path to the PDF file.
+
+    Returns:
+        str: The extracted text from the PDF. An empty string is returned if the extraction fails.
+    """
+    try:
+        reader = PdfReader(pdf_path)
+        page = reader.pages[0]
+        text = page.extract_text()
+        return text
+    except Exception as ex:
+        logger.exception(f"Failed extracting text: {ex}")
+        return ""

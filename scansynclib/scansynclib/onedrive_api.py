@@ -6,9 +6,9 @@ import time
 import msal
 import requests
 import base64
-from scansynclib.onedrive_settings import onedrive_settings
 from scansynclib.sqlite_wrapper import update_scanneddata_database
 from tenacity import retry, stop_after_attempt, wait_random_exponential
+from scansynclib.settings import settings
 
 
 TOKEN_FILE = '/app/data/token.json'
@@ -65,8 +65,8 @@ def get_access_token():
 
         if 'access_token' in token_data and 'expires_in' in token_data:
             msal_app = msal.ConfidentialClientApplication(
-                onedrive_settings.client_id,
-                authority=onedrive_settings.authority,
+                settings.onedrive.client_id,
+                authority=settings.onedrive.authority,
             )
 
         expires_at = token_data.get("expires_at", 0)
@@ -78,7 +78,7 @@ def get_access_token():
             logger.debug("Microsoft Token expired, refreshing token")
             result = msal_app.acquire_token_by_refresh_token(
                 token_data["refresh_token"],
-                scopes=onedrive_settings.scope
+                scopes=settings.onedrive.scope
             )
             if "access_token" in result:
                 save_token(result)

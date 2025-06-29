@@ -58,7 +58,7 @@ function updateCard(updateData) {
     const cardElement = document.getElementById(cardId);
 
     if (!cardElement) {
-        console.warn(`Card with ID ${cardId} not found.`);
+        console.log(`Card with ID ${cardId} not found.`);
         const existingCards = document.querySelectorAll('[id$="_pdf_card"]');
         let highestId = 0;
 
@@ -72,6 +72,9 @@ function updateCard(updateData) {
         if (updateData.id > highestId) {
             console.log(`New card with ID ${updateData.id} is higher than the current highest ID ${highestId}. Adding new card.`);
             addPdfCard(updateData);
+        } else {
+            console.log(`Card with ID ${updateData.id} is not higher than the current highest ID ${highestId}. Skipping Update.`);
+            return;
         }
     }
 
@@ -402,6 +405,10 @@ function getStatusIcon(file_status) {
         status_icon = "bi-check-circle";
     } else if (status.includes("failed")) {
         status_icon = "bi-x-circle";
+    } else if (status.includes("deleted")) {
+        status_icon = "bi-trash";
+    } else if (status.includes("invalid file")) {
+        status_icon = "bi-exclamation-circle";
     }
 
     return status_icon;
