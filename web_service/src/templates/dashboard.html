@@ -147,6 +147,7 @@
 <script>
     var pdfsData = JSON.parse('{{ pdfs | tojson | safe }}');
     var entries_per_page = parseInt('{{ entries_per_page }}')
+    var smb_tag_colors = JSON.parse('{{ smb_tag_colors | tojson | safe }}');
 </script>
 <script src="/static/js/dashboard.js"></script>
 {% endblock %}

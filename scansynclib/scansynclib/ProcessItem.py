@@ -157,6 +157,9 @@ class ProcessItem:
         self.preview_image_path = None
         self.web_url = None
 
+        self.smb_target_id = None
+        """The ID of the SMB target, if applicable."""
+
         self.ocr_db_id = None
         """The ID of the OCR entry in the database, if applicable."""
 
