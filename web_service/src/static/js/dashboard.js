@@ -140,6 +140,7 @@ function updateCard(updateData) {
             }
             const textColor = getContrastYIQ(bgColor);
             element.style.color = textColor;
+            element.style.backgroundColor = bgColor;
         }
     } catch (error) {
         console.error(`Error updating local filepath: ${error.message}`);
