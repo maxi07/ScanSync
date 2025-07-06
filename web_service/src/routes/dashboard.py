@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, g
 import math
 from scansynclib.logging import logger
-from scansynclib.helpers import format_time_difference
+from scansynclib.helpers import format_time_difference, SMB_TAG_COLORS
 from scansynclib.ProcessItem import StatusProgressBar, ProcessStatus
 from scansynclib.config import config
 from datetime import datetime
@@ -134,28 +134,6 @@ def index():
                 except Exception:
                     logger.exception(f"Failed setting progressbar for {pdf['id']}.")
 
-        smb_tag_colors = [
-            "#FF6F61", "#6B5B95", "#88B04B", "#F7CAC9", "#92A8D1",
-            "#955251", "#B565A7", "#009B77", "#DD4124", "#45B8AC",
-            "#EFC050", "#5B5EA6", "#9B2335", "#DFCFBE", "#55B4B0",
-            "#E15D44", "#7FCDCD", "#BC243C", "#C3447A", "#98B4D4",
-            "#C46210", "#6C4F3D", "#F0EAD6", "#D65076", "#EDEAE0",
-            "#BFD8B8", "#E6B0AA", "#A569BD", "#5499C7", "#48C9B0",
-            "#F4D03F", "#DC7633", "#CA6F1E", "#F1948A", "#7DCEA0",
-            "#73C6B6", "#85C1E9", "#BB8FCE", "#F7DC6F", "#F0B27A",
-            "#E59866", "#EC7063", "#45B39D", "#5DADE2", "#AF7AC5",
-            "#F8C471", "#F5B041", "#DC7633", "#A04000", "#D98880",
-            "#82E0AA", "#73C6B6", "#76D7C4", "#85C1E9", "#A9CCE3",
-            "#D2B4DE", "#F9E79F", "#F7DC6F", "#EDBB99", "#D7BDE2",
-            "#AED6F1", "#A3E4D7", "#FAD7A0", "#F5CBA7", "#E59866",
-            "#D98880", "#CD6155", "#AF601A", "#7E5109", "#784212",
-            "#7D6608", "#196F3D", "#1E8449", "#27AE60", "#52BE80",
-            "#229954", "#117864", "#138D75", "#148F77", "#17A589",
-            "#45B39D", "#1ABC9C", "#16A085", "#2471A3", "#2E86C1",
-            "#5499C7", "#5DADE2", "#85C1E9", "#2471A3", "#1F618D",
-            "#2874A6", "#2E86C1", "#3498DB", "#5DADE2", "#85C1E9"
-        ]
-
         return render_template('dashboard.html',
                                pdfs=pdfs_dicts,
                                total_pages=total_pages,
@@ -166,7 +144,7 @@ def index():
                                processed_pdfs=processed_pdfs,
                                latest_timestamp_completed_string=latest_timestamp_completed_string,
                                latest_timestamp_processing_string=latest_timestamp_processing_string,
-                               smb_tag_colors=smb_tag_colors,)
+                               smb_tag_colors=SMB_TAG_COLORS,)
     except Exception as e:
         logger.exception(e)
         return render_template("dashboard.html",

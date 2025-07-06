@@ -6,7 +6,7 @@ from scansynclib.logging import logger
 import math
 from scansynclib.sqlite_wrapper import execute_query
 from scansynclib.config import config
-from scansynclib.helpers import validate_smb_filename
+from scansynclib.helpers import validate_smb_filename, SMB_TAG_COLORS
 import io
 import csv
 
@@ -51,7 +51,8 @@ def sync():
                            smb_shares=smb_shares,
                            failed_pdfs=failed_pdfs,
                            total_pages_failed_pdfs=total_pages_failed_pdfs,
-                           page_failed_pdfs=page_failed_pdfs)
+                           page_failed_pdfs=page_failed_pdfs,
+                           smb_tag_colors=SMB_TAG_COLORS,)
 
 
 @sync_bp.post('/add-path-mapping')
