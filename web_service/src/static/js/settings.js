@@ -267,7 +267,7 @@ document.getElementById('ollama-connect-btn').addEventListener('click', async fu
         versionInfo.classList.remove('d-none');
 
         // Get models
-        const tagsResp = await fetch(`/settings/ollama/models??scheme=${encodeURIComponent(scheme)}&url=${encodeURIComponent(url)}&port=${encodeURIComponent(port)}`);
+        const tagsResp = await fetch(`/settings/ollama/models?scheme=${encodeURIComponent(scheme)}&url=${encodeURIComponent(url)}&port=${encodeURIComponent(port)}`);
         if (!tagsResp.ok) throw new Error('Could not fetch models from Ollama.');
         const tagsData = await tagsResp.json();
         if (!tagsData.models || tagsData.models.length === 0) {
