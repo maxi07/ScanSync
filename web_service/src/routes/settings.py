@@ -1,5 +1,7 @@
 from enum import Enum
-from flask import Blueprint, redirect, render_template, request, url_for
+import json
+from flask import Blueprint, Response, redirect, render_template, request, url_for
+import requests
 from scansynclib.logging import logger
 from scansynclib.onedrive_api import get_user_info, get_user_photo
 from scansynclib.settings import settings
@@ -130,3 +132,73 @@ def settings_view():
     # GET: Settings flach auslesen und an Template geben
     flat_settings = flatten_settings(settings_manager.settings)
     return render_template("settings-advanced.html", settings=flat_settings)
+
+
+@settings_bp.get("/settings/ollama/version")
+def get_ollama_version():
+    """
+    Endpoint to get the version of the Ollama server.
+    """
+    logger.info("Requested Ollama version")
+    logger.debug(f"Request args: {request.args}")
+    url = request.args.get("url")
+    port = request.args.get("port")
+    scheme = request.args.get("scheme", "http")
+    if not url or not port or not scheme:
+        logger.error("Missing required 'url' or 'port' or 'scheme' parameter")
+        return Response("Missing required 'url' or 'port' or 'scheme' parameter", status=400, mimetype='text/plain')
+    try:
+        full_url = f"{scheme}://{url}:{port}/api/version"
+        response = requests.get(full_url, timeout=10)
+        if response.status_code == 200:
+            logger.debug(f"Ollama server version response: {response.json()}")
+            return Response(json.dumps(response.json()), status=200, mimetype='application/json')
+        else:
+            logger.error(f"Ollama server returned an error: {response.status_code} - {response.text}")
+            return Response(f"Error: {response.status_code} - {response.text}", status=response.status_code, mimetype='text/plain')
+    except requests.RequestException as e:
+        if isinstance(e, requests.ConnectionError):
+            logger.error("Connection error, possibly Ollama server is not running or URL is incorrect.")
+            return Response(f"Connection error: {str(e)}", status=502, mimetype='text/plain')
+        elif isinstance(e, requests.Timeout):
+            logger.error("Timeout error, Ollama server might be slow to respond or not reachable.")
+            return Response(f"Timeout error: {str(e)}", status=504, mimetype='text/plain')
+        elif isinstance(e, requests.HTTPError):
+            logger.error(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
+            return Response(f"HTTP error: {e.response.status_code} - {e.response.text}", status=e.response.status_code, mimetype='text/plain')
+        else:
+            logger.error(f"An unexpected error occurred: {str(e)}")
+            return Response(f"Unexpected error: {str(e)}", status=500, mimetype='text/plain')
+    except Exception as e:
+        logger.exception(f"Unexpected error while getting Ollama version: {str(e)}")
+        return Response(f"Unexpected error while getting Ollama version: {str(e)}", status=500, mimetype='text/plain')
+
+
+@settings_bp.get("/settings/ollama/models")
+def get_ollama_models():
+    """
+    Endpoint to get the list of models available on the Ollama server.
+    """
+    logger.info("Requested Ollama models")
+    logger.debug(f"Request args: {request.args}")
+    url = request.args.get("url")
+    port = request.args.get("port")
+    scheme = request.args.get("scheme", "http")
+    if not url or not port or not scheme:
+        logger.error("Missing required 'url' or 'port' or 'scheme' parameter")
+        return Response("Missing required 'url' or 'port' or 'scheme' parameter", status=400, mimetype='text/plain')
+    try:
+        full_url = f"{scheme}://{url}:{port}/api/tags"
+        response = requests.get(full_url, timeout=10)
+        logger.debug(f"Ollama server models response: {response.status_code} - {response.text}")
+        if response.status_code == 200:
+            return Response(json.dumps(response.json()), status=200, mimetype='application/json')
+        else:
+            logger.error(f"Ollama server returned an error: {response.status_code} - {response.text}")
+            return Response(f"Error: {response.status_code} - {response.text}", status=response.status_code, mimetype='text/plain')
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Ollama server: {str(e)}")
+        return Response(f"Error connecting to Ollama server: {str(e)}", status=500, mimetype='text/plain')
+    except Exception as e:
+        logger.exception(f"Unexpected error while getting Ollama models: {str(e)}")
+        return Response(f"Unexpected error while getting Ollama models: {str(e)}", status=500, mimetype='text/plain')
