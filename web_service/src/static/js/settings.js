@@ -258,14 +258,16 @@ document.getElementById('ollama-connect-btn').addEventListener('click', async fu
 
     try {
         // Check version
-        const versionResp = await fetch(`${scheme}://${url}:${port}/api/version`);
-        if (!versionResp.ok) throw new Error('Could not connect to Ollama server.');
+        const versionResp = await fetch(`/settings/ollama/version?scheme=${encodeURIComponent(scheme)}&url=${encodeURIComponent(url)}&port=${encodeURIComponent(port)}`);
+        if (!versionResp.ok) {
+            throw new Error('Could not connect to Ollama server. Is the server running and the URL correct?');
+        }
         const versionData = await versionResp.json();
         versionInfo.innerHTML = `<span class="text-success me-2">&#10003;</span>Detected Ollama version: ${versionData.version || 'unknown'}`;
         versionInfo.classList.remove('d-none');
 
         // Get models
-        const tagsResp = await fetch(`${scheme}://${url}:${port}/api/tags`);
+        const tagsResp = await fetch(`/settings/ollama/models?scheme=${encodeURIComponent(scheme)}&url=${encodeURIComponent(url)}&port=${encodeURIComponent(port)}`);
         if (!tagsResp.ok) throw new Error('Could not fetch models from Ollama.');
         const tagsData = await tagsResp.json();
         if (!tagsData.models || tagsData.models.length === 0) {
@@ -350,7 +352,7 @@ document.getElementById('ollama-connect-btn').addEventListener('click', async fu
             errorDiv.textContent = 'Network error or invalid URL. Please check your Ollama server settings and spelling.';
         } else {
             errorDiv.textContent = err.message;
-            console.error('Fehler beim Verbinden mit Ollama:', err);
+            console.error('Failed connecting to Ollama:', err);
         }
         errorDiv.classList.remove('d-none');
         schemeDropdown.readOnly = false;
@@ -427,14 +429,17 @@ document.getElementById('ollama-form').addEventListener('submit', async function
 
     isRequestPending = true;
     const submitButton = document.getElementById('ollama-save-btn') || document.getElementById('ollama-refresh-models-btn');
-    const originalButtonHtml = submitButton.innerHTML;
     const errBox = document.getElementById('ollama-error');
     const disableOllamaButton = document.getElementById('ollama-delete-btn');
+    const submitButtonSpinner = document.getElementById('ollama-save-spinner');
+    const ollamaSaveBtnText = document.getElementById('ollama-save-btn-text');
+    const originalButtonHtml = ollamaSaveBtnText.innerHTML;
     disableOllamaButton && (disableOllamaButton.disabled = true);
 
     submitButton.disabled = true;
     console.log('Submitting Ollama settings form');
-    submitButton.textContent = 'Saving...';
+    submitButtonSpinner && (submitButtonSpinner.classList.remove('d-none'));
+    ollamaSaveBtnText.textContent = 'Saving...';
 
     const formData = new FormData(this);
     const data = {};
@@ -466,7 +471,8 @@ document.getElementById('ollama-form').addEventListener('submit', async function
         errBox.classList.remove('d-none');
     } finally {
         submitButton.disabled = false;
-        submitButton.innerHTML = originalButtonHtml;
+        ollamaSaveBtnText.innerHTML = originalButtonHtml;
+        submitButtonSpinner && (submitButtonSpinner.classList.add('d-none'));
         isRequestPending = false;
         disableOllamaButton && (disableOllamaButton.disabled = false);
     }

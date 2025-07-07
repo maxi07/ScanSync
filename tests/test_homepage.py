@@ -119,4 +119,4 @@ def test_dashboard_settings_ollama_first_start(driver):
         EC.visibility_of_element_located((By.ID, "ollama-error"))
     )
     ollama_error = driver.find_element(By.ID, "ollama-error").text
-    assert "Network error or invalid URL." in ollama_error
+    assert "Could not connect to Ollama server." in ollama_error
