@@ -322,7 +322,7 @@ function addPdfCard(pdfData) {
     // Create container as flexbox for alignment
     let smbContainer = document.createElement('span');
     smbContainer.className = 'd-flex align-items-center gap-2'; 
-    // gap-2 sorgt für etwas Abstand zwischen Label und Badge
+    // gap-2 adds spacing between the label and badge
 
     // Create SMB label with icon and text
     let smbText = document.createElement('span');
