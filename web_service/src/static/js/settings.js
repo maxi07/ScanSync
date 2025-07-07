@@ -471,7 +471,7 @@ document.getElementById('ollama-form').addEventListener('submit', async function
         errBox.classList.remove('d-none');
     } finally {
         submitButton.disabled = false;
-        submitButton.innerHTML = originalButtonHtml;
+        ollamaSaveBtnText.innerHTML = originalButtonHtml;
         submitButtonSpinner && (submitButtonSpinner.classList.add('d-none'));
         isRequestPending = false;
         disableOllamaButton && (disableOllamaButton.disabled = false);
