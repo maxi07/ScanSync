@@ -67,7 +67,6 @@
                         <span class="me-1"><i class="bi bi-folder"></i> Scans /</span>
                         {# Compute best contrast color (black or white) for the badge text #}
                         {% set bg_color = smb_tag_colors[item.id - 1] %}
-                        {% set bg_color_no_hash = bg_color.lstrip('#') %}
                         <span id="{{ item.id }}_pdf_smb" class="badge align-middle smb-badge" style="background-color: {{ bg_color }}; color: 'white';">{{ item.smb_name }}</span>
                     </div>
                 </div>
