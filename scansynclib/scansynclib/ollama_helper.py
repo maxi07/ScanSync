@@ -157,9 +157,15 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             return item.filename_without_extension
         else:
             logger.warning("Ollama did not return a valid filename. Using default.")
+            error_info = ""
+            try:
+                error_info = response.json()
+                logger.error(f"Ollama server returned an error: {error_info.get('error', 'Unknown error')}")
+            except Exception:
+                pass
             execute_query(
                 "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
-                (FileNamingStatus.FAILED.name, response.text, item.file_naming_db_id)
+                (FileNamingStatus.FAILED.name, error_info if error_info else response.text, item.file_naming_db_id)
             )
             return item.filename_without_extension
     except RetryError as retryerr:
