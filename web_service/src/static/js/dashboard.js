@@ -1,4 +1,4 @@
-/* global entries_per_page pdfsData smb_tag_colors */
+/* global entries_per_page pdfsData smb_tag_colors getContrastYIQ */
 
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('top-progress-bar').style.display = 'block';
