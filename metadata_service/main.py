@@ -56,6 +56,11 @@ def on_created(filepath: str):
     item = ProcessItem(filepath, ItemType.UNKNOWN)
     item.db_id = execute_query('INSERT INTO scanneddata (file_name, local_filepath) VALUES (?, ?)', (item.filename, item.local_directory_above), return_last_id=True)
     logger.debug(f"Added {filepath} to database with id {item.db_id}")
+    try:
+        item.smb_target_id = execute_query("SELECT id FROM smb_onedrive WHERE smb_name = ?", (item.local_directory_above,), fetchone=True).get("id")
+    except Exception as e:
+        logger.exception(f"Error fetching SMB target ID for {item.local_directory_above}: {e}")
+        item.smb_target_id = None
     update_scanneddata_database(item, {"file_status": item.status.value, "local_filepath": item.local_directory_above, "file_name": item.filename})
 
     # Match a remote destination

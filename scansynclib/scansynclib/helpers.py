@@ -11,6 +11,26 @@ import pika.exceptions
 from scansynclib.logging import logger
 from pypdf import PdfReader
 
+SMB_TAG_COLORS = [
+            '#BC243C', '#CD6155', '#5499C7', '#F7CAC9', '#3498DB',
+            '#7E5109', '#DD4124', '#F4D03F', '#2874A6', '#F8C471',
+            '#138D75', '#A569BD', '#EDEAE0', '#EC7063', '#EFC050',
+            '#AF601A', '#98B4D4', '#FF6F61', '#A3E4D7', '#F0B27A',
+            '#48C9B0', '#DFCFBE', '#55B4B0', '#2471A3', '#A04000',
+            '#88B04B', '#117864', '#16A085', '#F7DC6F', '#5B5EA6',
+            '#F5CBA7', '#F1948A', '#52BE80', '#76D7C4', '#82E0AA',
+            '#C3447A', '#F5B041', '#73C6B6', '#CA6F1E', '#1F618D',
+            '#85C1E9', '#BFD8B8', '#1ABC9C', '#45B8AC', '#BB8FCE',
+            '#27AE60', '#1E8449', '#196F3D', '#784212', '#2E86C1',
+            '#D7BDE2', '#E6B0AA', '#148F77', '#7D6608', '#DC7633',
+            '#C46210', '#E59866', '#D98880', '#EDBB99', '#17A589',
+            '#92A8D1', '#B565A7', '#AF7AC5', '#D2B4DE', '#009B77',
+            '#E15D44', '#7FCDCD', '#F9E79F', '#955251', '#A9CCE3',
+            '#6C4F3D', '#229954', '#AED6F1', '#FAD7A0', '#6B5B95',
+            '#9B2335', '#F0EAD6', '#5DADE2', '#45B39D', '#D65076',
+            '#7DCEA0'
+        ]
+
 
 def connect_rabbitmq(queue_names: list = None, heartbeat: int = 30):
     """

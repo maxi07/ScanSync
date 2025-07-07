@@ -1,4 +1,4 @@
-/* global entries_per_page pdfsData */
+/* global entries_per_page pdfsData smb_tag_colors getContrastYIQ */
 
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('top-progress-bar').style.display = 'block';
@@ -129,6 +129,18 @@ function updateCard(updateData) {
             const element = document.getElementById(updateData.id + "_pdf_smb");
             element.textContent = updateData.local_filepath;
             element.innerHTML += "<br>";
+
+            const idx = (updateData.smb_target_id ? updateData.smb_target_id - 1 : -1);
+            // console.log(`Using SMB tag color index: ${idx} for smb_target_id: ${updateData.smb_target_id}`);
+            let bgColor;
+            if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && Number.isInteger(idx) && idx >= 0) {
+                bgColor = smb_tag_colors[idx % smb_tag_colors.length];
+            } else {
+                bgColor = '#6c757d';
+            }
+            const textColor = getContrastYIQ(bgColor);
+            element.style.color = textColor;
+            element.style.backgroundColor = bgColor;
         }
     } catch (error) {
         console.error(`Error updating local filepath: ${error.message}`);
@@ -307,12 +319,38 @@ function addPdfCard(pdfData) {
     modifiedSpan.textContent = pdfData.local_modified || `${formattedDate} ${formattedTime}`;
     modifiedSpan.innerHTML += brElement;
 
+    // Create container as flexbox for alignment
+    let smbContainer = document.createElement('span');
+    smbContainer.className = 'd-flex align-items-center gap-2'; 
+    // gap-2 adds spacing between the label and badge
+
+    // Create SMB label with icon and text
     let smbText = document.createElement('span');
+    smbText.className = 'align-middle';
     smbText.innerHTML = `<i class="bi bi-folder"></i><strong> SMB:</strong> `;
-    let smbSpan = document.createElement('span');
-    smbSpan.id = pdfData.id + '_pdf_smb';
-    smbSpan.textContent = pdfData.local_filepath || "N/A";
-    smbSpan.innerHTML += brElement;
+    smbContainer.appendChild(smbText);
+
+    // Choose background color from your HEX palette
+    const idx = (pdfData.smb_target_id ? pdfData.smb_target_id - 1 : -1);
+    let bgColor;
+    if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && Number.isInteger(idx) && idx >= 0) {
+        bgColor = smb_tag_colors[idx % smb_tag_colors.length];
+    } else {
+        bgColor = '#6c757d';
+    }
+    const textColor = getContrastYIQ(bgColor);
+
+    // Create the badge
+    const smbBadge = document.createElement('span');
+    smbBadge.id = `${pdfData.id}_pdf_smb`;
+    smbBadge.className = 'badge align-middle smb-badge';
+    smbBadge.style.backgroundColor = bgColor;
+    smbBadge.style.color = textColor;
+    smbBadge.innerHTML = `${pdfData.local_filepath || "N/A"}`;
+
+    // Add badge to container
+    smbContainer.appendChild(smbBadge);
+    
 
     let cloudText = document.createElement('span');
     cloudText.innerHTML = `<i class="bi bi-cloud"></i><strong> Cloud:</strong> `;
@@ -368,8 +406,7 @@ function addPdfCard(pdfData) {
 
     infoParagraph.appendChild(modifiedText);
     infoParagraph.appendChild(modifiedSpan);
-    infoParagraph.appendChild(smbText);
-    infoParagraph.appendChild(smbSpan);
+    infoParagraph.appendChild(smbContainer);
     infoParagraph.appendChild(cloudText);
     infoParagraph.appendChild(statusText);
     infoParagraph.appendChild(statusSpan);

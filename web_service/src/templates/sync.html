@@ -63,8 +63,11 @@
                     <div class="fw-bold mb-1">
                         <i class="bi bi-hdd-stack text-primary"></i> SMB
                     </div>
-                    <div style="word-break: break-all;">
-                        <i class="bi bi-folder"></i><span class="ms-1" id="{{ item.id }}_smb_path">Scans/{{ item.smb_name }}</span>
+                    <div class="d-flex align-items-center" style="word-break: break-all;">
+                        <span class="me-1"><i class="bi bi-folder"></i> Scans /</span>
+                        {# Compute best contrast color (black or white) for the badge text #}
+                        {% set bg_color = smb_tag_colors[item.id - 1] %}
+                        <span id="{{ item.id }}_pdf_smb" class="badge align-middle smb-badge" style="background-color: {{ bg_color }}; color: 'white';">{{ item.smb_name }}</span>
                     </div>
                 </div>
                 

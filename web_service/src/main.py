@@ -64,6 +64,7 @@ def rabbitmq_listener():
                 pdf_pages=int(item.pdf_pages) if item.pdf_pages is not None else 0,
                 status_progressbar=int(StatusProgressBar.get_progress(item.status)),
                 web_url=item.web_url,
+                smb_target_id=item.smb_target_id,
             )
             payload["dashboard_data"] = get_dashboard_info()  # Nur bei Bedarf abrufen
             sse_queue.put(json.dumps(payload, default=str))  # Ensure all objects are serializable

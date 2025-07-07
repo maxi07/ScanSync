@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, g
 import math
 from scansynclib.logging import logger
-from scansynclib.helpers import format_time_difference
+from scansynclib.helpers import format_time_difference, SMB_TAG_COLORS
 from scansynclib.ProcessItem import StatusProgressBar, ProcessStatus
 from scansynclib.config import config
 from datetime import datetime
@@ -42,7 +42,8 @@ def index():
                     stats.processed_pdfs,
                     stats.processing_pdfs,
                     stats.latest_processing,
-                    stats.latest_completed
+                    stats.latest_completed,
+                    smb.id AS smb_target_id
                 FROM (
                     SELECT
                         COUNT(*) AS total_entries,
@@ -60,6 +61,7 @@ def index():
                     ORDER BY created DESC, id DESC
                     LIMIT :limit OFFSET :offset
                 ) d ON 1=1
+                LEFT JOIN smb_onedrive smb ON d.local_filepath = smb.smb_name
             '''
             result = db.execute(query, {'limit': entries_per_page, 'offset': offset}).fetchall()
 
@@ -141,7 +143,8 @@ def index():
                                processing_pdfs=processing_pdfs,
                                processed_pdfs=processed_pdfs,
                                latest_timestamp_completed_string=latest_timestamp_completed_string,
-                               latest_timestamp_processing_string=latest_timestamp_processing_string,)
+                               latest_timestamp_processing_string=latest_timestamp_processing_string,
+                               smb_tag_colors=SMB_TAG_COLORS,)
     except Exception as e:
         logger.exception(e)
         return render_template("dashboard.html",
