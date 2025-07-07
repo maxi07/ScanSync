@@ -45,6 +45,8 @@ services:
       - smb_service
       - rabbitmq
       - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     deploy:
       mode: replicated
       replicas: 1
@@ -109,6 +111,8 @@ services:
       dockerfile: web_service/Dockerfile
     ports:
       - 5001:5001
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - FLASK_ENV=prod # prod or development
     volumes:

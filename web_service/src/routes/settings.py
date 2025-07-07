@@ -147,6 +147,11 @@ def get_ollama_version():
     if not url or not port or not scheme:
         logger.error("Missing required 'url' or 'port' or 'scheme' parameter")
         return Response("Missing required 'url' or 'port' or 'scheme' parameter", status=400, mimetype='text/plain')
+
+    if url == "localhost":
+        logger.warning("User requested localhost as Ollama server, will replace with host.docker.internal")
+        url = "host.docker.internal"
+    logger.debug(f"Connecting to Ollama server at {scheme}://{url}:{port}/api/version")
     try:
         full_url = f"{scheme}://{url}:{port}/api/version"
         response = requests.get(full_url, timeout=10)
@@ -187,6 +192,11 @@ def get_ollama_models():
     if not url or not port or not scheme:
         logger.error("Missing required 'url' or 'port' or 'scheme' parameter")
         return Response("Missing required 'url' or 'port' or 'scheme' parameter", status=400, mimetype='text/plain')
+
+    if url == "localhost":
+        logger.warning("User requested localhost as Ollama server, will replace with host.docker.internal")
+        url = "host.docker.internal"
+    logger.debug(f"Connecting to Ollama server at {scheme}://{url}:{port}/api/tags")
     try:
         full_url = f"{scheme}://{url}:{port}/api/tags"
         response = requests.get(full_url, timeout=10)
