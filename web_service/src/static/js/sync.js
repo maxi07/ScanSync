@@ -1,4 +1,4 @@
-/* global bootstrap */
+/* global bootstrap getContrastYIQ */
 
 const onedriveLocalListGroup = document.getElementById('onedrivelistgroup');
 let onedriveDirLevel = 1;
@@ -24,7 +24,32 @@ document.addEventListener('DOMContentLoaded', function() {
         replaceHostnamePopovers();
     }
     setSortByDropdown();
+    setBadgeContrastColor();
 });
+
+function setBadgeContrastColor() {
+    const badges = document.querySelectorAll('.smb-badge');
+    badges.forEach(badge => {
+        try {
+            const bgColor = window.getComputedStyle(badge).backgroundColor;
+            let hexColor = bgColor;
+            if (bgColor.startsWith('rgb')) {
+                const rgb = bgColor.match(/\d+/g).map(Number);
+                hexColor = "#" + rgb.slice(0, 3).map(x => x.toString(16).padStart(2, '0')).join('');
+            }
+            if (bgColor) {
+                // console.log(`Setting contrast color for badge ${badge.id} with background color: ${hexColor}`);
+                let result = getContrastYIQ(hexColor);
+                badge.style.color = result;
+            } else {
+                console.warn(`No background color found for badge ${badge.id}. Skipping contrast color setting.`);
+            }
+        } catch (error) {
+            console.error(`Error setting contrast color for badge ${badge.id}: ${error.message}`);
+        }
+
+    });
+}
 
 /* exported importPathMappingsCSV */
 function importPathMappingsCSV(input) {

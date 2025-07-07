@@ -433,15 +433,6 @@ function addPdfCard(pdfData) {
     parentElement.insertBefore(colDiv, firstChild);
 }
 
-function getContrastYIQ(hex) {
-    const c = hex.replace(/^#/, '');
-    const r = parseInt(c.substr(0,2),16);
-    const g = parseInt(c.substr(2,2),16);
-    const b = parseInt(c.substr(4,2),16);
-    const yiq = (r*299 + g*587 + b*114) / 1000;
-    return (yiq >= 128) ? '#000' : '#fff';
-}
-
 function getStatusIcon(file_status) {
     const status = file_status?.toLowerCase() || "";
     let status_icon = "bi-hourglass"; // Default icon
