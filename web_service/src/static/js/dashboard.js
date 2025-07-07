@@ -131,7 +131,7 @@ function updateCard(updateData) {
             element.innerHTML += "<br>";
 
             const idx = (updateData.smb_target_id ? updateData.smb_target_id - 1 : -1);
-            console.log(`Using SMB tag color index: ${idx} for smb_target_id: ${updateData.smb_target_id}`);
+            // console.log(`Using SMB tag color index: ${idx} for smb_target_id: ${updateData.smb_target_id}`);
             let bgColor;
             if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && Number.isInteger(idx) && idx >= 0) {
                 bgColor = smb_tag_colors[idx % smb_tag_colors.length];
