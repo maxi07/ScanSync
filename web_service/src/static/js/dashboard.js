@@ -343,7 +343,7 @@ function addPdfCard(pdfData) {
     // Create the badge
     const smbBadge = document.createElement('span');
     smbBadge.id = `${pdfData.id}_pdf_smb`;
-    smbBadge.className = 'badge align-middle';
+    smbBadge.className = 'badge align-middle smb-badge';
     smbBadge.style.backgroundColor = bgColor;
     smbBadge.style.color = textColor;
     smbBadge.innerHTML = `${pdfData.local_filepath || "N/A"}`;
