@@ -9,7 +9,7 @@ ScanSync is a Python application designed to streamline document management by:
 - Creating an SMB server with custom targets.
 - Performing OCR (Optical Character Recognition) with [OCRmyPdf](https://github.com/ocrmypdf/OCRmyPDF) on new documents in English (ENG) and German (GER).
 - Syncing documents to a specified location within your OneDrive.
-- Renaming files intelligently using OpenAI.
+- Renaming files intelligently using [OpenAI](https://www.chatgpt.com) or your local [Ollama](https://www.ollama.com) server.
 - Ensuring redundancy with [RabbitMQ](https://www.rabbitmq.com).
 - Supporting multiple sync targets.
 
@@ -19,7 +19,7 @@ ScanSync is a Python application designed to streamline document management by:
 - **SMB Server**: Easily connect and manage your documents.
 - **OCR Support**: Automatic text recognition in multiple languages.
 - **OneDrive Integration**: Seamless syncing to your preferred location.
-- **AI-Powered File Renaming**: Smart renaming using OpenAI.
+- **AI-Powered File Renaming**: Smart renaming using using [OpenAI](https://www.chatgpt.com) or your local [Ollama](https://www.ollama.com) server..
 - **Redundancy**: Reliable document handling with RabbitMQ.
 - **Multiple Sync Targets**: Flexibility to sync across various locations.
 
