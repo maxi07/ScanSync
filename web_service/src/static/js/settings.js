@@ -259,7 +259,9 @@ document.getElementById('ollama-connect-btn').addEventListener('click', async fu
     try {
         // Check version
         const versionResp = await fetch(`/settings/ollama/version?scheme=${encodeURIComponent(scheme)}&url=${encodeURIComponent(url)}&port=${encodeURIComponent(port)}`);
-        if (!versionResp.ok) throw new Error('Could not connect to Ollama server.');
+        if (!versionResp.ok) {
+            throw new Error('Could not connect to Ollama server. Is the server running and the URL correct?');
+        }
         const versionData = await versionResp.json();
         versionInfo.innerHTML = `<span class="text-success me-2">&#10003;</span>Detected Ollama version: ${versionData.version || 'unknown'}`;
         versionInfo.classList.remove('d-none');
@@ -427,14 +429,17 @@ document.getElementById('ollama-form').addEventListener('submit', async function
 
     isRequestPending = true;
     const submitButton = document.getElementById('ollama-save-btn') || document.getElementById('ollama-refresh-models-btn');
-    const originalButtonHtml = submitButton.innerHTML;
     const errBox = document.getElementById('ollama-error');
     const disableOllamaButton = document.getElementById('ollama-delete-btn');
+    const submitButtonSpinner = document.getElementById('ollama-save-spinner');
+    const ollamaSaveBtnText = document.getElementById('ollama-save-btn-text');
+    const originalButtonHtml = ollamaSaveBtnText.innerHTML;
     disableOllamaButton && (disableOllamaButton.disabled = true);
 
     submitButton.disabled = true;
     console.log('Submitting Ollama settings form');
-    submitButton.textContent = 'Saving...';
+    submitButtonSpinner && (submitButtonSpinner.classList.remove('d-none'));
+    ollamaSaveBtnText.textContent = 'Saving...';
 
     const formData = new FormData(this);
     const data = {};
@@ -467,6 +472,7 @@ document.getElementById('ollama-form').addEventListener('submit', async function
     } finally {
         submitButton.disabled = false;
         submitButton.innerHTML = originalButtonHtml;
+        submitButtonSpinner && (submitButtonSpinner.classList.add('d-none'));
         isRequestPending = false;
         disableOllamaButton && (disableOllamaButton.disabled = false);
     }
