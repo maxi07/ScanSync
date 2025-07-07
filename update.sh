@@ -3,75 +3,89 @@
 set -euo pipefail
 
 REMOTE="origin"
+TAG_PATTERN="v*"
 
-echo "🔍 Checking current HEAD status..."
-
-# Check if inside a git repo
+echo "🔍 Checking if we're in a Git repository..."
 if ! git rev-parse --is-inside-work-tree &>/dev/null; then
   echo "❌ Error: This is not a Git repository."
   exit 1
 fi
 
+echo
+echo "⬇️  Fetching all remote tags..."
+git fetch --tags "$REMOTE"
+
+echo
+echo "🔎 Determining the latest available tag..."
+LATEST_TAG=$(git tag --list "$TAG_PATTERN" --sort=-v:refname | head -n 1)
+
+if [[ -z "$LATEST_TAG" ]]; then
+  echo "❌ Error: No tags found matching pattern '$TAG_PATTERN'."
+  exit 1
+fi
+
+echo "✅ Latest available tag is: $LATEST_TAG"
+
+echo
+echo "🔍 Checking current HEAD status..."
 CURRENT_COMMIT=$(git rev-parse HEAD)
 CURRENT_TAG=$(git describe --tags --exact-match "$CURRENT_COMMIT" 2>/dev/null || true)
 
 if [[ -z "$CURRENT_TAG" ]]; then
-  echo "⚠️  No tag currently checked out."
-  echo "➡️  Finding highest local tag..."
-
-  LATEST_LOCAL_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n1)
-
-  if [[ -z "$LATEST_LOCAL_TAG" ]]; then
-    echo "❌ Error: No local tags matching pattern 'v*' found."
-    exit 1
-  fi
-
-  echo "✅ Checking out latest local tag: $LATEST_LOCAL_TAG"
-  git checkout "$LATEST_LOCAL_TAG"
-  CURRENT_TAG="$LATEST_LOCAL_TAG"
+  echo "⚠️  Currently not on a tag (detached HEAD or branch)."
 else
   echo "✅ Currently checked out tag: $CURRENT_TAG"
 fi
 
+# Always make sure local tag matches remote
 echo
-echo "⬇️  Fetching remote tags..."
+echo "🧹 Deleting local tag (if exists) to avoid mismatch..."
+if git show-ref --tags "$LATEST_TAG" &>/dev/null; then
+  git tag -d "$LATEST_TAG" || true
+fi
+
+echo "⬇️  Re-fetching the latest tag to ensure it's up to date..."
 git fetch --tags "$REMOTE"
 
-echo
-echo "🔎 Looking for latest remote tag..."
-LATEST_REMOTE_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n1)
-
-if [[ -z "$LATEST_REMOTE_TAG" ]]; then
-  echo "❌ Error: No remote tags matching 'v*' found."
+# Get latest tag again after re-fetch
+LATEST_TAG=$(git tag --list "$TAG_PATTERN" --sort=-v:refname | head -n 1)
+if [[ -z "$LATEST_TAG" ]]; then
+  echo "❌ Error: No tags found after re-fetch. Exiting."
   exit 1
 fi
 
-echo "🗂️  Latest available tag: $LATEST_REMOTE_TAG"
+echo "✅ Confirmed latest remote tag: $LATEST_TAG"
 
-if [[ "$CURRENT_TAG" == "$LATEST_REMOTE_TAG" ]]; then
+# Check if we need to update
+if [[ "$CURRENT_TAG" == "$LATEST_TAG" ]]; then
+  echo
   echo "✅ You are already on the latest tag ($CURRENT_TAG). No update needed."
   exit 0
 fi
 
 echo
-echo "🚀 Newer tag detected: $LATEST_REMOTE_TAG"
+echo "🚀 Newer tag detected: $LATEST_TAG"
 echo
 echo "🛑 Stopping Docker Compose..."
-docker compose down || {
-  echo "⚠️  Warning: 'docker compose down' failed, continuing..."
-}
+if ! docker compose down; then
+  echo "⚠️  Warning: 'docker compose down' failed or containers were already stopped."
+fi
 
 echo
-echo "🔄 Checking out new tag..."
-git checkout "$LATEST_REMOTE_TAG"
+echo "🔄 Checking out latest tag: $LATEST_TAG"
+git checkout "$LATEST_TAG"
 
 echo
-echo "⬇️  Pulling latest changes from remote..."
-git pull "$REMOTE" "$LATEST_REMOTE_TAG"
+echo "⬇️  Pulling latest changes for tag (if any)..."
+if git ls-remote --tags "$REMOTE" | grep "refs/tags/$LATEST_TAG" &>/dev/null; then
+  git fetch "$REMOTE" tag "$LATEST_TAG" --force
+else
+  echo "⚠️  Warning: Remote does not have tag $LATEST_TAG anymore."
+fi
 
 echo
 echo "🏗️  Building and starting Docker Compose..."
 docker compose up -d --build
 
 echo
-echo "✅ Update complete! Now on tag: $LATEST_REMOTE_TAG"
+echo "✅ Update complete! Now on tag: $LATEST_TAG"
