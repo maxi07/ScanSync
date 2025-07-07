@@ -320,7 +320,7 @@ function addPdfCard(pdfData) {
     modifiedSpan.innerHTML += brElement;
 
     // Create container as flexbox for alignment
-    const smbContainer = document.createElement('div');
+    let smbContainer = document.createElement('span');
     smbContainer.className = 'd-flex align-items-center gap-2'; 
     // gap-2 sorgt für etwas Abstand zwischen Label und Badge
 
@@ -353,7 +353,7 @@ function addPdfCard(pdfData) {
     
 
     let cloudText = document.createElement('span');
-    cloudText.innerHTML = `<br><i class="bi bi-cloud"></i><strong> Cloud:</strong> `;
+    cloudText.innerHTML = `<i class="bi bi-cloud"></i><strong> Cloud:</strong> `;
 
     if (pdfData.web_url) {
         let cloudLink = document.createElement('a');
@@ -406,8 +406,7 @@ function addPdfCard(pdfData) {
 
     infoParagraph.appendChild(modifiedText);
     infoParagraph.appendChild(modifiedSpan);
-    infoParagraph.appendChild(smbText);
-    infoParagraph.appendChild(smbBadge);
+    infoParagraph.appendChild(smbContainer);
     infoParagraph.appendChild(cloudText);
     infoParagraph.appendChild(statusText);
     infoParagraph.appendChild(statusSpan);
