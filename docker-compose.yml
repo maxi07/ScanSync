@@ -110,9 +110,9 @@ services:
     ports:
       - 5001:5001
     environment:
-      - FLASK_ENV=development # prod or development
+      - FLASK_ENV=prod # prod or development
     volumes:
-      - ./web_service/src:/app/src  # Only for development!!
+      # - ./web_service/src:/app/src  # Only for development!!
       - scans:/mnt/scans
       - data:/app/data
       - preview-images:/app/src/static/images/pdfpreview
