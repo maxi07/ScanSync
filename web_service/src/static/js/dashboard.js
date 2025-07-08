@@ -106,23 +106,6 @@ function updateCard(updateData) {
         console.error(`Error updating image: ${error.message}`);
     }
 
-    // Update Cloud Link
-    try {
-        if (updateData.web_url && updateData.web_url.trim() !== "") {
-            const element = document.getElementById(updateData.id + "_pdf_cloud");
-            const cloudLink = document.createElement('a');
-            cloudLink.id = updateData.id + '_pdf_cloud';
-            cloudLink.href = updateData.web_url;
-            cloudLink.textContent = updateData.remote_filepath || "OneDrive";
-            cloudLink.innerHTML += "<br>";
-            cloudLink.target = '_blank'; // Open link in a new tab
-            element.innerHTML = ""; // Clear existing content
-            element.replaceWith(cloudLink);
-        }
-    } catch (error) {
-        console.error(`Error updating cloud link: ${error.message}`);
-    }
-
     // Update Local Filepath
     try {
         if (updateData.local_filepath && updateData.local_filepath.trim() !== "") {
@@ -149,17 +132,38 @@ function updateCard(updateData) {
         console.error(`Error updating local filepath: ${error.message}`);
     }
 
-
-    // Update Remote Filepath
+    // Update Cloud Link
     try {
-        if (updateData.remote_filepath && updateData.remote_filepath.trim() !== "") {
-            const element = document.getElementById(updateData.id + "_pdf_cloud");
-            element.textContent = updateData.remote_filepath;
-            element.innerHTML += "<br>";
+        if (Array.isArray(updateData.web_url) && updateData.web_url.length > 0) {
+            const smbBadges = cardElement.querySelectorAll('.smb-badge');
+            smbBadges.forEach(badge => {
+                if (Array.isArray(updateData.web_url)) {
+                    const badgeIndex = Array.from(smbBadges).indexOf(badge);
+                    const url = updateData.web_url[badgeIndex];
+                    if (url) {
+                        badge.style.cursor = 'pointer';
+                        badge.onclick = () => window.open(url, '_blank');
+                        badge.title = 'Open in OneDrive';
+                    } else {
+                        badge.onclick = null;
+                        badge.style.cursor = '';
+                        badge.title = '';
+                    }
+                } else if (typeof updateData.web_url === 'string') {
+                    badge.style.cursor = 'pointer';
+                    badge.onclick = () => window.open(updateData.web_url, '_blank');
+                    badge.title = 'Open in OneDrive';
+                } else {
+                    badge.onclick = null;
+                    badge.style.cursor = '';
+                    badge.title = '';
+                }
+            });
         }
     } catch (error) {
-        console.error(`Error updating remote filepath: ${error.message}`);
+        console.error(`Error updating cloud link: ${error.message}`);
     }
+
 
     // Update File Status
     try {
@@ -346,12 +350,18 @@ function addPdfCard(pdfData) {
     };
 
     // Helper to create badge
-    const createBadge = (text, color) => {
+    const createBadge = (text, color, url, remote_filepath) => {
         const badge = document.createElement('span');
         badge.className = 'badge align-middle smb-badge';
         badge.style.backgroundColor = color;
         badge.style.color = getContrastYIQ(color);
         badge.textContent = text || 'N/A';
+        if (url) {
+            badge.style.cursor = 'pointer';
+            badge.onclick = () => window.open(url, '_blank');
+            badge.title = remote_filepath || 'Open in OneDrive';
+        }
+
         return badge;
     };
 
@@ -361,16 +371,24 @@ function addPdfCard(pdfData) {
         .map(s => parseInt(s.trim(), 10))
         .filter(id => !isNaN(id));
 
+    const urls = Array.isArray(pdfData.web_url)
+        ? pdfData.web_url
+        : (pdfData.web_url || '').split(',').map(s => s.trim()).filter(Boolean);
+    
+    // Parse remote_filepaths as an array, splitting by comma if it's a string
+    const remote_filepaths = typeof pdfData.remote_filepath === 'string'
+        ? pdfData.remote_filepath.split(',').map(s => s.trim()).filter(Boolean)
+        : (Array.isArray(pdfData.remote_filepath) ? pdfData.remote_filepath : []);
     additionalIds.forEach((id, i) => {
         const name = (pdfData.additional_smb || '').split(',')[i]?.trim() || 'N/A';
         const color = getBadgeColor(id);
-        smbContainer.appendChild(createBadge(name, color));
+        smbContainer.appendChild(createBadge(name, color, urls[i + 1]?.trim(), remote_filepaths[i + 1]?.trim()));
     });
 
     // Add main SMB badge
     const mainColor = getBadgeColor(pdfData.smb_target_id);
     const mainName = pdfData.local_filepath || 'N/A';
-    const mainBadge = createBadge(mainName, mainColor);
+    const mainBadge = createBadge(mainName, mainColor, urls[0]?.trim(), remote_filepaths[0]?.trim());
     mainBadge.id = `${pdfData.id}_pdf_smb`;
     smbContainer.appendChild(mainBadge);
 
@@ -381,27 +399,6 @@ function addPdfCard(pdfData) {
             const smbBadge = createBadge(pdfData.additional_smb[index - 1], getBadgeColor(smbTarget.id));
             smbContainer.appendChild(smbBadge);
         });
-    }
-    
-
-    let cloudText = document.createElement('span');
-    cloudText.innerHTML = `<i class="bi bi-cloud"></i><strong> Cloud:</strong> `;
-
-    if (pdfData.web_url) {
-        let cloudLink = document.createElement('a');
-        cloudLink.id = pdfData.id + '_pdf_cloud';
-        cloudLink.href = pdfData.web_url;
-        cloudLink.title = "Open in OneDrive";
-        cloudLink.textContent = pdfData.remote_filepath;
-        cloudLink.innerHTML += brElement;
-        cloudLink.target = '_blank'; // Open link in a new tab
-        cloudText.appendChild(cloudLink);
-    } else {
-        let cloudSpan = document.createElement('span');
-        cloudSpan.id = pdfData.id + '_pdf_cloud';
-        cloudSpan.textContent = pdfData.remote_filepath || "Not available";
-        cloudSpan.innerHTML += brElement;
-        cloudText.appendChild(cloudSpan);
     }
 
     let statusText = document.createElement('span');
@@ -439,7 +436,6 @@ function addPdfCard(pdfData) {
     infoParagraph.appendChild(modifiedText);
     infoParagraph.appendChild(modifiedSpan);
     infoParagraph.appendChild(smbContainer);
-    infoParagraph.appendChild(cloudText);
     infoParagraph.appendChild(statusText);
     infoParagraph.appendChild(statusSpan);
 

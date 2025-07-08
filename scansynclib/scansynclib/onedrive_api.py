@@ -239,14 +239,18 @@ def upload_small(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
 
         with open(item.ocr_file, 'rb') as file:
             response = requests.put(upload_url, headers=headers, data=file)
-
+        logger.debug(f"Received response {response.text} with status code {response.status_code} for upload to {upload_url}")
         if response.status_code == 201:
             logger.debug("Upload completed successfully")
             webUrl = response.json().get("webUrl")
             if webUrl:
                 logger.debug(f"File is accessible at {webUrl}")
-                item.web_url = webUrl
-                update_scanneddata_database(item, {"web_url": webUrl, "remote_filepath": onedriveitem.remote_file_path, "file_name": response.json().get("name", item.filename)})
+                item.web_url.append(webUrl)
+                update_scanneddata_database(item, {
+                        "web_url": ",".join(item.web_url),
+                        "file_name": response.json().get("name", item.filename)
+                    }
+                )
             return True
         else:
             logger.error(f"Failed to upload file: {response.status_code} - {response.text}")

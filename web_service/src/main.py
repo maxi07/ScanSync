@@ -60,7 +60,7 @@ def rabbitmq_listener():
                 file_status=item.status.value,
                 local_filepath=item.local_directory_above,
                 previewimage_path=item.preview_image_path,
-                remote_filepath=item.OneDriveDestinations[0].remote_file_path if item.OneDriveDestinations else None,
+                remote_filepaths=[dest.remote_file_path for dest in item.OneDriveDestinations] if item.OneDriveDestinations else [],
                 pdf_pages=int(item.pdf_pages) if item.pdf_pages is not None else 0,
                 status_progressbar=int(StatusProgressBar.get_progress(item.status)),
                 web_url=item.web_url,

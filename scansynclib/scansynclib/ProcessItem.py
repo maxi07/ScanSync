@@ -160,7 +160,7 @@ class ProcessItem:
         self.ocr_file = os.path.join(self.local_directory, self.filename_without_extension + "_OCR.pdf")
         self.db_id = None
         self.preview_image_path = None
-        self.web_url = None
+        self.web_url = []
         self.additional_local_paths = []
         self.additional_remote_paths = []
         """Additional smb paths related to this item."""
