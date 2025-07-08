@@ -129,8 +129,11 @@ function updateCard(updateData) {
             const element = document.getElementById(updateData.id + "_pdf_smb");
             element.textContent = updateData.local_filepath;
             element.innerHTML += "<br>";
-
-            const idx = (updateData.smb_target_id ? updateData.smb_target_id - 1 : -1);
+            // Get the "id" value from the first object in smb_target_ids array
+            const firstid = Array.isArray(updateData.smb_target_ids) && updateData.smb_target_ids.length > 0
+                ? updateData.smb_target_ids[0]?.id
+                : 1; // Default to 1 if not set
+            const idx = (firstid ? firstid - 1 : -1);
             // console.log(`Using SMB tag color index: ${idx} for smb_target_id: ${updateData.smb_target_id}`);
             let bgColor;
             if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && Number.isInteger(idx) && idx >= 0) {
@@ -145,6 +148,7 @@ function updateCard(updateData) {
     } catch (error) {
         console.error(`Error updating local filepath: ${error.message}`);
     }
+
 
     // Update Remote Filepath
     try {
@@ -319,71 +323,61 @@ function addPdfCard(pdfData) {
     modifiedSpan.textContent = pdfData.local_modified || `${formattedDate} ${formattedTime}`;
     modifiedSpan.innerHTML += brElement;
 
-    // Create container as flexbox for alignment
-    let smbContainer = document.createElement('span');
-    smbContainer.className = 'd-flex align-items-center gap-2'; 
+    // Create flex container
+    const smbContainer = document.createElement('span');
+    smbContainer.className = 'smb-container';
 
-    // Create SMB label with icon and text
-    let smbText = document.createElement('span');
-    smbText.className = 'align-middle';
-    smbText.innerHTML = `<i class="bi bi-folder"></i><strong> SMB:</strong> `;
-    smbContainer.appendChild(smbText);
+    // Add label with icon
+    smbContainer.innerHTML = `<span class="align-middle">
+    <i class="bi bi-folder"></i><strong> SMB:</strong>
+    </span>`;
 
-    // Choose background color from your HEX palette
-    const idx = (pdfData.smb_target_id ? pdfData.smb_target_id - 1 : -1);
-    let bgColor;
-    if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && Number.isInteger(idx) && idx >= 0) {
-        bgColor = smb_tag_colors[idx % smb_tag_colors.length];
-    } else {
-        bgColor = '#6c757d';
-    }
-    const textColor = getContrastYIQ(bgColor);
-
-    // Create the badge
-    const smbBadge = document.createElement('span');
-    smbBadge.id = `${pdfData.id}_pdf_smb`;
-    smbBadge.className = 'badge align-middle smb-badge';
-    smbBadge.style.backgroundColor = bgColor;
-    smbBadge.style.color = textColor;
-    smbBadge.innerHTML = `${pdfData.local_filepath || "N/A"}`;
-
-    let additionalSmbIds = [];
-    if (pdfData.smb_additional_target_ids && typeof pdfData.smb_additional_target_ids === "string") {
-        additionalSmbIds = pdfData.smb_additional_target_ids
-            .split(',')
-            .map(id => parseInt(id.trim(), 10))
-            .filter(id => !isNaN(id));
-    }
-
-    let additionalSmbNames = [];
-    if (pdfData.additional_smb && typeof pdfData.additional_smb === "string") {
-        additionalSmbNames = pdfData.additional_smb
-            .split(',')
-            .map(name => name.trim())
-            .filter(name => name.length > 0);
-    }
-
-    for (let i = 0; i < additionalSmbIds.length; i++) {
-        // Choose background color from your HEX palette
-        const idx = (additionalSmbIds[i] ? additionalSmbIds[i] - 1 : -1);
-        let bgColor;
-        if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && Number.isInteger(idx) && idx >= 0) {
-            bgColor = smb_tag_colors[idx % smb_tag_colors.length];
-        } else {
-            bgColor = '#6c757d';
+    // Helper to choose color
+    const getBadgeColor = (id) => {
+        const idx = (id ? id - 1 : -1);
+        if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && idx >= 0) {
+            return smb_tag_colors[idx % smb_tag_colors.length];
         }
-        const textColor = getContrastYIQ(bgColor);
+        return '#6c757d';
+    };
 
-        const additionalSmbBadge = document.createElement('span');
-        additionalSmbBadge.className = 'badge align-middle smb-badge';
-        additionalSmbBadge.style.backgroundColor = bgColor;
-        additionalSmbBadge.style.color = textColor;
-        additionalSmbBadge.textContent = `${additionalSmbNames[i] || "N/A"}`;
-        smbContainer.appendChild(additionalSmbBadge);
+    // Helper to create badge
+    const createBadge = (text, color) => {
+        const badge = document.createElement('span');
+        badge.className = 'badge align-middle smb-badge';
+        badge.style.backgroundColor = color;
+        badge.style.color = getContrastYIQ(color);
+        badge.textContent = text || 'N/A';
+        return badge;
+    };
+
+    // Add additional SMB badges
+    const additionalIds = (pdfData.smb_additional_target_ids || '')
+        .split(',')
+        .map(s => parseInt(s.trim(), 10))
+        .filter(id => !isNaN(id));
+
+    additionalIds.forEach((id, i) => {
+        const name = (pdfData.additional_smb || '').split(',')[i]?.trim() || 'N/A';
+        const color = getBadgeColor(id);
+        smbContainer.appendChild(createBadge(name, color));
+    });
+
+    // Add main SMB badge
+    const mainColor = getBadgeColor(pdfData.smb_target_id);
+    const mainName = pdfData.local_filepath || 'N/A';
+    const mainBadge = createBadge(mainName, mainColor);
+    mainBadge.id = `${pdfData.id}_pdf_smb`;
+    smbContainer.appendChild(mainBadge);
+
+    // Add additional SMB targets
+    if (Array.isArray(pdfData.smb_target_ids) && pdfData.smb_target_ids.length > 0) {
+        pdfData.smb_target_ids.forEach((smbTarget, index) => {
+            if (index === 0) return;
+            const smbBadge = createBadge(pdfData.additional_smb[index - 1], getBadgeColor(smbTarget.id));
+            smbContainer.appendChild(smbBadge);
+        });
     }
-
-    // Add badge to container
-    smbContainer.appendChild(smbBadge);
     
 
     let cloudText = document.createElement('span');

@@ -61,6 +61,7 @@ def on_created(filepaths: list):
     logger.debug(f"Added {filepaths[0]} to database with id {item.db_id}")
 
     # Now add additional smb paths to the item
+    additional_smbs_str = ""
     if len(filepaths) > 1:
         try:
             item.add_additional_file_paths(filepaths[1:])
@@ -74,14 +75,15 @@ def on_created(filepaths: list):
 
     try:
         # TODO: Fetch the smb_target_ids from the database
-        items = [item.local_directory_above] + item.additional_local_paths
+        items = [item.local_directory_above] + item.additional_remote_paths
         placeholders = ",".join("?" for _ in items)
         query = f"SELECT id FROM smb_onedrive WHERE smb_name IN ({placeholders})"
         item.smb_target_ids = execute_query(query, tuple(items), fetchall=True)
+        logger.debug(f"Found SMB target IDs for {items}: {item.smb_target_ids}")
     except Exception as e:
         logger.exception(f"Error fetching SMB target IDs for {item.local_directory_above}: {e}")
         item.smb_target_ids = []
-    update_scanneddata_database(item, {"file_status": item.status.value, "local_filepath": item.local_directory_above, "file_name": item.filename})
+    update_scanneddata_database(item, {"file_status": item.status.value, "additional_smb": additional_smbs_str, "smb_target_ids": item.smb_target_ids, "local_filepath": item.local_directory_above, "file_name": item.filename})
 
     # Match a remote destination
     smb_names = [item.local_directory_above] + item.additional_remote_paths

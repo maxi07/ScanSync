@@ -65,6 +65,7 @@ def rabbitmq_listener():
                 status_progressbar=int(StatusProgressBar.get_progress(item.status)),
                 web_url=item.web_url,
                 smb_target_ids=item.smb_target_ids,
+                additional_smb=item.additional_remote_paths,
             )
             payload["dashboard_data"] = get_dashboard_info()  # Nur bei Bedarf abrufen
             sse_queue.put(json.dumps(payload, default=str))  # Ensure all objects are serializable
