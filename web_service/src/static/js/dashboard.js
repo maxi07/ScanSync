@@ -322,7 +322,6 @@ function addPdfCard(pdfData) {
     // Create container as flexbox for alignment
     let smbContainer = document.createElement('span');
     smbContainer.className = 'd-flex align-items-center gap-2'; 
-    // gap-2 adds spacing between the label and badge
 
     // Create SMB label with icon and text
     let smbText = document.createElement('span');
@@ -347,6 +346,41 @@ function addPdfCard(pdfData) {
     smbBadge.style.backgroundColor = bgColor;
     smbBadge.style.color = textColor;
     smbBadge.innerHTML = `${pdfData.local_filepath || "N/A"}`;
+
+    let additionalSmbIds = [];
+    if (pdfData.smb_additional_target_ids && typeof pdfData.smb_additional_target_ids === "string") {
+        additionalSmbIds = pdfData.smb_additional_target_ids
+            .split(',')
+            .map(id => parseInt(id.trim(), 10))
+            .filter(id => !isNaN(id));
+    }
+
+    let additionalSmbNames = [];
+    if (pdfData.additional_smb && typeof pdfData.additional_smb === "string") {
+        additionalSmbNames = pdfData.additional_smb
+            .split(',')
+            .map(name => name.trim())
+            .filter(name => name.length > 0);
+    }
+
+    for (let i = 0; i < additionalSmbIds.length; i++) {
+        // Choose background color from your HEX palette
+        const idx = (additionalSmbIds[i] ? additionalSmbIds[i] - 1 : -1);
+        let bgColor;
+        if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && Number.isInteger(idx) && idx >= 0) {
+            bgColor = smb_tag_colors[idx % smb_tag_colors.length];
+        } else {
+            bgColor = '#6c757d';
+        }
+        const textColor = getContrastYIQ(bgColor);
+
+        const additionalSmbBadge = document.createElement('span');
+        additionalSmbBadge.className = 'badge align-middle smb-badge';
+        additionalSmbBadge.style.backgroundColor = bgColor;
+        additionalSmbBadge.style.color = textColor;
+        additionalSmbBadge.textContent = `${additionalSmbNames[i] || "N/A"}`;
+        smbContainer.appendChild(additionalSmbBadge);
+    }
 
     // Add badge to container
     smbContainer.appendChild(smbBadge);

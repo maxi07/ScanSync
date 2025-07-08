@@ -190,6 +190,15 @@ def move_to_failed(item: ProcessItem):
             logger.exception(f"Failed to move item {item.local_file_path} to failed directory {failedDir}")
         logger.info(f"Moved {item.local_file_path} to {failedDir}")
 
+        # Delete additional local paths if they exist
+        for additional_path in item.additional_local_paths:
+            if os.path.exists(additional_path):
+                try:
+                    os.remove(additional_path)
+                    logger.info(f"Removed additional local path {additional_path}")
+                except Exception:
+                    logger.exception(f"Failed to remove additional local path {additional_path}")
+
         # Delete OCR file if present
         if os.path.exists(item.ocr_file):
             try:

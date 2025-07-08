@@ -60,11 +60,11 @@ def rabbitmq_listener():
                 file_status=item.status.value,
                 local_filepath=item.local_directory_above,
                 previewimage_path=item.preview_image_path,
-                remote_filepath=item.remote_file_path,
+                remote_filepath=item.OneDriveDestinations[0].remote_file_path if item.OneDriveDestinations else None,
                 pdf_pages=int(item.pdf_pages) if item.pdf_pages is not None else 0,
                 status_progressbar=int(StatusProgressBar.get_progress(item.status)),
                 web_url=item.web_url,
-                smb_target_id=item.smb_target_id,
+                smb_target_ids=item.smb_target_ids,
             )
             payload["dashboard_data"] = get_dashboard_info()  # Nur bei Bedarf abrufen
             sse_queue.put(json.dumps(payload, default=str))  # Ensure all objects are serializable

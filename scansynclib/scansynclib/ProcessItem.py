@@ -110,6 +110,14 @@ class ItemType(Enum):
     UNKNOWN = 3
 
 
+class OneDriveDestination:
+    def __init__(self, remote_file_path: str, remote_folder_id: str, remote_drive_id: str):
+        self.remote_file_path = remote_file_path
+        self.remote_directory = None
+        self.remote_folder_id = remote_folder_id
+        self.remote_drive_id = remote_drive_id
+
+
 class ProcessItem:
     """ProcessItem represents an item to be processed for OCR and syncing.
 
@@ -135,7 +143,6 @@ class ProcessItem:
         except Exception as e:
             logger.exception(f"Error creating ProcessItem: {e}")
             return
-        self.remote_file_path: str = None
         self.remote_directory: str = None
         self.status: ProcessStatus = status
         self.connection = None
@@ -152,13 +159,15 @@ class ProcessItem:
         self.ocr_status = OCRStatus.UNKNOWN
         self.ocr_file = os.path.join(self.local_directory, self.filename_without_extension + "_OCR.pdf")
         self.db_id = None
-        self.remote_folder_id = None
-        self.remote_drive_id = None
         self.preview_image_path = None
         self.web_url = None
+        self.additional_local_paths = []
+        self.additional_remote_paths = []
 
-        self.smb_target_id = None
-        """The ID of the SMB target, if applicable."""
+        self.OneDriveDestinations: list[OneDriveDestination] = []
+
+        self.smb_target_ids = []
+        """The IDs of the SMB target, if applicable."""
 
         self.ocr_db_id = None
         """The ID of the OCR entry in the database, if applicable."""
@@ -172,3 +181,17 @@ class ProcessItem:
         # PDF Status
         self.pdf_pages = 0
         logger.debug(f"Created ProcessItem: {self.local_file_path}")
+
+    def add_additional_file_paths(self, file_paths: list):
+        """Add additional file paths to the item."""
+        for path in file_paths:
+            try:
+                if os.path.exists(path) and path not in self.additional_local_paths:
+                    self.additional_local_paths.append(path)
+                    self.additional_remote_paths.append(os.path.basename(os.path.dirname(path)))
+                    logger.debug(f"Added additional file path: {path}")
+                else:
+                    logger.warning(f"File does not exist or already added: {path}")
+            except Exception as e:
+                logger.error(f"Error adding additional file path {path}: {e}")
+                continue

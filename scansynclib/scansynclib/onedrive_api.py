@@ -1,4 +1,4 @@
-from scansynclib.ProcessItem import ProcessItem
+from scansynclib.ProcessItem import ProcessItem, OneDriveDestination
 from scansynclib.logging import logger
 import json
 import os
@@ -216,9 +216,9 @@ def get_user_shared_drive_items(driveid: str, folderid: str):
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=10, min=10, max=60))
-def upload_small(item: ProcessItem) -> bool:
+def upload_small(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
     try:
-        logger.info(f"Uploading file {item.ocr_file} to OneDrive")
+        logger.info(f"Uploading file {item.ocr_file} to OneDrive: {onedriveitem.remote_file_path}")
 
         # Check if file is smaller than 250MB
         file_size = os.path.getsize(item.ocr_file)
@@ -234,7 +234,7 @@ def upload_small(item: ProcessItem) -> bool:
             logger.error("No access token available to upload file")
             return False
 
-        upload_url = f"https://graph.microsoft.com/v1.0/drives/{item.remote_drive_id}/items/{item.remote_folder_id}:/{item.filename}:/content?@microsoft.graph.conflictBehavior=rename"
+        upload_url = f"https://graph.microsoft.com/v1.0/drives/{onedriveitem.remote_drive_id}/items/{onedriveitem.remote_folder_id}:/{item.filename}:/content?@microsoft.graph.conflictBehavior=rename"
         headers = {'Authorization': 'Bearer ' + access_token, 'Content-Type': 'text/plain'}
 
         with open(item.ocr_file, 'rb') as file:
@@ -246,7 +246,7 @@ def upload_small(item: ProcessItem) -> bool:
             if webUrl:
                 logger.debug(f"File is accessible at {webUrl}")
                 item.web_url = webUrl
-                update_scanneddata_database(item, {"web_url": webUrl, "remote_filepath": item.remote_file_path, "file_name": response.json().get("name", item.filename)})
+                update_scanneddata_database(item, {"web_url": webUrl, "remote_filepath": onedriveitem.remote_file_path, "file_name": response.json().get("name", item.filename)})
             return True
         else:
             logger.error(f"Failed to upload file: {response.status_code} - {response.text}")
