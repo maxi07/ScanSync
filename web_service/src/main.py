@@ -66,6 +66,8 @@ def rabbitmq_listener():
                 web_url=item.web_url,
                 smb_target_ids=item.smb_target_ids,
                 additional_smb=item.additional_remote_paths,
+                currently_uploading=item.current_uploading,
+                current_upload_target=item.current_upload_target,
             )
             payload["dashboard_data"] = get_dashboard_info()  # Nur bei Bedarf abrufen
             sse_queue.put(json.dumps(payload, default=str))  # Ensure all objects are serializable

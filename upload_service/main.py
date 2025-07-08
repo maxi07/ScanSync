@@ -41,8 +41,12 @@ def start_processing(item: ProcessItem):
     item.time_upload_started = datetime.now()
     logger.info(f"Processing file for upload: {item.ocr_file}")
     results = []
+    targets = [item.local_directory_above] + item.additional_remote_paths
     for i, onedriveitem in enumerate(item.OneDriveDestinations, start=1):
-        logger.info(f"({i} / {len(item.OneDriveDestinations)}) Uploading {item.ocr_file} to {onedriveitem.remote_file_path} in folder {onedriveitem.remote_folder_id} on drive {onedriveitem.remote_drive_id}")
+        logger.info(f"({i} / {len(item.OneDriveDestinations)}) Uploading {item.ocr_file} to {onedriveitem.remote_file_path} in folder {onedriveitem.remote_folder_id} on drive {onedriveitem.remote_drive_id} at SMB target {targets[i - 1] if i - 1 < len(targets) else "Unknown"}")
+        item.current_uploading = i
+        item.current_upload_target = targets[i - 1] if i - 1 < len(targets) else None
+        update_scanneddata_database(item, {"file_status": item.status.value})
         res = upload_small(item, onedriveitem)
         results.append(res)
     res = all(results)

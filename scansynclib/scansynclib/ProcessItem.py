@@ -163,6 +163,13 @@ class ProcessItem:
         self.web_url = None
         self.additional_local_paths = []
         self.additional_remote_paths = []
+        """Additional smb paths related to this item."""
+
+        self.current_uploading = 0
+        """Counter of currently uploading files used for web service."""
+
+        self.current_upload_target = None
+        """The current upload target for the item, if applicable."""
 
         self.OneDriveDestinations: list[OneDriveDestination] = []
 

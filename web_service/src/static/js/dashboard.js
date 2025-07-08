@@ -173,7 +173,11 @@ function updateCard(updateData) {
             } else {
                 console.warn("Parent element is not a <span> or does not exist for status icon update.");
             }
-            element.textContent = updateData.file_status;
+            if (updateData.file_status.toLowerCase() == "syncing") {
+                element.textContent = `Uploading ${updateData.currently_uploading}/${updateData.smb_target_ids.length} to ${updateData.current_upload_target}`;
+            } else {
+                element.textContent = updateData.file_status;
+            }
         }
     } catch (error) {
         console.error(`Error updating file status: ${error.message}`);
