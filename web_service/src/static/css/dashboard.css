@@ -93,3 +93,16 @@ background-color: green; /* Bootstrap-Rot */
 .page-item-dots .page-link {
     padding-left: 8px;
 }
+
+.smb-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.smb-badge {
+  white-space: nowrap;
+  padding: 0.4em 0.6em;
+  font-size: 0.85em;
+}

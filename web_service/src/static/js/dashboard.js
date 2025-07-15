@@ -106,31 +106,17 @@ function updateCard(updateData) {
         console.error(`Error updating image: ${error.message}`);
     }
 
-    // Update Cloud Link
-    try {
-        if (updateData.web_url && updateData.web_url.trim() !== "") {
-            const element = document.getElementById(updateData.id + "_pdf_cloud");
-            const cloudLink = document.createElement('a');
-            cloudLink.id = updateData.id + '_pdf_cloud';
-            cloudLink.href = updateData.web_url;
-            cloudLink.textContent = updateData.remote_filepath || "OneDrive";
-            cloudLink.innerHTML += "<br>";
-            cloudLink.target = '_blank'; // Open link in a new tab
-            element.innerHTML = ""; // Clear existing content
-            element.replaceWith(cloudLink);
-        }
-    } catch (error) {
-        console.error(`Error updating cloud link: ${error.message}`);
-    }
-
     // Update Local Filepath
     try {
         if (updateData.local_filepath && updateData.local_filepath.trim() !== "") {
             const element = document.getElementById(updateData.id + "_pdf_smb");
             element.textContent = updateData.local_filepath;
             element.innerHTML += "<br>";
-
-            const idx = (updateData.smb_target_id ? updateData.smb_target_id - 1 : -1);
+            // Get the "id" value from the first object in smb_target_ids array
+            const firstid = Array.isArray(updateData.smb_target_ids) && updateData.smb_target_ids.length > 0
+                ? updateData.smb_target_ids[0]?.id
+                : 1; // Default to 1 if not set
+            const idx = (firstid ? firstid - 1 : -1);
             // console.log(`Using SMB tag color index: ${idx} for smb_target_id: ${updateData.smb_target_id}`);
             let bgColor;
             if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && Number.isInteger(idx) && idx >= 0) {
@@ -146,16 +132,38 @@ function updateCard(updateData) {
         console.error(`Error updating local filepath: ${error.message}`);
     }
 
-    // Update Remote Filepath
+    // Update Cloud Link
     try {
-        if (updateData.remote_filepath && updateData.remote_filepath.trim() !== "") {
-            const element = document.getElementById(updateData.id + "_pdf_cloud");
-            element.textContent = updateData.remote_filepath;
-            element.innerHTML += "<br>";
+        if (Array.isArray(updateData.web_url) && updateData.web_url.length > 0) {
+            const smbBadges = cardElement.querySelectorAll('.smb-badge');
+            smbBadges.forEach(badge => {
+                if (Array.isArray(updateData.web_url)) {
+                    const badgeIndex = Array.from(smbBadges).indexOf(badge);
+                    const url = updateData.web_url[badgeIndex];
+                    if (url) {
+                        badge.style.cursor = 'pointer';
+                        badge.onclick = () => window.open(url, '_blank');
+                        badge.title = 'Open in OneDrive';
+                    } else {
+                        badge.onclick = null;
+                        badge.style.cursor = '';
+                        badge.title = '';
+                    }
+                } else if (typeof updateData.web_url === 'string') {
+                    badge.style.cursor = 'pointer';
+                    badge.onclick = () => window.open(updateData.web_url, '_blank');
+                    badge.title = 'Open in OneDrive';
+                } else {
+                    badge.onclick = null;
+                    badge.style.cursor = '';
+                    badge.title = '';
+                }
+            });
         }
     } catch (error) {
-        console.error(`Error updating remote filepath: ${error.message}`);
+        console.error(`Error updating cloud link: ${error.message}`);
     }
+
 
     // Update File Status
     try {
@@ -169,7 +177,11 @@ function updateCard(updateData) {
             } else {
                 console.warn("Parent element is not a <span> or does not exist for status icon update.");
             }
-            element.textContent = updateData.file_status;
+            if (updateData.file_status.toLowerCase() == "syncing") {
+                element.textContent = `Uploading ${updateData.currently_uploading}/${updateData.smb_target_ids.length} to ${updateData.current_upload_target}`;
+            } else {
+                element.textContent = updateData.file_status;
+            }
         }
     } catch (error) {
         console.error(`Error updating file status: ${error.message}`);
@@ -319,57 +331,74 @@ function addPdfCard(pdfData) {
     modifiedSpan.textContent = pdfData.local_modified || `${formattedDate} ${formattedTime}`;
     modifiedSpan.innerHTML += brElement;
 
-    // Create container as flexbox for alignment
-    let smbContainer = document.createElement('span');
-    smbContainer.className = 'd-flex align-items-center gap-2'; 
-    // gap-2 adds spacing between the label and badge
+    // Create flex container
+    const smbContainer = document.createElement('span');
+    smbContainer.className = 'smb-container';
 
-    // Create SMB label with icon and text
-    let smbText = document.createElement('span');
-    smbText.className = 'align-middle';
-    smbText.innerHTML = `<i class="bi bi-folder"></i><strong> SMB:</strong> `;
-    smbContainer.appendChild(smbText);
+    // Add label with icon
+    smbContainer.innerHTML = `<span class="align-middle">
+    <i class="bi bi-folder"></i><strong> SMB:</strong>
+    </span>`;
 
-    // Choose background color from your HEX palette
-    const idx = (pdfData.smb_target_id ? pdfData.smb_target_id - 1 : -1);
-    let bgColor;
-    if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && Number.isInteger(idx) && idx >= 0) {
-        bgColor = smb_tag_colors[idx % smb_tag_colors.length];
-    } else {
-        bgColor = '#6c757d';
-    }
-    const textColor = getContrastYIQ(bgColor);
+    // Helper to choose color
+    const getBadgeColor = (id) => {
+        const idx = (id ? id - 1 : -1);
+        if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && idx >= 0) {
+            return smb_tag_colors[idx % smb_tag_colors.length];
+        }
+        return '#6c757d';
+    };
 
-    // Create the badge
-    const smbBadge = document.createElement('span');
-    smbBadge.id = `${pdfData.id}_pdf_smb`;
-    smbBadge.className = 'badge align-middle smb-badge';
-    smbBadge.style.backgroundColor = bgColor;
-    smbBadge.style.color = textColor;
-    smbBadge.innerHTML = `${pdfData.local_filepath || "N/A"}`;
+    // Helper to create badge
+    const createBadge = (text, color, url, remote_filepath) => {
+        const badge = document.createElement('span');
+        badge.className = 'badge align-middle smb-badge';
+        badge.style.backgroundColor = color;
+        badge.style.color = getContrastYIQ(color);
+        badge.textContent = text || 'N/A';
+        if (url) {
+            badge.style.cursor = 'pointer';
+            badge.onclick = () => window.open(url, '_blank');
+            badge.title = remote_filepath || 'Open in OneDrive';
+        }
 
-    // Add badge to container
-    smbContainer.appendChild(smbBadge);
+        return badge;
+    };
+
+    // Add additional SMB badges
+    const additionalIds = (pdfData.smb_additional_target_ids || '')
+        .split(',')
+        .map(s => parseInt(s.trim(), 10))
+        .filter(id => !isNaN(id));
+
+    const urls = Array.isArray(pdfData.web_url)
+        ? pdfData.web_url
+        : (pdfData.web_url || '').split(',').map(s => s.trim()).filter(Boolean);
     
+    // Parse remote_filepaths as an array, splitting by comma if it's a string
+    const remote_filepaths = typeof pdfData.remote_filepath === 'string'
+        ? pdfData.remote_filepath.split(',').map(s => s.trim()).filter(Boolean)
+        : (Array.isArray(pdfData.remote_filepath) ? pdfData.remote_filepath : []);
+    additionalIds.forEach((id, i) => {
+        const name = (pdfData.additional_smb || '').split(',')[i]?.trim() || 'N/A';
+        const color = getBadgeColor(id);
+        smbContainer.appendChild(createBadge(name, color, urls[i + 1]?.trim(), remote_filepaths[i + 1]?.trim()));
+    });
 
-    let cloudText = document.createElement('span');
-    cloudText.innerHTML = `<i class="bi bi-cloud"></i><strong> Cloud:</strong> `;
+    // Add main SMB badge
+    const mainColor = getBadgeColor(pdfData.smb_target_id);
+    const mainName = pdfData.local_filepath || 'N/A';
+    const mainBadge = createBadge(mainName, mainColor, urls[0]?.trim(), remote_filepaths[0]?.trim());
+    mainBadge.id = `${pdfData.id}_pdf_smb`;
+    smbContainer.appendChild(mainBadge);
 
-    if (pdfData.web_url) {
-        let cloudLink = document.createElement('a');
-        cloudLink.id = pdfData.id + '_pdf_cloud';
-        cloudLink.href = pdfData.web_url;
-        cloudLink.title = "Open in OneDrive";
-        cloudLink.textContent = pdfData.remote_filepath;
-        cloudLink.innerHTML += brElement;
-        cloudLink.target = '_blank'; // Open link in a new tab
-        cloudText.appendChild(cloudLink);
-    } else {
-        let cloudSpan = document.createElement('span');
-        cloudSpan.id = pdfData.id + '_pdf_cloud';
-        cloudSpan.textContent = pdfData.remote_filepath || "Not available";
-        cloudSpan.innerHTML += brElement;
-        cloudText.appendChild(cloudSpan);
+    // Add additional SMB targets
+    if (Array.isArray(pdfData.smb_target_ids) && pdfData.smb_target_ids.length > 0) {
+        pdfData.smb_target_ids.forEach((smbTarget, index) => {
+            if (index === 0) return;
+            const smbBadge = createBadge(pdfData.additional_smb[index - 1], getBadgeColor(smbTarget.id));
+            smbContainer.appendChild(smbBadge);
+        });
     }
 
     let statusText = document.createElement('span');
@@ -407,7 +436,6 @@ function addPdfCard(pdfData) {
     infoParagraph.appendChild(modifiedText);
     infoParagraph.appendChild(modifiedSpan);
     infoParagraph.appendChild(smbContainer);
-    infoParagraph.appendChild(cloudText);
     infoParagraph.appendChild(statusText);
     infoParagraph.appendChild(statusSpan);
 

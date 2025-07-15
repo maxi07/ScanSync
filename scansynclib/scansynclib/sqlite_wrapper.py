@@ -133,6 +133,28 @@ def notify_sse_clients(item: ProcessItem, retry_count=0, max_retries=3):
         logger.exception("Error sending update to SSE queue.")
 
 
+def upgrade_sql_database():
+    try:
+        with db_connection() as conn:
+            cursor = conn.cursor()
+            # Check if the table exists
+            cursor.execute("PRAGMA table_info(scanneddata)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if "additional_smb" not in columns:
+                logger.info("Migration: Adding 'additional_smb' column to scanneddata table")
+                cursor.execute("ALTER TABLE scanneddata ADD COLUMN additional_smb TEXT")
+                conn.commit()
+    except sqlite3.OperationalError as e:
+        if "no such table: scanneddata" in str(e):
+            logger.error("Database schema is missing. Please ensure the schema.sql file is present.")
+            raise
+        else:
+            logger.exception("Failed to upgrade SQL database.")
+    except Exception:
+        logger.exception("Unexpected error during SQL database upgrade.")
+
+
 db_path = config.get("db.path")
 
 logger.info("Initializing database...")
@@ -144,4 +166,5 @@ with db_connection() as conn:
         raise FileNotFoundError(f"Schema file not found: {schema_path}")
     with open(schema_path, "r") as f:
         conn.executescript(f.read())
+    upgrade_sql_database()
 logger.info("Database initialized successfully.")

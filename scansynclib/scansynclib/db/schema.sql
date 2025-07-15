@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS scanneddata (
     previewimage_path TEXT,
     local_filepath TEXT,
     remote_filepath TEXT,
+    additional_smb TEXT,
     web_url TEXT,
     pdf_pages INTEGER DEFAULT 0,
     status_code INTEGER NOT NULL DEFAULT 0

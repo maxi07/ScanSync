@@ -54,7 +54,9 @@ def index():
                     FROM scanneddata
                 ) stats
                 LEFT JOIN (
-                    SELECT *,
+                    SELECT
+                        *,
+                        additional_smb AS smb_additional_target_ids,
                         DATETIME(created) AS local_created,
                         DATETIME(modified) AS local_modified
                     FROM scanneddata
@@ -83,6 +85,28 @@ def index():
                 processing_pdfs = 0
                 latest_timestamp_processing = None
                 latest_timestamp_completed = None
+
+            # Match additional SMB targets
+            new_pdfs = []
+            for pdf in pdfs:
+                pdf = dict(pdf)  # Make mutable
+
+                names = [s.strip() for s in (pdf.get('smb_additional_target_ids') or '').split(',') if s.strip()]
+                if names:
+                    placeholders = ','.join('?' * len(names))
+                    rows = db.execute(
+                        f"SELECT id FROM smb_onedrive WHERE smb_name IN ({placeholders})",
+                        names
+                    ).fetchall()
+                    # Extract IDs
+                    matched_ids = [str(row['id']) for row in rows]
+                    matched_ids.reverse()
+                    pdf['smb_additional_target_ids'] = ','.join(matched_ids)    
+                else:
+                    pdf['smb_additional_target_ids'] = ''
+                new_pdfs.append(pdf)
+
+            pdfs = new_pdfs
 
             total_pages = math.ceil(total_entries / entries_per_page)
 

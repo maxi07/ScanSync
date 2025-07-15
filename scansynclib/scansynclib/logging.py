@@ -29,6 +29,6 @@ file_handler.setFormatter(file_formatter)
 
 # Logger einrichten
 logger = logging.getLogger("shared_logger")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 logger.addHandler(console_handler)
 logger.addHandler(file_handler)
