@@ -108,7 +108,6 @@ def test_get_all_files_with_hidden_files(mocker):
 
     # Check the result
     expected_result = {
-        "/path/to/dir/.hidden_file",
         "/path/to/dir/file1.txt",
         "/path/to/dir/subdir/file2.txt"
     }
@@ -186,10 +185,11 @@ def test_ensure_scan_directory_exists_already_exists(mocker):
 def test_publish_new_files(mocker):
     # Mock the channel's basic_publish method
     mock_channel = mocker.Mock()
-    mock_message = json.dumps({"file_path": "/path/to/new_file.txt"})
+    file_paths = ["/path/to/new_file.txt"]
+    mock_message = json.dumps({"file_paths": file_paths, "file_hash": "12345", "is_duplicate_group": len(file_paths) > 1})
 
     # Call the function
-    publish_new_files(mock_channel, "test_queue", {"/path/to/new_file.txt"})
+    publish_new_files(mock_channel, "test_queue", {"12345": file_paths})
 
     # Check that basic_publish was called with the correct parameters
     mock_channel.basic_publish.assert_called_once_with(

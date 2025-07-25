@@ -40,7 +40,16 @@ def start_processing(item: ProcessItem):
     update_scanneddata_database(item, {"file_status": item.status.value})
     item.time_upload_started = datetime.now()
     logger.info(f"Processing file for upload: {item.ocr_file}")
-    res = upload_small(item)
+    results = []
+    targets = [item.local_directory_above] + item.additional_remote_paths
+    for i, onedriveitem in enumerate(item.OneDriveDestinations, start=1):
+        logger.info(f"({i} / {len(item.OneDriveDestinations)}) Uploading {item.ocr_file} to {onedriveitem.remote_file_path} in folder {onedriveitem.remote_folder_id} on drive {onedriveitem.remote_drive_id} at SMB target {targets[i - 1] if i - 1 < len(targets) else "Unknown"}")
+        item.current_uploading = i
+        item.current_upload_target = targets[i - 1] if i - 1 < len(targets) else None
+        update_scanneddata_database(item, {"file_status": item.status.value})
+        res = upload_small(item, onedriveitem)
+        results.append(res)
+    res = all(results)
     if res is False:
         logger.error(f"Failed to upload {item.ocr_file}")
         item.status = ProcessStatus.SYNC_FAILED
@@ -62,6 +71,14 @@ def start_processing(item: ProcessItem):
                 logger.debug(f"Deleted original file {item.local_file_path}")
         except Exception:
             logger.exception(f"Failed to delete original file {item.local_file_path}")
+
+        for additional_path in item.additional_local_paths:
+            try:
+                if os.path.exists(additional_path):
+                    os.remove(additional_path)
+                    logger.debug(f"Deleted additional local file {additional_path}")
+            except Exception:
+                logger.exception(f"Failed to delete additional local file {additional_path}")
 
         item.status = ProcessStatus.COMPLETED
     update_scanneddata_database(item, {"file_status": item.status.value})

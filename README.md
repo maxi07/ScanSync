@@ -58,8 +58,8 @@ For development purposes, you can use the built-in Flask server:
 
 
 ## 🔮 Upcoming Features
-- [ ] **Notifications**: Stay informed with real-time updates.
-- [ ] **OCR Settings**: Take control of OCR settings in the web interface
+- **Notifications**: Stay informed with real-time updates.
+- **OCR Settings**: Take control of OCR settings in the web interface
 
 
 Thank you for using ScanSync! If you encounter any issues or have feature requests, feel free to open an issue on the [GitHub repository](https://github.com/maxi07/ScanSync).
