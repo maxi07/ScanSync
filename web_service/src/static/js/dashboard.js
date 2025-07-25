@@ -339,6 +339,7 @@ function addPdfCard(pdfData) {
     smbContainer.innerHTML = `<span class="align-middle">
     <i class="bi bi-folder"></i><strong> SMB:</strong>
     </span>`;
+    //TODO: Rename SMB here!
 
     // Helper to choose color
     const getBadgeColor = (id) => {

@@ -74,7 +74,6 @@ def on_created(filepaths: list):
             item.additional_remote_paths = []
 
     try:
-        # TODO: Fetch the smb_target_ids from the database
         items = [item.local_directory_above] + item.additional_remote_paths
         placeholders = ",".join("?" for _ in items)
         query = f"SELECT id FROM smb_onedrive WHERE smb_name IN ({placeholders})"
