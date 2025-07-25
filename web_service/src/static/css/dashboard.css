@@ -105,16 +105,3 @@ background-color: green; /* Bootstrap-Rot */
   padding: 0.4em 0.6em;
   font-size: 0.85em;
 }
-
-/* PDF Grid Layout */
-#pdfs_grid {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
-}
-
-#pdfs_grid > .col {
-    width: 100%;
-    max-width: none;
-    flex: none;
-}
