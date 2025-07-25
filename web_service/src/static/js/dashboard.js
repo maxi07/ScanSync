@@ -1,11 +1,15 @@
 /* global entries_per_page pdfsData smb_tag_colors getContrastYIQ */
 
+// Set to track which card IDs have been displayed to avoid race condition issues
+let displayedCardIds = new Set();
+
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('top-progress-bar').style.display = 'block';
     console.log("Creating " + pdfsData.length + " pdf cards.");
     // Iterate over the PDF data and add cards dynamically
     pdfsData.forEach(function(pdfData) {
         addPdfCard(pdfData);
+        displayedCardIds.add(pdfData.id);
     });
 
     let eventSource = new EventSource("/stream");
@@ -61,23 +65,17 @@ function updateCard(updateData) {
 
     if (!cardElement) {
         console.log(`Card with ID ${cardId} not found.`);
-        const existingCards = document.querySelectorAll('[id$="_pdf_card"]');
-        let highestId = 0;
-
-        existingCards.forEach(card => {
-            const cardId = parseInt(card.dataset.id, 10);
-            if (!isNaN(cardId) && cardId > highestId) {
-                highestId = cardId;
-            }
-        });
-
-        if (updateData.id > highestId) {
-            console.log(`New card with ID ${updateData.id} is higher than the current highest ID ${highestId}. Adding new card.`);
-            addPdfCard(updateData);
-        } else {
-            console.log(`Card with ID ${updateData.id} is not higher than the current highest ID ${highestId}. Skipping Update.`);
+        
+        // Check if we've already processed this card ID to avoid race conditions
+        if (displayedCardIds.has(updateData.id)) {
+            console.log(`Card with ID ${updateData.id} has already been processed. Skipping duplicate.`);
             return;
         }
+
+        console.log(`Adding new card with ID ${updateData.id}.`);
+        addPdfCard(updateData);
+        displayedCardIds.add(updateData.id);
+        return;
     }
 
     // Update Image
@@ -463,13 +461,28 @@ function addPdfCard(pdfData) {
 
     let pdfGrid = document.getElementById("pdfs_grid");
     if (pdfGrid.children.length >= entries_per_page) {
-        pdfGrid.removeChild(pdfGrid.lastElementChild);
+        const lastChild = pdfGrid.lastElementChild;
+        // Remove the ID from our tracking set when card is removed
+        if (lastChild) {
+            const cardElement = lastChild.querySelector('[data-id]');
+            if (cardElement && cardElement.dataset && cardElement.dataset.id) {
+                const removedId = parseInt(cardElement.dataset.id, 10);
+                if (!isNaN(removedId)) {
+                    displayedCardIds.delete(removedId);
+                    console.log(`Removed card ID ${removedId} from tracking set`);
+                }
+            }
+        }
+        pdfGrid.removeChild(lastChild);
         console.log("Removed last child");
     }
     // Append the card to the container
     let parentElement = document.getElementById('pdfs_grid');
     let firstChild = parentElement.firstChild;
     parentElement.insertBefore(colDiv, firstChild);
+    
+    // Add to displayed cards set to track this card
+    displayedCardIds.add(pdfData.id);
 }
 
 function getStatusIcon(file_status) {
