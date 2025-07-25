@@ -332,14 +332,25 @@ function addPdfCard(pdfData) {
     modifiedSpan.innerHTML += brElement;
 
     // Create flex container
-    const smbContainer = document.createElement('span');
+    const smbContainer = document.createElement('div');
     smbContainer.className = 'smb-container';
 
     // Add label with icon
-    smbContainer.innerHTML = `<span class="align-middle">
-    <i class="bi bi-folder"></i><strong> SMB:</strong>
-    </span>`;
-    //TODO: Rename SMB here!
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'align-middle';
+    labelSpan.classList.add('me-1');
+    labelSpan.innerHTML = `<i class="bi bi-cloud"></i><strong> Cloud:</strong>`;
+    smbContainer.appendChild(labelSpan);
+    
+    // Create separate container for badges on new line
+    const badgesContainer = document.createElement('div');
+    badgesContainer.className = 'smb-badges-container';
+    badgesContainer.style.marginTop = '0px';
+    badgesContainer.style.display = 'flex';
+    badgesContainer.style.flexWrap = 'wrap';
+    badgesContainer.style.gap = '4px';
+    badgesContainer.style.alignItems = 'center';
+    smbContainer.appendChild(badgesContainer);
 
     // Helper to choose color
     const getBadgeColor = (id) => {
@@ -383,7 +394,7 @@ function addPdfCard(pdfData) {
     additionalIds.forEach((id, i) => {
         const name = (pdfData.additional_smb || '').split(',')[i]?.trim() || 'N/A';
         const color = getBadgeColor(id);
-        smbContainer.appendChild(createBadge(name, color, urls[i + 1]?.trim(), remote_filepaths[i + 1]?.trim()));
+        badgesContainer.appendChild(createBadge(name, color, urls[i + 1]?.trim(), remote_filepaths[i + 1]?.trim()));
     });
 
     // Add main SMB badge
@@ -391,14 +402,14 @@ function addPdfCard(pdfData) {
     const mainName = pdfData.local_filepath || 'N/A';
     const mainBadge = createBadge(mainName, mainColor, urls[0]?.trim(), remote_filepaths[0]?.trim());
     mainBadge.id = `${pdfData.id}_pdf_smb`;
-    smbContainer.appendChild(mainBadge);
+    badgesContainer.appendChild(mainBadge);
 
     // Add additional SMB targets
     if (Array.isArray(pdfData.smb_target_ids) && pdfData.smb_target_ids.length > 0) {
         pdfData.smb_target_ids.forEach((smbTarget, index) => {
             if (index === 0) return;
             const smbBadge = createBadge(pdfData.additional_smb[index - 1], getBadgeColor(smbTarget.id));
-            smbContainer.appendChild(smbBadge);
+            badgesContainer.appendChild(smbBadge);
         });
     }
 
