@@ -101,7 +101,7 @@ def index():
                     # Extract IDs
                     matched_ids = [str(row['id']) for row in rows]
                     matched_ids.reverse()
-                    pdf['smb_additional_target_ids'] = ','.join(matched_ids)    
+                    pdf['smb_additional_target_ids'] = ','.join(matched_ids)
                 else:
                     pdf['smb_additional_target_ids'] = ''
                 new_pdfs.append(pdf)
