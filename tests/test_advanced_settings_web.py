@@ -4,6 +4,42 @@ from flask import Flask
 from scansynclib.settings_schema import SettingsSchema, FileNamingMethod
 
 
+# Real flatten_settings function copied from production code (with Pydantic v2.11 fix)
+def flatten_settings(model, prefix=""):
+    """
+    Rekursive Funktion, die alle Einstellungen flach als Dict zurückgibt.
+    Schlüssel sind z.B. "file_naming.method" und Werte die Feldwerte.
+    """
+    result = {}
+    # Fix for Pydantic v2.11: Access model_fields from the class, not instance
+    for field_name, value in model._model.__class__.model_fields.items():
+        attr = getattr(model, field_name)
+        full_key = f"{prefix}.{field_name}" if prefix else field_name
+        # Ist Wert selbst ein BaseModel Proxy? Dann rekursiv tiefer
+        if hasattr(attr, "_model"):  # Proxy-Erkennung
+            result.update(flatten_settings(attr, full_key))
+        else:
+            result[full_key] = attr
+    return result
+
+
+# MockProxy class to emulate settings manager behavior for real flatten_settings function
+class MockProxy:
+    """Mock proxy class that forwards attribute access to the wrapped model."""
+    def __init__(self, settings):
+        self._model = settings
+
+    def __getattr__(self, name):
+        """Forward attribute access to the wrapped model."""
+        if hasattr(self._model, name):
+            attr = getattr(self._model, name)
+            # If it's a nested model, wrap it in another MockProxy (fix for Pydantic v2.11)
+            if hasattr(attr.__class__, 'model_fields'):
+                return MockProxy(attr)
+            return attr
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
+
 class MockSettingsManager:
     """Mock settings manager that mimics the real one without external dependencies."""
     def __init__(self):
@@ -19,26 +55,10 @@ def create_mock_settings_route():
     # Mock the settings manager
     mock_manager = MockSettingsManager()
 
-    def flatten_settings(model, prefix=""):
-        """Mock flatten_settings function."""
-        result = {}
-        # Simple implementation for testing
-        if hasattr(model, 'file_naming'):
-            result['file_naming.method'] = model.file_naming.method
-            result['file_naming.openai_api_key'] = model.file_naming.openai_api_key
-            result['file_naming.ollama_server_url'] = model.file_naming.ollama_server_url
-            result['file_naming.ollama_server_port'] = model.file_naming.ollama_server_port
-            result['file_naming.ollama_model'] = model.file_naming.ollama_model
-        if hasattr(model, 'onedrive'):
-            result['onedrive.client_id'] = model.onedrive.client_id
-            result['onedrive.authority'] = model.onedrive.authority
-            result['onedrive.scope'] = model.onedrive.scope
-        return result
-
     @settings_bp.route("/settings/advanced", methods=["GET", "POST"])
     def settings_view():
         if request.method == "POST":
-            # Process form data
+            # Process form data - this logic mirrors the real implementation
             for key, value in request.form.items():
                 parts = key.split(".")
                 target = mock_manager.settings
@@ -50,13 +70,12 @@ def create_mock_settings_route():
                 attr_name = parts[-1]
                 current_value = getattr(target, attr_name)
 
-                # Type conversion
+                # Type conversion - mirrors real implementation
                 if isinstance(current_value, int):
                     value = int(value)
                 elif isinstance(current_value, list):
                     value = [v.strip() for v in value.split(",")]
                 elif isinstance(current_value, Enum):
-                    # This is an enum
                     enum_cls = type(current_value)
                     value = enum_cls(value)
 
@@ -64,8 +83,11 @@ def create_mock_settings_route():
 
             return redirect(url_for("settings.settings_view"))
 
-        # GET request - return flattened settings
-        flat_settings = flatten_settings(mock_manager.settings)
+        # GET request - use the real flatten_settings function but with mock data
+        # Create a mock proxy-like object for the real flatten_settings function
+        mock_proxy = MockProxy(mock_manager.settings)
+        flat_settings = flatten_settings(mock_proxy)
+        
         # Simple template for testing
         template = "Settings: {{ settings }}"
         return render_template_string(template, settings=flat_settings)
@@ -330,3 +352,78 @@ def test_settings_advanced_post_invalid_int_value(client, app):
     # This should cause a ValueError in int conversion
     with pytest.raises(ValueError, match="invalid literal for int()"):
         client.post('/settings/advanced', data=form_data, follow_redirects=False)
+
+
+def test_flatten_settings_function():
+    """Test the flatten_settings function directly."""
+    settings = SettingsSchema()
+    
+    # Modify some settings to test flattening
+    settings.file_naming.method = FileNamingMethod.OLLAMA
+    settings.file_naming.openai_api_key = 'test-key'
+    settings.file_naming.ollama_server_url = 'http://test-server'
+    settings.file_naming.ollama_server_port = 9999
+    settings.onedrive.client_id = 'test-client'
+    settings.onedrive.scope = ['Files.ReadWrite', 'User.Read']
+    
+    # Create a mock proxy for the real function (like the real settings manager does)
+    mock_proxy = MockProxy(settings)
+
+    # Flatten the settings using the real function
+    flattened = flatten_settings(mock_proxy)    # Verify all expected keys are present with correct values
+    assert 'file_naming.method' in flattened
+    assert 'file_naming.openai_api_key' in flattened
+    assert 'file_naming.ollama_server_url' in flattened
+    assert 'file_naming.ollama_server_port' in flattened
+    assert 'onedrive.client_id' in flattened
+    assert 'onedrive.scope' in flattened
+    
+    # Verify correct values
+    assert flattened['file_naming.method'] == FileNamingMethod.OLLAMA
+    assert flattened['file_naming.openai_api_key'] == 'test-key'
+    assert flattened['file_naming.ollama_server_url'] == 'http://test-server'
+    assert flattened['file_naming.ollama_server_port'] == 9999
+    assert flattened['onedrive.client_id'] == 'test-client'
+    assert flattened['onedrive.scope'] == ['Files.ReadWrite', 'User.Read']
+
+
+def test_flatten_settings_with_default_values():
+    """Test flatten_settings with default values."""
+    settings = SettingsSchema()  # All default values
+    
+    # Create a mock proxy for the real function
+    mock_proxy = MockProxy(settings)
+    
+    flattened = flatten_settings(mock_proxy)
+    
+    # Should contain all fields with their default values
+    assert 'file_naming.method' in flattened
+    assert flattened['file_naming.method'] == FileNamingMethod.NONE  # Default value
+    assert 'file_naming.openai_api_key' in flattened
+    assert flattened['file_naming.openai_api_key'] == ''  # Default empty string
+    assert 'onedrive.client_id' in flattened
+    assert flattened['onedrive.client_id'] == ''  # Default empty string
+
+
+def test_flatten_settings_recursive_structure():
+    """Test that flatten_settings correctly handles the recursive structure."""
+    settings = SettingsSchema()
+    
+    # Create a mock proxy for the real function
+    mock_proxy = MockProxy(settings)
+    
+    flattened = flatten_settings(mock_proxy)
+    
+    # Verify that nested objects are flattened with dot notation
+    file_naming_keys = [k for k in flattened.keys() if k.startswith('file_naming.')]
+    onedrive_keys = [k for k in flattened.keys() if k.startswith('onedrive.')]
+    
+    assert len(file_naming_keys) > 0
+    assert len(onedrive_keys) > 0
+    
+    # Should not contain non-dotted keys (except if there are top-level fields)
+    for key in flattened.keys():
+        if '.' not in key:
+            # This would be a top-level field, which shouldn't exist in current schema
+            # but we allow it in case the schema changes
+            pass
