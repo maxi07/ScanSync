@@ -210,15 +210,41 @@ function replaceHostnamePopovers() {
     });
 };
 
-// Reset form when opening
+// Reset form when opening for adding new path mapping
 document.getElementById("pathmappingmodal").addEventListener('show.bs.modal', function() {
     const form = document.getElementById("pathmappingmodal_add_smb_form");
-    form.reset(); // Reset the form fields
-    console.log("Resetting form fields");
+    const oldSmbId = document.getElementById("old_smb_id");
+    
+    // Only reset if we're adding a new mapping (not editing)
+    if (!oldSmbId.value) {
+        form.reset(); // Reset the form fields
+        console.log("Resetting form fields for new path mapping");
+        
+        // Reset modal title for adding new mapping
+        const modalTitle = document.querySelector("#pathmappingmodal .modal-title");
+        if (modalTitle) {
+            modalTitle.textContent = "Add Path Mapping";
+        }
+        document.getElementById("submit_form_path_mapping_button").innerText = "Add";
+    } else {
+        console.log("Not resetting form fields - editing existing mapping");
+    }
 });
 
 document.getElementById("add_path_mapping_button").addEventListener('click', function() {
+    // Clear the old_smb_id to indicate we're adding, not editing
+    document.getElementById("old_smb_id").value = "";
     document.getElementById("submit_form_path_mapping_button").innerText = "Add";
+    
+    // Reset the selected OneDrive folder
+    currentOneDriveSelectedID = "";
+    currentOneDriveSelectedPath = "";
+    
+    // Reset modal title for adding new mapping
+    const modalTitle = document.querySelector("#pathmappingmodal .modal-title");
+    if (modalTitle) {
+        modalTitle.textContent = "Add Path Mapping";
+    }
 });
 
 // Update the back button event listener
@@ -312,6 +338,11 @@ function loadOneDriveDir(folderID = null, isSharedWithMe = false, driveID = null
                     listgroup.appendChild(noItemsMessage);
                 }
 
+                // Check if we need to pre-select an item (for editing mode)
+                if (currentOneDriveSelectedID) {
+                    updateOneDriveBrowserSelection(currentOneDriveSelectedID);
+                }
+
                 const backbutton = document.getElementById("remoteonedrivebackbutton");
                 if (onedriveDirLevel === 1) {
                     backbutton.disabled = true;
@@ -372,10 +403,95 @@ function handleRemotePathDoubleClick(event) {
 
 /* exported editPathMapping */
 function editPathMapping(id) {
-    let smb_title = document.getElementById(id + "_smb_path").innerText;
-    document.getElementById("local_path").value = smb_title.trim();
-    document.getElementById("add_path_mapping_button").innerText = "Edit";
+    // Get SMB name from the badge element
+    const smbBadgeElement = document.getElementById(id + "_pdf_smb");
+    if (!smbBadgeElement) {
+        console.error(`SMB badge element with ID ${id}_pdf_smb not found`);
+        return;
+    }
+    
+    // Get OneDrive path from the remote path mapping element
+    const remotePathElement = document.getElementById(id + "_remote_pathmapping");
+    if (!remotePathElement) {
+        console.error(`Remote path element with ID ${id}_remote_pathmapping not found`);
+        return;
+    }
+    
+    // Fill the form fields
+    const smbTitle = smbBadgeElement.innerText;
+    document.getElementById("local_path").value = smbTitle.trim();
+    document.getElementById("remote_path").value = remotePathElement.innerText || remotePathElement.textContent;
     document.getElementById("old_smb_id").value = id;
+    
+    // Set button text to indicate editing mode
+    document.getElementById("submit_form_path_mapping_button").innerText = "Save Changes";
+    
+    // Change modal title for editing
+    const modalTitle = document.querySelector("#pathmappingmodal .modal-title");
+    if (modalTitle) {
+        modalTitle.textContent = "Edit Path Mapping";
+    }
+    
+    // We need to fetch the current folder_id, drive_id, and web_url from the backend
+    // to properly set the selection in the OneDrive browser
+    fetchPathMappingDetails(id);
+}
+
+function fetchPathMappingDetails(id) {
+    // Make an API call to get the current path mapping details
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', `/get-path-mapping-details/${id}`, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                
+                // Set the hidden fields with the current values
+                if (data.folder_id) {
+                    document.getElementById("folder_id_input").value = data.folder_id;
+                    currentOneDriveSelectedID = data.folder_id;
+                }
+                if (data.drive_id) {
+                    document.getElementById("drive_id_input").value = data.drive_id;
+                }
+                if (data.web_url) {
+                    document.getElementById("web_url_input").value = data.web_url;
+                }
+                
+                // If the OneDrive browser is currently visible, update the selection
+                updateOneDriveBrowserSelection(data.folder_id);
+                
+            } else {
+                console.error("Failed to fetch path mapping details:", xhr.responseText);
+                // Clear the fields as fallback
+                document.getElementById("folder_id_input").value = "";
+                document.getElementById("drive_id_input").value = "";
+                document.getElementById("web_url_input").value = "";
+            }
+        }
+    };
+    xhr.send();
+}
+
+function updateOneDriveBrowserSelection(folderId) {
+    if (!folderId) return;
+    
+    // Find the corresponding list item in the OneDrive browser
+    const listGroup = document.getElementById('onedrivelistgroup');
+    if (listGroup) {
+        // Remove active class from all items
+        listGroup.querySelectorAll('.list-group-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        // Find and activate the item with the matching folder ID
+        const targetItem = listGroup.querySelector(`[data-item-id="${folderId}"]`);
+        if (targetItem) {
+            targetItem.classList.add('active');
+            console.log(`Pre-selected folder with ID: ${folderId}`);
+        }
+    }
 }
 
 /* exported deletePathMapping */
