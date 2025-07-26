@@ -54,7 +54,7 @@ def create_mock_settings_route():
                     value = int(value)
                 elif isinstance(current_value, list):
                     value = [v.strip() for v in value.split(",")]
-                elif hasattr(current_value, '__class__') and hasattr(current_value.__class__, '__members__'):
+                elif isinstance(current_value, Enum):
                     # This is an enum
                     enum_cls = type(current_value)
                     value = enum_cls(value)
