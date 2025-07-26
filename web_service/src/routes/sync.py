@@ -245,3 +245,32 @@ def export_sync_data():
     except Exception as ex:
         logger.exception(f"Failed exporting sync data: {ex}")
         return "Failed exporting sync data", 500
+
+
+@sync_bp.get('/get-path-mapping-details/<int:smb_id>')
+def get_path_mapping_details(smb_id):
+    """Get details of a specific path mapping for editing purposes."""
+    logger.info(f"Request to get path mapping details for ID: {smb_id}")
+
+    try:
+        # Get the SMB share details
+        smb_share = onedrive_smb_manager.get_by_id(smb_id)
+        if not smb_share:
+            logger.error(f"SMB share with ID {smb_id} not found")
+            return jsonify({'error': 'Path mapping not found'}), 404
+
+        # Return the relevant details for editing
+        response_data = {
+            'smb_name': smb_share.get('smb_name'),
+            'onedrive_path': smb_share.get('onedrive_path'),
+            'folder_id': smb_share.get('folder_id'),
+            'drive_id': smb_share.get('drive_id'),
+            'web_url': smb_share.get('web_url')
+        }
+
+        logger.debug(f"Returning path mapping details: {response_data}")
+        return jsonify(response_data), 200
+
+    except Exception as ex:
+        logger.exception(f"Failed to get path mapping details for ID {smb_id}: {ex}")
+        return jsonify({'error': 'Failed to get path mapping details'}), 500
