@@ -1,3 +1,4 @@
+from enum import Enum
 import pytest
 from flask import Flask
 from scansynclib.settings_schema import SettingsSchema, FileNamingMethod
