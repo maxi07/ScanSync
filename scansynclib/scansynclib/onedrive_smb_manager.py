@@ -123,10 +123,10 @@ def get_by_id(smb_id: int):
     logger.info(f"Getting SMB share with ID {smb_id} from database")
     query = "SELECT * FROM smb_onedrive WHERE id = ?"
     result = execute_query(query, (smb_id,), fetchone=True)
-    
+
     if result is None:
         logger.warning(f"SMB share with ID {smb_id} not found in database")
         return None
-    
+
     logger.debug(f"SMB share retrieved from database: {result}")
     return result
