@@ -86,9 +86,9 @@ mdurl==0.1.2
     # via markdown-it-py
 msal==1.32.0
     # via -r merged_requirements.in
-ocrmypdf==16.10.0
+ocrmypdf==16.10.4
     # via -r merged_requirements.in
-openai==1.75.0
+openai==1.97.1
     # via -r merged_requirements.in
 outcome==1.3.0.post0
     # via
@@ -111,7 +111,7 @@ pikepdf==9.8.1
     # via
     #   img2pdf
     #   ocrmypdf
-pillow==11.1.0
+pillow==11.3.0
     # via
     #   -r merged_requirements.in
     #   img2pdf
@@ -136,9 +136,9 @@ pyjwt[crypto]==2.10.1
     # via
     #   msal
     #   pyjwt
-pymupdf==1.25.4
+pymupdf==1.26.3
     # via -r merged_requirements.in
-pypdf==5.4.0
+pypdf==5.8.0
     # via -r merged_requirements.in
 pysocks==1.7.1
     # via urllib3
