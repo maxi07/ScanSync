@@ -110,21 +110,52 @@ function updateCard(updateData) {
             const element = document.getElementById(updateData.id + "_pdf_smb");
             element.textContent = updateData.local_filepath;
             element.innerHTML += "<br>";
-            // Get the "id" value from the first object in smb_target_ids array
-            const firstid = Array.isArray(updateData.smb_target_ids) && updateData.smb_target_ids.length > 0
-                ? updateData.smb_target_ids[0]?.id
-                : 1; // Default to 1 if not set
-            const idx = (firstid ? firstid - 1 : -1);
-            // console.log(`Using SMB tag color index: ${idx} for smb_target_id: ${updateData.smb_target_id}`);
-            let bgColor;
-            if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && Number.isInteger(idx) && idx >= 0) {
-                bgColor = smb_tag_colors[idx % smb_tag_colors.length];
-            } else {
-                bgColor = '#6c757d';
+            
+            // Update all badge colors to match the initial load logic
+            const cardElement = document.getElementById(updateData.id + '_pdf_card');
+            if (cardElement && Array.isArray(updateData.smb_target_ids)) {
+                
+                // Helper function to get badge color (same as in addPdfCard)
+                const getBadgeColor = (id) => {
+                    const idx = (id ? id - 1 : -1);
+                    if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && idx >= 0) {
+                        return smb_tag_colors[idx % smb_tag_colors.length];
+                    }
+                    return '#6c757d';
+                };
+                
+                const allSmbBadges = cardElement.querySelectorAll('.smb-badge');
+                
+                // Create mapping based on badge content and SMB data
+                // The order should match exactly how addPdfCard creates them
+                allSmbBadges.forEach((badge) => {
+                    let targetId = null;
+                    
+                    // Main badge (has specific ID and contains local_filepath)
+                    if (badge.id === updateData.id + "_pdf_smb") {
+                        targetId = updateData.smb_target_ids[0]?.id;
+                    } else {
+                        // For additional badges, match by content
+                        const badgeText = badge.textContent.trim();
+                        
+                        // Find this badge text in additional_smb array
+                        const additionalIndex = updateData.additional_smb?.findIndex(name => name.trim() === badgeText);
+                        
+                        if (additionalIndex !== -1 && additionalIndex < updateData.smb_target_ids.length - 1) {
+                            // Get the corresponding SMB target ID (offset by 1 because index 0 is main badge)
+                            targetId = updateData.smb_target_ids[additionalIndex + 1]?.id;
+                        }
+                    }
+                    
+                    // Apply color if we found a target ID
+                    if (targetId) {
+                        const badgeColor = getBadgeColor(targetId);
+                        const textColor = getContrastYIQ(badgeColor);
+                        badge.style.backgroundColor = badgeColor;
+                        badge.style.color = textColor;
+                    }
+                });
             }
-            const textColor = getContrastYIQ(bgColor);
-            element.style.color = textColor;
-            element.style.backgroundColor = bgColor;
         }
     } catch (error) {
         console.error(`Error updating local filepath: ${error.message}`);
