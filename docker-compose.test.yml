@@ -38,6 +38,7 @@ services:
       - data_test:/app/data
       - preview_images_test:/app/preview-images
       - ./detection_service:/tests/tests/detection_service
+      - ./web_service:/tests/tests/web_service
   
   redis:
     image: redis:latest
