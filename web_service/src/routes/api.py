@@ -219,3 +219,23 @@ def file_naming_logs():
     except Exception as e:
         logger.exception(f"Error retrieving file naming logs: {e}")
         return Response(json.dumps({}), mimetype='application/json', status=500)
+
+
+@api_bp.get('/api/delete-id/<int:job_id>')
+def delete_id_from_db(job_id: int):
+    """
+    Route to delete a job ID from the database.
+    """
+    try:
+        logger.info(f"Received request to delete job ID {job_id} from the database")
+        query = "UPDATE scanneddata SET file_status = 'Deleted', status_code = -1 WHERE id = ?"
+        res = execute_query(query, (job_id,))
+        if res is None:
+            logger.error(f"Failed to delete job ID {job_id} from the database")
+            return jsonify({'error': f'Failed to delete job ID {job_id}'}), 500
+        logger.info(f"Successfully deleted job ID {job_id} from the database")
+        return jsonify({'message': f'Job ID {job_id} deleted successfully!'}), 200
+    except Exception as e:
+        err = f"Error deleting job ID {job_id}: {e}"
+        logger.exception(err)
+        return jsonify({'error': err}), 500
