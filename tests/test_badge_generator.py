@@ -156,8 +156,14 @@ class TestBadgeGenerator:
 
         assert len(badges) == 1
         assert badges[0]['text'] == 'N/A'
-        # Should use 'N/A' for None values
-        expected_hash = hash('N/A') % len(SMB_TAG_COLORS)
+        # Should use 'N/A' for None values with deterministic hash
+        try:
+            from web_service.src.badge_generator import _deterministic_hash
+        except ImportError:
+            # For Docker environment
+            from badge_generator import _deterministic_hash
+        
+        expected_hash = _deterministic_hash('N/A') % len(SMB_TAG_COLORS)
         expected_color = SMB_TAG_COLORS[expected_hash]
         assert badges[0]['color'] == expected_color
 
@@ -293,3 +299,73 @@ class TestBadgeGenerator:
 
         # Should have same color despite different target IDs
         assert extra1['color'] == extra2['color']
+
+    def test_deterministic_hash_consistency(self):
+        """Test that the deterministic hash function provides consistent results."""
+        # Import the internal hash function for testing
+        try:
+            from web_service.src.badge_generator import _deterministic_hash
+        except ImportError:
+            # For Docker environment
+            from badge_generator import _deterministic_hash
+
+        test_strings = [
+            'test.pdf',
+            'document with spaces.pdf',
+            'file-with-dashes.pdf',
+            'special@chars#file$.pdf',
+            'unicode_file_äöü.pdf',
+            ''
+        ]
+
+        for test_string in test_strings:
+            # Call hash function multiple times
+            hash1 = _deterministic_hash(test_string)
+            hash2 = _deterministic_hash(test_string)
+            hash3 = _deterministic_hash(test_string)
+
+            # All results should be identical
+            assert hash1 == hash2 == hash3, f"Hash inconsistency for '{test_string}'"
+
+            # Hash should be non-negative
+            assert hash1 >= 0, f"Hash should be non-negative for '{test_string}'"
+
+    def test_color_consistency_across_calls(self):
+        """Test that badge colors remain consistent across multiple function calls."""
+        test_data = [
+            ('document.pdf', ['extra1.pdf', 'extra2.pdf']),
+            ('another_file.pdf', ['additional.pdf']),
+            ('simple.pdf', [])
+        ]
+
+        for local_filepath, additional_names in test_data:
+            # Generate badges multiple times
+            smb_target_ids = [{'id': i+1} for i in range(len(additional_names) + 1)]
+
+            badges1 = generate_badges(
+                pdf_id=1,
+                smb_target_ids=smb_target_ids,
+                local_filepath=local_filepath,
+                additional_smb_names=additional_names
+            )
+
+            badges2 = generate_badges(
+                pdf_id=2,  # Different PDF ID
+                smb_target_ids=smb_target_ids,
+                local_filepath=local_filepath,
+                additional_smb_names=additional_names
+            )
+
+            badges3 = generate_badges(
+                pdf_id=3,  # Another different PDF ID
+                smb_target_ids=smb_target_ids,
+                local_filepath=local_filepath,
+                additional_smb_names=additional_names
+            )
+
+            # Colors should be consistent across all calls for same text
+            assert len(badges1) == len(badges2) == len(badges3)
+
+            for i in range(len(badges1)):
+                assert badges1[i]['text'] == badges2[i]['text'] == badges3[i]['text']
+                assert badges1[i]['color'] == badges2[i]['color'] == badges3[i]['color']
