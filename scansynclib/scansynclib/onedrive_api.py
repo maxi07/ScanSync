@@ -224,7 +224,7 @@ def upload_small(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
         file_size = os.path.getsize(item.ocr_file)
         if file_size > 250 * 1024 * 1024:
             logger.error(f"File {item.ocr_file} is larger than 250MB, using chunked upload")
-            return upload(item)
+            return upload(item, onedriveitem)
         file_size_kb = file_size / 1024
         file_size_mb = file_size_kb / 1024
         logger.debug(f"File size: {file_size} bytes ({file_size_kb:.2f} KB, {file_size_mb:.2f} MB)")
@@ -245,9 +245,10 @@ def upload_small(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
             webUrl = response.json().get("webUrl")
             if webUrl:
                 logger.debug(f"File is accessible at {webUrl}")
-                item.web_url.append(webUrl)
+                # Store the web URL in the OneDriveDestination object for later processing
+                onedriveitem.web_url = webUrl
+                # Only update the file name, web_url will be handled in batch by upload_service
                 update_scanneddata_database(item, {
-                        "web_url": ",".join(item.web_url),
                         "file_name": response.json().get("name", item.filename)
                     }
                 )
@@ -263,16 +264,16 @@ def upload_small(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=10, min=10, max=60))
-def upload(item: ProcessItem) -> bool:
+def upload(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
     try:
-        logger.info(f"Uploading file {item.ocr_file} to OneDrive")
+        logger.info(f"Uploading file {item.ocr_file} to OneDrive: {onedriveitem.remote_file_path}")
         access_token = get_access_token()
         if not access_token:
             logger.error("No access token available to upload file")
             return False
 
         file_size = os.path.getsize(item.ocr_file)
-        upload_session_url = f"https://graph.microsoft.com/v1.0/drives/{item.remote_drive_id}/items/{item.remote_folder_id}:/{item.filename}:/createUploadSession"
+        upload_session_url = f"https://graph.microsoft.com/v1.0/drives/{onedriveitem.remote_drive_id}/items/{onedriveitem.remote_folder_id}:/{item.filename}:/createUploadSession"
 
         # Create an upload session
         logger.debug(f"Creating upload session for {item.ocr_file} to {upload_session_url}")
@@ -322,9 +323,15 @@ def upload(item: ProcessItem) -> bool:
                     webUrl = chunk_response.json().get("webUrl")
                     if webUrl:
                         logger.debug(f"File is accessible at {webUrl}")
-                        update_scanneddata_database(item, {"web_url": webUrl, "remote_filepath": item.remote_file_path})
+                        # Store the web URL in the OneDriveDestination object for later processing
+                        onedriveitem.web_url = webUrl
+                        # Only update the file name, web_url will be handled in batch by upload_service
+                        update_scanneddata_database(item, {
+                            "file_name": chunk_response.json().get("name", item.filename)
+                        })
 
-        logger.info(f"File {item.ocr_file} uploaded successfully to {item.remote_file_path}")
+        logger.info(f"File {item.ocr_file} uploaded successfully to {onedriveitem.remote_file_path}")
+        return True
     except requests.exceptions.RequestException as e:
         logger.error(f"Request exception occurred during upload: {str(e)}")
     except Exception as e:

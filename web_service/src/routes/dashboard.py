@@ -157,6 +157,19 @@ def index():
                     pdf['status_progressbar'] = StatusProgressBar.get_progress(ProcessStatus(pdf['file_status']))
                 except Exception:
                     logger.exception(f"Failed setting progressbar for {pdf['id']}.")
+                
+                try:
+                    badges = []
+                    # Create main badge first
+                    count = 0
+                    badge = {
+                        "id": f"{pdf['id']}_badge_{count}",
+                        "title": f"{pdf['local_filepath']}",
+                        "url": pdf['web_url'][0] if pdf['web_url'] else None
+                    }
+                    badges.append(badge)
+                except Exception as ex:
+                    logger.exception(f"Failed setting badges for {pdf['id']}. {ex}")
 
         return render_template('dashboard.html',
                                pdfs=pdfs_dicts,

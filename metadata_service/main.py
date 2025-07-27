@@ -84,31 +84,31 @@ def on_created(filepaths: list):
         item.smb_target_ids = []
     update_scanneddata_database(item, {"file_status": item.status.value, "additional_smb": additional_smbs_str, "local_filepath": item.local_directory_above, "file_name": item.filename})
 
-    # Match a remote destination
+    # Match remote destinations in the correct order
     smb_names = [item.local_directory_above] + item.additional_remote_paths
-
-    if smb_names:
-        placeholders = ",".join("?" for _ in smb_names)
-        query = f"""
+    
+    # Query each SMB name individually to maintain order
+    for smb_name in smb_names:
+        query = """
             SELECT onedrive_path, folder_id, drive_id
             FROM smb_onedrive
-            WHERE smb_name IN ({placeholders})
+            WHERE smb_name = ?
         """
-        result = execute_query(query, tuple(smb_names), fetchall=True)
-    else:
-        result = []
-    if result:
-        for res in result:
-            item.OneDriveDestinations.append(
-                OneDriveDestination(
-                    remote_file_path=res.get("onedrive_path"),
-                    remote_folder_id=res.get("folder_id"),
-                    remote_drive_id=res.get("drive_id")
+        result = execute_query(query, (smb_name,), fetchall=True)
+        
+        if result:
+            for res in result:
+                item.OneDriveDestinations.append(
+                    OneDriveDestination(
+                        remote_file_path=res.get("onedrive_path"),
+                        remote_folder_id=res.get("folder_id"),
+                        remote_drive_id=res.get("drive_id")
+                    )
                 )
-            )
-            logger.debug(f"Found remote destination for {res}: {res.get("onedrive_path")}")
-    else:
-        logger.warning(f"Could not find remote destination for {item.local_directory_above}")
+                logger.debug(f"Found remote destination for {smb_name}: {res.get('onedrive_path')}")
+        else:
+            logger.warning(f"Could not find remote destination for {smb_name}")
+    
     update_scanneddata_database(item, {'remote_filepath': ",".join([dest.remote_file_path for dest in item.OneDriveDestinations])})
 
     logger.info(f"Waiting for {item.filename} to be a valid PDF or image file")
