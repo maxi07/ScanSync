@@ -87,7 +87,7 @@ def create_mock_settings_route():
         # Create a mock proxy-like object for the real flatten_settings function
         mock_proxy = MockProxy(mock_manager.settings)
         flat_settings = flatten_settings(mock_proxy)
-        
+
         # Simple template for testing
         template = "Settings: {{ settings }}"
         return render_template_string(template, settings=flat_settings)
@@ -357,7 +357,7 @@ def test_settings_advanced_post_invalid_int_value(client, app):
 def test_flatten_settings_function():
     """Test the flatten_settings function directly."""
     settings = SettingsSchema()
-    
+
     # Modify some settings to test flattening
     settings.file_naming.method = FileNamingMethod.OLLAMA
     settings.file_naming.openai_api_key = 'test-key'
@@ -365,7 +365,7 @@ def test_flatten_settings_function():
     settings.file_naming.ollama_server_port = 9999
     settings.onedrive.client_id = 'test-client'
     settings.onedrive.scope = ['Files.ReadWrite', 'User.Read']
-    
+
     # Create a mock proxy for the real function (like the real settings manager does)
     mock_proxy = MockProxy(settings)
 
@@ -377,7 +377,7 @@ def test_flatten_settings_function():
     assert 'file_naming.ollama_server_port' in flattened
     assert 'onedrive.client_id' in flattened
     assert 'onedrive.scope' in flattened
-    
+
     # Verify correct values
     assert flattened['file_naming.method'] == FileNamingMethod.OLLAMA
     assert flattened['file_naming.openai_api_key'] == 'test-key'
@@ -390,12 +390,12 @@ def test_flatten_settings_function():
 def test_flatten_settings_with_default_values():
     """Test flatten_settings with default values."""
     settings = SettingsSchema()  # All default values
-    
+
     # Create a mock proxy for the real function
     mock_proxy = MockProxy(settings)
-    
+
     flattened = flatten_settings(mock_proxy)
-    
+
     # Should contain all fields with their default values
     assert 'file_naming.method' in flattened
     assert flattened['file_naming.method'] == FileNamingMethod.NONE  # Default value
@@ -408,19 +408,19 @@ def test_flatten_settings_with_default_values():
 def test_flatten_settings_recursive_structure():
     """Test that flatten_settings correctly handles the recursive structure."""
     settings = SettingsSchema()
-    
+
     # Create a mock proxy for the real function
     mock_proxy = MockProxy(settings)
-    
+
     flattened = flatten_settings(mock_proxy)
-    
+
     # Verify that nested objects are flattened with dot notation
     file_naming_keys = [k for k in flattened.keys() if k.startswith('file_naming.')]
     onedrive_keys = [k for k in flattened.keys() if k.startswith('onedrive.')]
-    
+
     assert len(file_naming_keys) > 0
     assert len(onedrive_keys) > 0
-    
+
     # Should not contain non-dotted keys (except if there are top-level fields)
     for key in flattened.keys():
         if '.' not in key:
