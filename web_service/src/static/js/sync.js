@@ -420,7 +420,7 @@ function editPathMapping(id) {
     // Fill the form fields
     const smbTitle = smbBadgeElement.innerText;
     document.getElementById("local_path").value = smbTitle.trim();
-    document.getElementById("remote_path").value = remotePathElement.innerText || remotePathElement.textContent;
+    document.getElementById("remote_path").value = (remotePathElement.innerText || remotePathElement.textContent).trim();
     document.getElementById("old_smb_id").value = id;
     
     // Set button text to indicate editing mode
