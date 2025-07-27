@@ -5,7 +5,10 @@ let displayedCardIds = new Set();
 
 // Global function to get consistent badge colors based on SMB target ID
 function getBadgeColor(id) {
-    const idx = (id ? id - 1 : -1);
+    if (typeof id !== 'number' || !Number.isFinite(id)) {
+        return '#6c757d';
+    }
+    const idx = id - 1;
     if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && idx >= 0) {
         return smb_tag_colors[idx % smb_tag_colors.length];
     }
