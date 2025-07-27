@@ -25,13 +25,13 @@ RUN apt-get update && apt-get install -y \
 
 # Install Ghostscript 10.02.1 from source, as from APT 10.0 to 10.02 is unsupported
 WORKDIR /tmp
-RUN wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10050/ghostscript-10.05.0.tar.gz && \
-    tar -xzf ghostscript-10.05.0.tar.gz && \
-    cd ghostscript-10.05.0 && \
+RUN wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10051/ghostscript-10.05.1.tar.gz && \
+    tar -xzf ghostscript-10.05.1.tar.gz && \
+    cd ghostscript-10.05.1 && \
     ./configure && \
     make -j$(nproc) && \
     make install && \
-    cd .. && rm -rf ghostscript-10.05.0 ghostscript-10.05.0.tar.gz
+    cd .. && rm -rf ghostscript-10.05.1 ghostscript-10.05.1.tar.gz
 
 # Dependency for JBig2
 RUN apt-get update && apt-get install -y \
