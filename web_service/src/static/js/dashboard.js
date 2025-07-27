@@ -115,46 +115,32 @@ function updateCard(updateData) {
 
     // Update Local Filepath and Badges
     try {
-        if (updateData.local_filepath && updateData.local_filepath.trim() !== "") {
-            const element = document.getElementById(updateData.id + "_pdf_smb");
-            element.textContent = updateData.local_filepath;
-            element.innerHTML += "<br>";
-            
-            // Update all badges using server-side generated badge data
-            const cardElement = document.getElementById(updateData.id + '_pdf_card');
-            if (cardElement && updateData.badges && Array.isArray(updateData.badges)) {
+        // Update all badges using server-side generated badge data
+        const cardElement = document.getElementById(updateData.id + '_pdf_card');
+        if (cardElement && updateData.badges && Array.isArray(updateData.badges)) {
+            const badgesContainer = cardElement.querySelector('.smb-badges-container');
+            if (badgesContainer) {
+                // Clear existing badges
+                badgesContainer.innerHTML = '';
                 
-                //console.log(`[LIVE UPDATE] Updating ${updateData.badges.length} badges for PDF ${updateData.id}:`, JSON.stringify(updateData.badges, null, 2));
-                
-                const badgesContainer = cardElement.querySelector('.smb-badges-container');
-                if (badgesContainer) {
-                    // Clear existing badges
-                    badgesContainer.innerHTML = '';
+                // Add badges using server-generated data in original order
+                updateData.badges.forEach((badgeData) => {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge align-middle smb-badge';
+                    badge.id = badgeData.id;
+                    badge.style.backgroundColor = badgeData.color;
+                    badge.style.setProperty('background-color', badgeData.color, 'important');
+                    badge.style.color = getContrastYIQ(badgeData.color);
+                    badge.textContent = badgeData.text || 'N/A';
                     
-                    // Sort all badges alphabetically by text
-                    const sortedBadges = [...updateData.badges];
-                    sortedBadges.sort((a, b) => (a.text || '').toLowerCase().localeCompare((b.text || '').toLowerCase()));
+                    if (badgeData.url) {
+                        badge.style.cursor = 'pointer';
+                        badge.onclick = () => window.open(badgeData.url, '_blank');
+                        badge.title = badgeData.title || 'Open in OneDrive';
+                    }
                     
-                    //console.log(`[LIVE UPDATE] Sorted badges for PDF ${updateData.id}:`, JSON.stringify(sortedBadges, null, 2));
-                    
-                    // Add badges using server-generated data
-                    sortedBadges.forEach((badgeData) => {
-                        const badge = document.createElement('span');
-                        badge.className = 'badge align-middle smb-badge';
-                        badge.id = badgeData.id;
-                        badge.style.backgroundColor = badgeData.color;
-                        badge.style.color = getContrastYIQ(badgeData.color);
-                        badge.textContent = badgeData.text || 'N/A';
-                        
-                        if (badgeData.url) {
-                            badge.style.cursor = 'pointer';
-                            badge.onclick = () => window.open(badgeData.url, '_blank');
-                            badge.title = badgeData.title || 'Open in OneDrive';
-                        }
-                        
-                        badgesContainer.appendChild(badge);
-                    });
-                }
+                    badgesContainer.appendChild(badge);
+                });
             }
         }
     } catch (error) {
@@ -162,51 +148,8 @@ function updateCard(updateData) {
     }
 
     // Update Cloud Link (URLs are now handled in badges, but keep for backward compatibility)
-    try {
-        // URLs and click handlers are now managed server-side in badges
-        // This section can be simplified or removed in future versions
-        const urls = Array.isArray(updateData.web_url)
-            ? updateData.web_url
-            : (updateData.web_url || '').split(',').map(s => s.trim()).filter(Boolean);
-        
-        if (urls.length > 0 && !updateData.badges) {
-            // Only handle URLs manually if badges aren't provided (backward compatibility)
-            const remote_filepaths = typeof updateData.remote_filepath === 'string'
-                ? updateData.remote_filepath.split(',').map(s => s.trim()).filter(Boolean)
-                : (Array.isArray(updateData.remote_filepath) ? updateData.remote_filepath : []);
-
-            const mainBadge = document.getElementById(updateData.id + "_pdf_smb");
-            if (mainBadge && urls[0]) {
-                mainBadge.style.cursor = 'pointer';
-                mainBadge.onclick = () => window.open(urls[0], '_blank');
-                mainBadge.title = remote_filepaths[0] || 'Open in OneDrive';
-            }
-
-            const allSmbBadges = cardElement.querySelectorAll('.smb-badge');
-            let additionalUrlIndex = 1;
-            
-            allSmbBadges.forEach((badge) => {
-                if (badge.id === updateData.id + "_pdf_smb") return;
-                
-                const url = urls[additionalUrlIndex];
-                const remote_filepath = remote_filepaths[additionalUrlIndex];
-                
-                if (url) {
-                    badge.style.cursor = 'pointer';
-                    badge.onclick = () => window.open(url, '_blank');
-                    badge.title = remote_filepath || 'Open in OneDrive';
-                } else {
-                    badge.onclick = null;
-                    badge.style.cursor = '';
-                    badge.title = '';
-                }
-                
-                additionalUrlIndex++;
-            });
-        }
-    } catch (error) {
-        console.error(`Error updating cloud link: ${error.message}`);
-    }
+    // This section is now disabled since server-side badges are being used
+    // The server-generated badges already contain all URL and click handler information
 
 
     // Update File Status
@@ -402,6 +345,7 @@ function addPdfCard(pdfData) {
         badge.className = 'badge align-middle smb-badge';
         badge.id = badgeData.id;
         badge.style.backgroundColor = badgeData.color;
+        badge.style.setProperty('background-color', badgeData.color, 'important');
         badge.style.color = getContrastYIQ(badgeData.color);
         badge.textContent = badgeData.text || 'N/A';
         
@@ -416,20 +360,12 @@ function addPdfCard(pdfData) {
 
     // Use server-generated badges if available
     if (pdfData.badges && Array.isArray(pdfData.badges)) {
-        //console.log(`[INITIAL LOAD] Adding ${pdfData.badges.length} badges for PDF ${pdfData.id}:`, JSON.stringify(pdfData.badges, null, 2));
-        
-        // Sort all badges alphabetically by text
-        const sortedBadges = [...pdfData.badges];
-        sortedBadges.sort((a, b) => (a.text || '').toLowerCase().localeCompare((b.text || '').toLowerCase()));
-        
-        //console.log(`[INITIAL LOAD] Sorted badges for PDF ${pdfData.id}:`, JSON.stringify(sortedBadges, null, 2));
-        
-        sortedBadges.forEach((badgeData) => {
+        pdfData.badges.forEach((badgeData) => {
             const badge = createBadgeFromData(badgeData);
             badgesContainer.appendChild(badge);
         });
     } else {
-        //console.log(`[INITIAL LOAD] No server badges found for PDF ${pdfData.id}, using fallback logic`);
+        console.log(`[INITIAL LOAD] No server badges found for PDF ${pdfData.id}, using fallback logic`);
         // Fallback to old client-side generation logic
         const urls = Array.isArray(pdfData.web_url)
             ? pdfData.web_url

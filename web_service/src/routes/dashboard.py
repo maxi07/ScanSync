@@ -7,7 +7,6 @@ from scansynclib.config import config
 from datetime import datetime
 import locale
 import sqlite3
-import json
 
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -187,84 +186,43 @@ def index():
                     logger.exception(f"Failed setting progressbar for {pdf['id']}.")
 
                 try:
+                    # Import the unified badge generator
+                    from badge_generator import generate_badges
+
                     # Generate badges with complete information server-side
-                    badges = []
+                    smb_target_ids = pdf.get('smb_target_ids', [])
 
-                    # Process smb_target_ids if available (new structure)
-                    if pdf.get('smb_target_ids'):
-                        target_ids = pdf['smb_target_ids']
-                        if isinstance(target_ids, str):
-                            try:
-                                target_ids = json.loads(target_ids)
-                            except (json.JSONDecodeError, TypeError):
-                                target_ids = []
+                    # Parse web_url and remote_filepath
+                    web_urls = pdf.get('web_url', [])
+                    if isinstance(web_urls, str):
+                        web_urls = [url.strip() for url in web_urls.split(',') if url.strip()]
+                    elif not isinstance(web_urls, list):
+                        web_urls = []
 
-                        # Main badge (first in target_ids)
-                        if target_ids and len(target_ids) > 0:
-                            main_target = target_ids[0]
-                            color_index = (main_target.get('id', 1) - 1) if isinstance(main_target, dict) else (main_target - 1)
-                            color = SMB_TAG_COLORS[color_index % len(SMB_TAG_COLORS)] if color_index >= 0 else '#6c757d'
+                    remote_paths = pdf.get('remote_filepath', [])
+                    if isinstance(remote_paths, str):
+                        remote_paths = [path.strip() for path in remote_paths.split(',') if path.strip()]
+                    elif not isinstance(remote_paths, list):
+                        remote_paths = []
 
-                            web_urls = pdf.get('web_url', [])
-                            if isinstance(web_urls, str):
-                                web_urls = [url.strip() for url in web_urls.split(',') if url.strip()]
-                            elif not isinstance(web_urls, list):
-                                web_urls = []
+                    # Get additional SMB names
+                    additional_smb = pdf.get('additional_smb', [])
+                    if isinstance(additional_smb, str):
+                        additional_smb = [name.strip() for name in additional_smb.split(',') if name.strip()]
+                    elif not isinstance(additional_smb, list):
+                        additional_smb = []
 
-                            remote_paths = pdf.get('remote_filepath', [])
-                            if isinstance(remote_paths, str):
-                                remote_paths = [path.strip() for path in remote_paths.split(',') if path.strip()]
-                            elif not isinstance(remote_paths, list):
-                                remote_paths = []
-
-                            main_badge = {
-                                "id": f"{pdf['id']}_pdf_smb",
-                                "text": pdf.get('local_filepath', 'N/A'),
-                                "color": color,
-                                "url": web_urls[0] if web_urls else None,
-                                "title": remote_paths[0] if remote_paths else 'Open in OneDrive'
-                            }
-                            badges.append(main_badge)
-
-                            # Additional badges
-                            additional_smb = pdf.get('additional_smb', [])
-                            if isinstance(additional_smb, str):
-                                additional_smb = [name.strip() for name in additional_smb.split(',') if name.strip()]
-                            elif not isinstance(additional_smb, list):
-                                additional_smb = []
-
-                            for i, target in enumerate(target_ids[1:], 1):  # Skip first element
-                                target_id = target.get('id') if isinstance(target, dict) else target
-                                color_index = (target_id - 1) if target_id else -1
-                                color = SMB_TAG_COLORS[color_index % len(SMB_TAG_COLORS)] if color_index >= 0 else '#6c757d'
-
-                                # Use i-1 to correctly index into additional_smb array
-                                additional_badge = {
-                                    "id": f"{pdf['id']}_badge_{i}",
-                                    "text": additional_smb[i-1] if i-1 < len(additional_smb) else 'N/A',
-                                    "color": color,
-                                    "url": web_urls[i] if i < len(web_urls) else None,
-                                    "title": remote_paths[i] if i < len(remote_paths) else 'Open in OneDrive'
-                                }
-                                badges.append(additional_badge)
-                    else:
-                        # Fallback to old structure
-                        main_target_id = pdf.get('smb_target_id')
-                        if main_target_id:
-                            color_index = (main_target_id - 1)
-                            color = SMB_TAG_COLORS[color_index % len(SMB_TAG_COLORS)] if color_index >= 0 else '#6c757d'
-
-                            main_badge = {
-                                "id": f"{pdf['id']}_pdf_smb",
-                                "text": pdf.get('local_filepath', 'N/A'),
-                                "color": color,
-                                "url": None,
-                                "title": 'Open in OneDrive'
-                            }
-                            badges.append(main_badge)
+                    # Generate badges using unified function
+                    badges = generate_badges(
+                        pdf_id=pdf['id'],
+                        smb_target_ids=smb_target_ids,
+                        local_filepath=pdf.get('local_filepath', 'N/A'),
+                        additional_smb_names=additional_smb,
+                        web_urls=web_urls,
+                        remote_paths=remote_paths
+                    )
 
                     pdf['badges'] = badges
-                    logger.debug(f"Generated badges for PDF {pdf['id']}: {badges}")
 
                 except Exception as ex:
                     logger.exception(f"Failed setting badges for {pdf['id']}. {ex}")

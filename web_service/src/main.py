@@ -55,50 +55,23 @@ def rabbitmq_listener():
         if connected_clients > 0:
             item: ProcessItem = pickle.loads(body)
 
-            # Import here to avoid circular imports
-            from scansynclib.helpers import SMB_TAG_COLORS
+            # Import unified badge generator
+            from badge_generator import generate_badges
 
-            # Generate badges server-side
-            badges = []
-            if hasattr(item, 'smb_target_ids') and item.smb_target_ids:
-                target_ids = item.smb_target_ids
+            # Prepare data for unified badge generation
+            web_urls = [dest.web_url for dest in item.OneDriveDestinations if dest.web_url] if item.OneDriveDestinations else []
+            remote_paths = [dest.remote_file_path for dest in item.OneDriveDestinations] if item.OneDriveDestinations else []
+            additional_smb = item.additional_remote_paths or []
 
-                # Main badge (first in target_ids)
-                if target_ids and len(target_ids) > 0:
-                    main_target = target_ids[0]
-                    target_id = main_target.get('id') if isinstance(main_target, dict) else main_target
-                    color_index = (target_id - 1) if target_id else -1
-                    color = SMB_TAG_COLORS[color_index % len(SMB_TAG_COLORS)] if color_index >= 0 else '#6c757d'
-
-                    web_urls = [dest.web_url for dest in item.OneDriveDestinations if dest.web_url] if item.OneDriveDestinations else []
-                    remote_paths = [dest.remote_file_path for dest in item.OneDriveDestinations] if item.OneDriveDestinations else []
-
-                    main_badge = {
-                        "id": f"{item.db_id}_pdf_smb",
-                        "text": item.local_directory_above or 'N/A',
-                        "color": color,
-                        "url": web_urls[0] if web_urls else None,
-                        "title": remote_paths[0] if remote_paths else 'Open in OneDrive'
-                    }
-                    badges.append(main_badge)
-
-                    # Additional badges
-                    additional_smb = item.additional_remote_paths or []
-                    for i, target in enumerate(target_ids[1:], 1):  # Skip first element
-                        target_id = target.get('id') if isinstance(target, dict) else target
-                        color_index = (target_id - 1) if target_id else -1
-                        color = SMB_TAG_COLORS[color_index % len(SMB_TAG_COLORS)] if color_index >= 0 else '#6c757d'
-
-                        additional_badge = {
-                            "id": f"{item.db_id}_badge_{i}",
-                            "text": additional_smb[i-1] if i-1 < len(additional_smb) else 'N/A',
-                            "color": color,
-                            "url": web_urls[i] if i < len(web_urls) else None,
-                            "title": remote_paths[i] if i < len(remote_paths) else 'Open in OneDrive'
-                        }
-                        badges.append(additional_badge)
-
-            logger.debug(f"Generated badges for SSE update {item.db_id}: {badges}")
+            # Generate badges using unified function
+            badges = generate_badges(
+                pdf_id=item.db_id,
+                smb_target_ids=item.smb_target_ids or [],
+                local_filepath=item.local_directory_above,
+                additional_smb_names=additional_smb,
+                web_urls=web_urls,
+                remote_paths=remote_paths
+            )
 
             payload = dict(
                 id=item.db_id,
