@@ -49,6 +49,20 @@ def start_processing(item: ProcessItem):
         update_scanneddata_database(item, {"file_status": item.status.value})
         res = upload_small(item, onedriveitem)
         results.append(res)
+
+    # Collect all web URLs in the correct order after all uploads are completed
+    web_urls = []
+    for onedriveitem in item.OneDriveDestinations:
+        if hasattr(onedriveitem, 'web_url') and onedriveitem.web_url:
+            web_urls.append(onedriveitem.web_url)
+        else:
+            web_urls.append("")  # Empty placeholder to maintain order
+
+    # Update the database with all web URLs in the correct order
+    if web_urls:
+        update_scanneddata_database(item, {'web_url': ",".join(web_urls)})
+        logger.debug(f"Updated web URLs in correct order: {web_urls}")
+
     res = all(results)
     if res is False:
         logger.error(f"Failed to upload {item.ocr_file}")

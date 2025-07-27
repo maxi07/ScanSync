@@ -86,24 +86,51 @@ def index():
                 latest_timestamp_processing = None
                 latest_timestamp_completed = None
 
-            # Match additional SMB targets
+            # Match additional SMB targets and create smb_target_ids structure
             new_pdfs = []
             for pdf in pdfs:
                 pdf = dict(pdf)  # Make mutable
 
+                # Build smb_target_ids structure for consistent badge generation
+                smb_target_ids = []
+
+                # Add main SMB target (from local_filepath)
+                if pdf.get('smb_target_id'):
+                    smb_target_ids.append({'id': pdf['smb_target_id']})
+
+                # Process additional SMB targets
                 names = [s.strip() for s in (pdf.get('smb_additional_target_ids') or '').split(',') if s.strip()]
+                additional_target_ids = []
+                additional_names = []
+
                 if names:
                     placeholders = ','.join('?' * len(names))
                     rows = db.execute(
-                        f"SELECT id FROM smb_onedrive WHERE smb_name IN ({placeholders})",
+                        f"SELECT id, smb_name FROM smb_onedrive WHERE smb_name IN ({placeholders})",
                         names
                     ).fetchall()
-                    # Extract IDs
-                    matched_ids = [str(row['id']) for row in rows]
-                    matched_ids.reverse()
-                    pdf['smb_additional_target_ids'] = ','.join(matched_ids)
+
+                    # Maintain the original order of names
+                    for name in names:
+                        for row in rows:
+                            if row['smb_name'] == name:
+                                additional_target_ids.append(row['id'])
+                                additional_names.append(row['smb_name'])
+                                break
+
+                    # Store matched IDs and names in correct order
+                    pdf['smb_additional_target_ids'] = ','.join(str(id) for id in additional_target_ids)
+                    pdf['additional_smb'] = additional_names
+
+                    # Add additional targets to smb_target_ids (maintaining order)
+                    for target_id in additional_target_ids:
+                        smb_target_ids.append({'id': target_id})
                 else:
                     pdf['smb_additional_target_ids'] = ''
+                    pdf['additional_smb'] = []
+
+                # Set the smb_target_ids structure
+                pdf['smb_target_ids'] = smb_target_ids
                 new_pdfs.append(pdf)
 
             pdfs = new_pdfs
@@ -157,6 +184,49 @@ def index():
                     pdf['status_progressbar'] = StatusProgressBar.get_progress(ProcessStatus(pdf['file_status']))
                 except Exception:
                     logger.exception(f"Failed setting progressbar for {pdf['id']}.")
+
+                try:
+                    # Import the unified badge generator
+                    from badge_generator import generate_badges
+
+                    # Generate badges with complete information server-side
+                    smb_target_ids = pdf.get('smb_target_ids', [])
+
+                    # Parse web_url and remote_filepath
+                    web_urls = pdf.get('web_url', [])
+                    if isinstance(web_urls, str):
+                        web_urls = [url.strip() for url in web_urls.split(',') if url.strip()]
+                    elif not isinstance(web_urls, list):
+                        web_urls = []
+
+                    remote_paths = pdf.get('remote_filepath', [])
+                    if isinstance(remote_paths, str):
+                        remote_paths = [path.strip() for path in remote_paths.split(',') if path.strip()]
+                    elif not isinstance(remote_paths, list):
+                        remote_paths = []
+
+                    # Get additional SMB names
+                    additional_smb = pdf.get('additional_smb', [])
+                    if isinstance(additional_smb, str):
+                        additional_smb = [name.strip() for name in additional_smb.split(',') if name.strip()]
+                    elif not isinstance(additional_smb, list):
+                        additional_smb = []
+
+                    # Generate badges using unified function
+                    badges = generate_badges(
+                        pdf_id=pdf['id'],
+                        smb_target_ids=smb_target_ids,
+                        local_filepath=pdf.get('local_filepath', 'N/A'),
+                        additional_smb_names=additional_smb,
+                        web_urls=web_urls,
+                        remote_paths=remote_paths
+                    )
+
+                    pdf['badges'] = badges
+
+                except Exception as ex:
+                    logger.exception(f"Failed setting badges for {pdf['id']}. {ex}")
+                    pdf['badges'] = []
 
         return render_template('dashboard.html',
                                pdfs=pdfs_dicts,

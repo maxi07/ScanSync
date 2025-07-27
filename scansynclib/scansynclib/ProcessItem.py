@@ -116,6 +116,7 @@ class OneDriveDestination:
         self.remote_directory = None
         self.remote_folder_id = remote_folder_id
         self.remote_drive_id = remote_drive_id
+        self.web_url = None  # Will be set after successful upload
 
 
 class ProcessItem:

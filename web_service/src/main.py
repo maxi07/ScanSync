@@ -54,6 +54,25 @@ def rabbitmq_listener():
     def callback(ch, method, properties, body):
         if connected_clients > 0:
             item: ProcessItem = pickle.loads(body)
+
+            # Import unified badge generator
+            from badge_generator import generate_badges
+
+            # Prepare data for unified badge generation
+            web_urls = [dest.web_url for dest in item.OneDriveDestinations if dest.web_url] if item.OneDriveDestinations else []
+            remote_paths = [dest.remote_file_path for dest in item.OneDriveDestinations] if item.OneDriveDestinations else []
+            additional_smb = item.additional_remote_paths or []
+
+            # Generate badges using unified function
+            badges = generate_badges(
+                pdf_id=item.db_id,
+                smb_target_ids=item.smb_target_ids or [],
+                local_filepath=item.local_directory_above,
+                additional_smb_names=additional_smb,
+                web_urls=web_urls,
+                remote_paths=remote_paths
+            )
+
             payload = dict(
                 id=item.db_id,
                 file_name=item.filename,
@@ -63,11 +82,12 @@ def rabbitmq_listener():
                 remote_filepaths=[dest.remote_file_path for dest in item.OneDriveDestinations] if item.OneDriveDestinations else [],
                 pdf_pages=int(item.pdf_pages) if item.pdf_pages is not None else 0,
                 status_progressbar=int(StatusProgressBar.get_progress(item.status)),
-                web_url=item.web_url,
+                web_url=[dest.web_url for dest in item.OneDriveDestinations if dest.web_url] if item.OneDriveDestinations else [],
                 smb_target_ids=item.smb_target_ids,
                 additional_smb=item.additional_remote_paths,
                 currently_uploading=item.current_uploading,
                 current_upload_target=item.current_upload_target,
+                badges=badges,  # Add the generated badges
             )
             payload["dashboard_data"] = get_dashboard_info()  # Nur bei Bedarf abrufen
             sse_queue.put(json.dumps(payload, default=str))  # Ensure all objects are serializable
