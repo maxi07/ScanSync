@@ -460,7 +460,9 @@ function fetchPathMappingDetails(id) {
                 }
                 
                 // If the OneDrive browser is currently visible, update the selection
-                updateOneDriveBrowserSelection(data.folder_id);
+                if (currentOneDriveSelectedID) {
+                    updateOneDriveBrowserSelection(currentOneDriveSelectedID);
+                }
                 
             } else {
                 console.error("Failed to fetch path mapping details:", xhr.responseText);
