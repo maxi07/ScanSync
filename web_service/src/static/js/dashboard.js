@@ -3,6 +3,15 @@
 // Set to track which card IDs have been displayed to avoid race condition issues
 let displayedCardIds = new Set();
 
+// Global function to get consistent badge colors based on SMB target ID
+function getBadgeColor(id) {
+    const idx = (id ? id - 1 : -1);
+    if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && idx >= 0) {
+        return smb_tag_colors[idx % smb_tag_colors.length];
+    }
+    return '#6c757d';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('top-progress-bar').style.display = 'block';
     console.log("Creating " + pdfsData.length + " pdf cards.");
@@ -104,76 +113,62 @@ function updateCard(updateData) {
         console.error(`Error updating image: ${error.message}`);
     }
 
-    // Update Local Filepath
+    // Update Local Filepath and Badges
     try {
         if (updateData.local_filepath && updateData.local_filepath.trim() !== "") {
             const element = document.getElementById(updateData.id + "_pdf_smb");
             element.textContent = updateData.local_filepath;
             element.innerHTML += "<br>";
             
-            // Update all badge colors to match the initial load logic
+            // Update all badges using server-side generated badge data
             const cardElement = document.getElementById(updateData.id + '_pdf_card');
-            if (cardElement && Array.isArray(updateData.smb_target_ids)) {
+            if (cardElement && updateData.badges && Array.isArray(updateData.badges)) {
                 
-                // Helper function to get badge color (same as in addPdfCard)
-                const getBadgeColor = (id) => {
-                    const idx = (id ? id - 1 : -1);
-                    if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && idx >= 0) {
-                        return smb_tag_colors[idx % smb_tag_colors.length];
-                    }
-                    return '#6c757d';
-                };
+                console.log(`Updating ${updateData.badges.length} badges for PDF ${updateData.id}:`, updateData.badges);
                 
-                const allSmbBadges = cardElement.querySelectorAll('.smb-badge');
-                
-                // Create mapping based on badge content and SMB data
-                // The order should match exactly how addPdfCard creates them
-                allSmbBadges.forEach((badge) => {
-                    let targetId = null;
+                const badgesContainer = cardElement.querySelector('.smb-badges-container');
+                if (badgesContainer) {
+                    // Clear existing badges
+                    badgesContainer.innerHTML = '';
                     
-                    // Main badge (has specific ID and contains local_filepath)
-                    if (badge.id === updateData.id + "_pdf_smb") {
-                        targetId = updateData.smb_target_ids[0]?.id;
-                    } else {
-                        // For additional badges, match by content
-                        const badgeText = badge.textContent.trim();
+                    // Add badges using server-generated data
+                    updateData.badges.forEach((badgeData) => {
+                        const badge = document.createElement('span');
+                        badge.className = 'badge align-middle smb-badge';
+                        badge.id = badgeData.id;
+                        badge.style.backgroundColor = badgeData.color;
+                        badge.style.color = getContrastYIQ(badgeData.color);
+                        badge.textContent = badgeData.text || 'N/A';
                         
-                        // Find this badge text in additional_smb array
-                        const additionalIndex = updateData.additional_smb?.findIndex(name => name.trim() === badgeText);
-                        
-                        if (additionalIndex !== -1 && additionalIndex < updateData.smb_target_ids.length - 1) {
-                            // Get the corresponding SMB target ID (offset by 1 because index 0 is main badge)
-                            targetId = updateData.smb_target_ids[additionalIndex + 1]?.id;
+                        if (badgeData.url) {
+                            badge.style.cursor = 'pointer';
+                            badge.onclick = () => window.open(badgeData.url, '_blank');
+                            badge.title = badgeData.title || 'Open in OneDrive';
                         }
-                    }
-                    
-                    // Apply color if we found a target ID
-                    if (targetId) {
-                        const badgeColor = getBadgeColor(targetId);
-                        const textColor = getContrastYIQ(badgeColor);
-                        badge.style.backgroundColor = badgeColor;
-                        badge.style.color = textColor;
-                    }
-                });
+                        
+                        badgesContainer.appendChild(badge);
+                    });
+                }
             }
         }
     } catch (error) {
-        console.error(`Error updating local filepath: ${error.message}`);
+        console.error(`Error updating local filepath and badges: ${error.message}`);
     }
 
-    // Update Cloud Link
+    // Update Cloud Link (URLs are now handled in badges, but keep for backward compatibility)
     try {
+        // URLs and click handlers are now managed server-side in badges
+        // This section can be simplified or removed in future versions
         const urls = Array.isArray(updateData.web_url)
             ? updateData.web_url
             : (updateData.web_url || '').split(',').map(s => s.trim()).filter(Boolean);
         
-        // Parse remote_filepaths as an array, splitting by comma if it's a string
-        const remote_filepaths = typeof updateData.remote_filepath === 'string'
-            ? updateData.remote_filepath.split(',').map(s => s.trim()).filter(Boolean)
-            : (Array.isArray(updateData.remote_filepath) ? updateData.remote_filepath : []);
+        if (urls.length > 0 && !updateData.badges) {
+            // Only handle URLs manually if badges aren't provided (backward compatibility)
+            const remote_filepaths = typeof updateData.remote_filepath === 'string'
+                ? updateData.remote_filepath.split(',').map(s => s.trim()).filter(Boolean)
+                : (Array.isArray(updateData.remote_filepath) ? updateData.remote_filepath : []);
 
-        if (urls.length > 0) {
-            // Find and update the main SMB badge (has the specific ID)
             const mainBadge = document.getElementById(updateData.id + "_pdf_smb");
             if (mainBadge && urls[0]) {
                 mainBadge.style.cursor = 'pointer';
@@ -181,15 +176,12 @@ function updateCard(updateData) {
                 mainBadge.title = remote_filepaths[0] || 'Open in OneDrive';
             }
 
-            // Get all SMB badges and update additional ones
             const allSmbBadges = cardElement.querySelectorAll('.smb-badge');
-            let additionalUrlIndex = 1; // Start from index 1 for additional URLs
+            let additionalUrlIndex = 1;
             
             allSmbBadges.forEach((badge) => {
-                // Skip the main badge as it's handled separately
                 if (badge.id === updateData.id + "_pdf_smb") return;
                 
-                // This is an additional badge, assign the next URL
                 const url = urls[additionalUrlIndex];
                 const remote_filepath = remote_filepaths[additionalUrlIndex];
                 
@@ -398,65 +390,99 @@ function addPdfCard(pdfData) {
     badgesContainer.style.alignItems = 'center';
     smbContainer.appendChild(badgesContainer);
 
-    // Helper to choose color
-    const getBadgeColor = (id) => {
-        const idx = (id ? id - 1 : -1);
-        if (Array.isArray(smb_tag_colors) && smb_tag_colors.length > 0 && idx >= 0) {
-            return smb_tag_colors[idx % smb_tag_colors.length];
-        }
-        return '#6c757d';
-    };
-
-    // Helper to create badge
-    const createBadge = (text, color, url, remote_filepath) => {
+    // Helper to create badge from server data
+    const createBadgeFromData = (badgeData) => {
         const badge = document.createElement('span');
         badge.className = 'badge align-middle smb-badge';
-        badge.style.backgroundColor = color;
-        badge.style.color = getContrastYIQ(color);
-        badge.textContent = text || 'N/A';
-        if (url) {
+        badge.id = badgeData.id;
+        badge.style.backgroundColor = badgeData.color;
+        badge.style.color = getContrastYIQ(badgeData.color);
+        badge.textContent = badgeData.text || 'N/A';
+        
+        if (badgeData.url) {
             badge.style.cursor = 'pointer';
-            badge.onclick = () => window.open(url, '_blank');
-            badge.title = remote_filepath || 'Open in OneDrive';
+            badge.onclick = () => window.open(badgeData.url, '_blank');
+            badge.title = badgeData.title || 'Open in OneDrive';
         }
-
+        
         return badge;
     };
 
-    // Add additional SMB badges
-    const additionalIds = (pdfData.smb_additional_target_ids || '')
-        .split(',')
-        .map(s => parseInt(s.trim(), 10))
-        .filter(id => !isNaN(id));
-
-    const urls = Array.isArray(pdfData.web_url)
-        ? pdfData.web_url
-        : (pdfData.web_url || '').split(',').map(s => s.trim()).filter(Boolean);
-    
-    // Parse remote_filepaths as an array, splitting by comma if it's a string
-    const remote_filepaths = typeof pdfData.remote_filepath === 'string'
-        ? pdfData.remote_filepath.split(',').map(s => s.trim()).filter(Boolean)
-        : (Array.isArray(pdfData.remote_filepath) ? pdfData.remote_filepath : []);
-    additionalIds.forEach((id, i) => {
-        const name = (pdfData.additional_smb || '').split(',')[i]?.trim() || 'N/A';
-        const color = getBadgeColor(id);
-        badgesContainer.appendChild(createBadge(name, color, urls[i + 1]?.trim(), remote_filepaths[i + 1]?.trim()));
-    });
-
-    // Add main SMB badge
-    const mainColor = getBadgeColor(pdfData.smb_target_id);
-    const mainName = pdfData.local_filepath || 'N/A';
-    const mainBadge = createBadge(mainName, mainColor, urls[0]?.trim(), remote_filepaths[0]?.trim());
-    mainBadge.id = `${pdfData.id}_pdf_smb`;
-    badgesContainer.appendChild(mainBadge);
-
-    // Add additional SMB targets
-    if (Array.isArray(pdfData.smb_target_ids) && pdfData.smb_target_ids.length > 0) {
-        pdfData.smb_target_ids.forEach((smbTarget, index) => {
-            if (index === 0) return;
-            const smbBadge = createBadge(pdfData.additional_smb[index - 1], getBadgeColor(smbTarget.id));
-            badgesContainer.appendChild(smbBadge);
+    // Use server-generated badges if available
+    if (pdfData.badges && Array.isArray(pdfData.badges)) {
+        console.log(`Adding ${pdfData.badges.length} badges for PDF ${pdfData.id}:`, pdfData.badges);
+        pdfData.badges.forEach((badgeData) => {
+            const badge = createBadgeFromData(badgeData);
+            badgesContainer.appendChild(badge);
         });
+    } else {
+        // Fallback to old client-side generation logic
+        const urls = Array.isArray(pdfData.web_url)
+            ? pdfData.web_url
+            : (pdfData.web_url || '').split(',').map(s => s.trim()).filter(Boolean);
+        
+        // Parse remote_filepaths as an array, splitting by comma if it's a string
+        const remote_filepaths = typeof pdfData.remote_filepath === 'string'
+            ? pdfData.remote_filepath.split(',').map(s => s.trim()).filter(Boolean)
+            : (Array.isArray(pdfData.remote_filepath) ? pdfData.remote_filepath : []);
+
+        // Helper to create badge (fallback)
+        const createBadge = (text, color, url, remote_filepath) => {
+            const badge = document.createElement('span');
+            badge.className = 'badge align-middle smb-badge';
+            badge.style.backgroundColor = color;
+            badge.style.color = getContrastYIQ(color);
+            badge.textContent = text || 'N/A';
+            if (url) {
+                badge.style.cursor = 'pointer';
+                badge.onclick = () => window.open(url, '_blank');
+                badge.title = remote_filepath || 'Open in OneDrive';
+            }
+            return badge;
+        };
+
+        // Use the new smb_target_ids structure for consistent badge creation
+        if (Array.isArray(pdfData.smb_target_ids) && pdfData.smb_target_ids.length > 0) {
+            // Add main SMB badge (first in smb_target_ids)
+            const mainColor = getBadgeColor(pdfData.smb_target_ids[0]?.id);
+            const mainName = pdfData.local_filepath || 'N/A';
+            const mainBadge = createBadge(mainName, mainColor, urls[0]?.trim(), remote_filepaths[0]?.trim());
+            mainBadge.id = `${pdfData.id}_pdf_smb`;
+            badgesContainer.appendChild(mainBadge);
+
+            // Add additional SMB badges (rest of smb_target_ids)
+            pdfData.smb_target_ids.forEach((smbTarget, index) => {
+                if (index === 0) return; // Skip main badge
+                const additionalName = pdfData.additional_smb?.[index - 1] || 'N/A';
+                const additionalColor = getBadgeColor(smbTarget.id);
+                const additionalBadge = createBadge(
+                    additionalName, 
+                    additionalColor, 
+                    urls[index]?.trim(), 
+                    remote_filepaths[index]?.trim()
+                );
+                badgesContainer.appendChild(additionalBadge);
+            });
+        } else {
+            // Fallback to old structure if smb_target_ids is not available
+            const mainColor = getBadgeColor(pdfData.smb_target_id);
+            const mainName = pdfData.local_filepath || 'N/A';
+            const mainBadge = createBadge(mainName, mainColor, urls[0]?.trim(), remote_filepaths[0]?.trim());
+            mainBadge.id = `${pdfData.id}_pdf_smb`;
+            badgesContainer.appendChild(mainBadge);
+
+            // Add additional badges from old structure
+            const additionalIds = (pdfData.smb_additional_target_ids || '')
+                .split(',')
+                .map(s => parseInt(s.trim(), 10))
+                .filter(id => !isNaN(id));
+            
+            additionalIds.forEach((id, i) => {
+                const name = (pdfData.additional_smb || '').split(',')[i]?.trim() || 'N/A';
+                const color = getBadgeColor(id);
+                badgesContainer.appendChild(createBadge(name, color, urls[i + 1]?.trim(), remote_filepaths[i + 1]?.trim()));
+            });
+        }
     }
 
     let statusText = document.createElement('span');

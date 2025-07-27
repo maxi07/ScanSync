@@ -54,6 +54,52 @@ def rabbitmq_listener():
     def callback(ch, method, properties, body):
         if connected_clients > 0:
             item: ProcessItem = pickle.loads(body)
+            
+            # Import here to avoid circular imports
+            from scansynclib.helpers import SMB_TAG_COLORS
+            
+            # Generate badges server-side
+            badges = []
+            if hasattr(item, 'smb_target_ids') and item.smb_target_ids:
+                target_ids = item.smb_target_ids
+                
+                # Main badge (first in target_ids)
+                if target_ids and len(target_ids) > 0:
+                    main_target = target_ids[0]
+                    target_id = main_target.get('id') if isinstance(main_target, dict) else main_target
+                    color_index = (target_id - 1) if target_id else -1
+                    color = SMB_TAG_COLORS[color_index % len(SMB_TAG_COLORS)] if color_index >= 0 else '#6c757d'
+                    
+                    web_urls = [dest.web_url for dest in item.OneDriveDestinations if dest.web_url] if item.OneDriveDestinations else []
+                    remote_paths = [dest.remote_file_path for dest in item.OneDriveDestinations] if item.OneDriveDestinations else []
+                    
+                    main_badge = {
+                        "id": f"{item.db_id}_pdf_smb",
+                        "text": item.local_directory_above or 'N/A',
+                        "color": color,
+                        "url": web_urls[0] if web_urls else None,
+                        "title": remote_paths[0] if remote_paths else 'Open in OneDrive'
+                    }
+                    badges.append(main_badge)
+                    
+                    # Additional badges
+                    additional_smb = item.additional_remote_paths or []
+                    for i, target in enumerate(target_ids[1:], 1):  # Skip first element
+                        target_id = target.get('id') if isinstance(target, dict) else target
+                        color_index = (target_id - 1) if target_id else -1
+                        color = SMB_TAG_COLORS[color_index % len(SMB_TAG_COLORS)] if color_index >= 0 else '#6c757d'
+                        
+                        additional_badge = {
+                            "id": f"{item.db_id}_badge_{i}",
+                            "text": additional_smb[i-1] if i-1 < len(additional_smb) else 'N/A',
+                            "color": color,
+                            "url": web_urls[i] if i < len(web_urls) else None,
+                            "title": remote_paths[i] if i < len(remote_paths) else 'Open in OneDrive'
+                        }
+                        badges.append(additional_badge)
+            
+            logger.debug(f"Generated badges for SSE update {item.db_id}: {badges}")
+            
             payload = dict(
                 id=item.db_id,
                 file_name=item.filename,
@@ -68,6 +114,7 @@ def rabbitmq_listener():
                 additional_smb=item.additional_remote_paths,
                 currently_uploading=item.current_uploading,
                 current_upload_target=item.current_upload_target,
+                badges=badges,  # Add the generated badges
             )
             payload["dashboard_data"] = get_dashboard_info()  # Nur bei Bedarf abrufen
             sse_queue.put(json.dumps(payload, default=str))  # Ensure all objects are serializable
