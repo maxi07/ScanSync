@@ -1,5 +1,5 @@
 {
-    "version": "0.4.0-dev",
+    "version": "0.4.0",
     "failedDir": "failed-documents",
     "db": {
         "path": "data/scansync.db"
