@@ -132,30 +132,47 @@ function updateCard(updateData) {
 
     // Update Cloud Link
     try {
-        if (Array.isArray(updateData.web_url) && updateData.web_url.length > 0) {
-            const smbBadges = cardElement.querySelectorAll('.smb-badge');
-            smbBadges.forEach(badge => {
-                if (Array.isArray(updateData.web_url)) {
-                    const badgeIndex = Array.from(smbBadges).indexOf(badge);
-                    const url = updateData.web_url[badgeIndex];
-                    if (url) {
-                        badge.style.cursor = 'pointer';
-                        badge.onclick = () => window.open(url, '_blank');
-                        badge.title = 'Open in OneDrive';
-                    } else {
-                        badge.onclick = null;
-                        badge.style.cursor = '';
-                        badge.title = '';
-                    }
-                } else if (typeof updateData.web_url === 'string') {
+        const urls = Array.isArray(updateData.web_url)
+            ? updateData.web_url
+            : (updateData.web_url || '').split(',').map(s => s.trim()).filter(Boolean);
+        
+        // Parse remote_filepaths as an array, splitting by comma if it's a string
+        const remote_filepaths = typeof updateData.remote_filepath === 'string'
+            ? updateData.remote_filepath.split(',').map(s => s.trim()).filter(Boolean)
+            : (Array.isArray(updateData.remote_filepath) ? updateData.remote_filepath : []);
+
+        if (urls.length > 0) {
+            // Find and update the main SMB badge (has the specific ID)
+            const mainBadge = document.getElementById(updateData.id + "_pdf_smb");
+            if (mainBadge && urls[0]) {
+                mainBadge.style.cursor = 'pointer';
+                mainBadge.onclick = () => window.open(urls[0], '_blank');
+                mainBadge.title = remote_filepaths[0] || 'Open in OneDrive';
+            }
+
+            // Get all SMB badges and update additional ones
+            const allSmbBadges = cardElement.querySelectorAll('.smb-badge');
+            let additionalUrlIndex = 1; // Start from index 1 for additional URLs
+            
+            allSmbBadges.forEach((badge) => {
+                // Skip the main badge as it's handled separately
+                if (badge.id === updateData.id + "_pdf_smb") return;
+                
+                // This is an additional badge, assign the next URL
+                const url = urls[additionalUrlIndex];
+                const remote_filepath = remote_filepaths[additionalUrlIndex];
+                
+                if (url) {
                     badge.style.cursor = 'pointer';
-                    badge.onclick = () => window.open(updateData.web_url, '_blank');
-                    badge.title = 'Open in OneDrive';
+                    badge.onclick = () => window.open(url, '_blank');
+                    badge.title = remote_filepath || 'Open in OneDrive';
                 } else {
                     badge.onclick = null;
                     badge.style.cursor = '';
                     badge.title = '';
                 }
+                
+                additionalUrlIndex++;
             });
         }
     } catch (error) {
