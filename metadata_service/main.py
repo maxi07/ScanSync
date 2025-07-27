@@ -86,7 +86,7 @@ def on_created(filepaths: list):
 
     # Match remote destinations in the correct order
     smb_names = [item.local_directory_above] + item.additional_remote_paths
-    
+
     # Query each SMB name individually to maintain order
     for smb_name in smb_names:
         query = """
@@ -95,7 +95,7 @@ def on_created(filepaths: list):
             WHERE smb_name = ?
         """
         result = execute_query(query, (smb_name,), fetchall=True)
-        
+
         if result:
             for res in result:
                 item.OneDriveDestinations.append(
@@ -105,10 +105,10 @@ def on_created(filepaths: list):
                         remote_drive_id=res.get("drive_id")
                     )
                 )
-                logger.debug(f"Found remote destination for {smb_name}: {res.get('onedrive_path')}")
+            logger.debug(f"Found remote destination for {smb_name}: {res.get('onedrive_path')}")
         else:
             logger.warning(f"Could not find remote destination for {smb_name}")
-    
+
     update_scanneddata_database(item, {'remote_filepath': ",".join([dest.remote_file_path for dest in item.OneDriveDestinations])})
 
     logger.info(f"Waiting for {item.filename} to be a valid PDF or image file")
