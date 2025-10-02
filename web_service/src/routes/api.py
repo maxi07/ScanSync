@@ -68,7 +68,7 @@ def delete_openai_settings():
 
 @api_bp.get('/api/status')
 def get_status():
-    logger.info("Received request to get status")
+    # logger.info("Received request to get status")
     try:
         query = """
             SELECT *,
