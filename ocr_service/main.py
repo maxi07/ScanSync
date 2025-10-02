@@ -1,9 +1,10 @@
 from scansynclib.logging import logger
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus, OCRStatus
 from scansynclib.sqlite_wrapper import update_scanneddata_database
-from scansynclib.helpers import connect_rabbitmq, forward_to_rabbitmq
+from scansynclib.helpers import connect_rabbitmq, forward_to_rabbitmq, extract_text
 import pickle
 import ocrmypdf
+import os
 from datetime import datetime
 import time
 import pika.exceptions
@@ -36,13 +37,26 @@ def start_processing(item: ProcessItem):
 
     try:
         result = ocrmypdf.ocr(item.local_file_path, item.ocr_file, output_type='pdfa', skip_text=True, rotate_pages=True, jpg_quality=80, png_quality=80, optimize=2, language=["eng", "deu"], tesseract_timeout=120)
+        logger.debug(f"OCR exited with code {result}")
+        
         if result != 0:
             logger.error(f"OCR exited with code {result}")
             item.ocr_status = OCRStatus.FAILED
         else:
             logger.info(f"OCR processing completed: {item.filename}")
-        logger.debug(f"OCR exited with code {result}")
-        item.ocr_status = OCRStatus.COMPLETED
+            
+            # Verify that the OCR file actually contains text
+            if os.path.exists(item.ocr_file):
+                extracted_text = extract_text(item.ocr_file).strip()
+                if extracted_text:
+                    logger.info(f"OCR verification successful: extracted {len(extracted_text)} characters from {item.filename}")
+                    item.ocr_status = OCRStatus.COMPLETED
+                else:
+                    logger.warning(f"OCR verification failed: no text found in OCR output file {item.ocr_file}")
+                    item.ocr_status = OCRStatus.FAILED
+            else:
+                logger.error(f"OCR output file not found: {item.ocr_file}")
+                item.ocr_status = OCRStatus.OUTPUT_ERROR
     except ocrmypdf.UnsupportedImageFormatError:
         logger.error(f"Unsupported image format: {item.local_file_path}")
         item.ocr_status = OCRStatus.UNSUPPORTED
