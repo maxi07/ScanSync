@@ -95,7 +95,7 @@ def start_processing(item: ProcessItem):
             logger.error(f"Failed to forward item {item.filename} to the next service: {e}")
             item.status = ProcessStatus.FAILED
         finally:
-            update_scanneddata_database(item, {"file_status": item.status.value})
+            update_scanneddata_database(item, {"file_status": item.status.value, "ocr_status": item.ocr_status.name})
         return item
 
 
@@ -115,4 +115,5 @@ def start_consuming_with_reconnect():
 
 
 # Start the consumer with reconnect logic
-start_consuming_with_reconnect()
+if __name__ == "__main__":
+    start_consuming_with_reconnect()
