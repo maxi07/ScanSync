@@ -70,30 +70,74 @@ def delete_openai_settings():
 def get_status():
     # logger.info("Received request to get status")
     try:
-        query = """
-            SELECT *,
+        # Core summary query (backward compatible)
+        summary_query = """
+            SELECT
                 (SELECT COUNT(*) FROM scanneddata WHERE status_code = 5) AS processed_pdfs,
                 (SELECT COUNT(*) FROM scanneddata WHERE status_code BETWEEN 0 AND 4) AS processing_pdfs,
                 (SELECT DATETIME(created) FROM scanneddata WHERE status_code < 5 ORDER BY created DESC LIMIT 1) AS latest_processing_timestamp,
                 (SELECT DATETIME(modified) FROM scanneddata WHERE status_code = 5 ORDER BY modified DESC LIMIT 1) AS latest_completed_timestamp,
                 (SELECT file_name FROM scanneddata ORDER BY created DESC LIMIT 1) AS latest_created_name,
-                (SELECT status_code FROM scanneddata ORDER BY created DESC LIMIT 1) AS latest_created_status
-            FROM scanneddata
-            ORDER BY created DESC, id DESC
+                (SELECT status_code FROM scanneddata ORDER BY created DESC LIMIT 1) AS latest_created_status,
+                (SELECT COUNT(*) FROM scanneddata) AS total_pdfs,
+                (SELECT COUNT(*) FROM scanneddata WHERE status_code < 0) AS failed_pdfs,
+                (SELECT AVG((JULIANDAY(modified) - JULIANDAY(created)) * 86400) FROM scanneddata WHERE status_code = 5) AS avg_processing_seconds
         """
-        result = execute_query(query, fetchone=True)
-        if result:
-            response = {
-                'processed_pdfs': result.get('processed_pdfs', 0),
-                'processing_pdfs': result.get('processing_pdfs', 0),
-                'latest_processing_timestamp': result.get('latest_processing_timestamp', None),
-                'latest_completed_timestamp': result.get('latest_completed_timestamp', None),
-                'latest_created_name': result.get('latest_created_name', None),
-                'latest_created_status': result.get('latest_created_status', None)
-            }
-            return jsonify(response), 200
-        else:
+        result = execute_query(summary_query, fetchone=True)
+        if not result:
             return jsonify({'error': 'No data found'}), 404
+
+        # Breakdown of currently processing documents by status
+        processing_details_query = """
+            SELECT file_status AS status, status_code, COUNT(*) AS count
+            FROM scanneddata
+            WHERE status_code BETWEEN 0 AND 4
+            GROUP BY file_status, status_code
+            ORDER BY status_code ASC
+        """
+        processing_details = execute_query(processing_details_query, fetchall=True) or []
+
+        # Currently processing documents (individual items)
+        currently_processing_query = """
+            SELECT id, file_name, file_status AS status, status_code,
+                   DATETIME(created) AS created, pdf_pages
+            FROM scanneddata
+            WHERE status_code BETWEEN 0 AND 4
+            ORDER BY created DESC
+        """
+        currently_processing = execute_query(currently_processing_query, fetchall=True) or []
+
+        # Last 5 recently finished files (completed or failed)
+        recent_files_query = """
+            SELECT id, file_name, file_status AS status, status_code,
+                   DATETIME(created) AS created, DATETIME(modified) AS completed,
+                   pdf_pages
+            FROM scanneddata
+            WHERE status_code = 5 OR status_code < 0
+            ORDER BY modified DESC
+            LIMIT 5
+        """
+        recent_files = execute_query(recent_files_query, fetchall=True) or []
+
+        avg_seconds = result.get('avg_processing_seconds', None)
+
+        response = {
+            # Existing fields (backward compatible)
+            'processed_pdfs': result.get('processed_pdfs', 0),
+            'processing_pdfs': result.get('processing_pdfs', 0),
+            'latest_processing_timestamp': result.get('latest_processing_timestamp', None),
+            'latest_completed_timestamp': result.get('latest_completed_timestamp', None),
+            'latest_created_name': result.get('latest_created_name', None),
+            'latest_created_status': result.get('latest_created_status', None),
+            # New fields
+            'total_pdfs': result.get('total_pdfs', 0),
+            'failed_pdfs': result.get('failed_pdfs', 0),
+            'avg_processing_seconds': round(avg_seconds, 2) if avg_seconds is not None else None,
+            'processing_details': processing_details,
+            'currently_processing': currently_processing,
+            'recent_files': recent_files,
+        }
+        return jsonify(response), 200
     except Exception as e:
         err = f"Error fetching status: {e}"
         logger.exception(err)
