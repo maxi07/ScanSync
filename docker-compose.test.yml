@@ -1,5 +1,5 @@
 services:
-  web_service:
+  web-service:
     build:
       context: .
       dockerfile: web_service/Dockerfile
@@ -29,7 +29,7 @@ services:
       context: .
       dockerfile: test_service/Dockerfile
     depends_on:
-      - web_service
+      - web-service
       - redis
     networks:
       - test-network

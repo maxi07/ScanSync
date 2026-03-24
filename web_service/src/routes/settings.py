@@ -154,7 +154,7 @@ def get_ollama_version():
     logger.debug(f"Connecting to Ollama server at {scheme}://{url}:{port}/api/version")
     try:
         full_url = f"{scheme}://{url}:{port}/api/version"
-        response = requests.get(full_url, timeout=10)
+        response = requests.get(full_url, timeout=(2, 3))
         if response.status_code == 200:
             logger.debug(f"Ollama server version response: {response.json()}")
             return Response(json.dumps(response.json()), status=200, mimetype='application/json')
@@ -199,7 +199,7 @@ def get_ollama_models():
     logger.debug(f"Connecting to Ollama server at {scheme}://{url}:{port}/api/tags")
     try:
         full_url = f"{scheme}://{url}:{port}/api/tags"
-        response = requests.get(full_url, timeout=10)
+        response = requests.get(full_url, timeout=(2, 3))
         logger.debug(f"Ollama server models response: {response.status_code} - {response.text}")
         if response.status_code == 200:
             return Response(json.dumps(response.json()), status=200, mimetype='application/json')
