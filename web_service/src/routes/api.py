@@ -87,17 +87,8 @@ def get_status():
         if not result:
             return jsonify({'error': 'No data found'}), 404
 
-        # Breakdown of currently processing documents by status
-        processing_details_query = """
-            SELECT file_status AS status, status_code, COUNT(*) AS count
-            FROM scanneddata
-            WHERE status_code BETWEEN 0 AND 4
-            GROUP BY file_status, status_code
-            ORDER BY status_code ASC
-        """
-        processing_details = execute_query(processing_details_query, fetchall=True) or []
-
-        # Currently processing documents (individual items)
+        # Currently processing documents (individual items) — also used to
+        # derive processing_details breakdown, avoiding a separate GROUP BY query.
         currently_processing_query = """
             SELECT id, file_name, file_status AS status, status_code,
                    DATETIME(created) AS created, pdf_pages
@@ -106,6 +97,16 @@ def get_status():
             ORDER BY created DESC
         """
         currently_processing = execute_query(currently_processing_query, fetchall=True) or []
+
+        # Derive processing_details from currently_processing in Python
+        details_map: dict[tuple[str, int], int] = {}
+        for item in currently_processing:
+            key = (item['status'], item['status_code'])
+            details_map[key] = details_map.get(key, 0) + 1
+        processing_details = sorted(
+            [{'status': s, 'status_code': sc, 'count': c} for (s, sc), c in details_map.items()],
+            key=lambda d: d['status_code'],
+        )
 
         # Last 5 recently finished files (completed or failed)
         recent_files_query = """

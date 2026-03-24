@@ -71,7 +71,6 @@ class TestStatusAPI:
         with patch('routes.api.execute_query') as mock_query:
             mock_query.side_effect = [
                 summary_result,   # summary query
-                [],               # processing_details query
                 [],               # currently_processing query
                 [],               # recent_files query
             ]
@@ -100,11 +99,6 @@ class TestStatusAPI:
             'avg_processing_seconds': 45.678,
         }
 
-        processing_details = [
-            {'status': 'OCR Processing', 'status_code': 2, 'count': 1},
-            {'status': 'Syncing', 'status_code': 4, 'count': 1},
-        ]
-
         currently_processing = [
             {'id': 12, 'file_name': 'scan1.pdf', 'status': 'OCR Processing', 'status_code': 2, 'created': '2024-06-01 12:00:00', 'pdf_pages': 3},
             {'id': 13, 'file_name': 'scan2.pdf', 'status': 'Syncing', 'status_code': 4, 'created': '2024-06-01 11:55:00', 'pdf_pages': 1},
@@ -118,7 +112,6 @@ class TestStatusAPI:
         with patch('routes.api.execute_query') as mock_query:
             mock_query.side_effect = [
                 summary_result,
-                processing_details,
                 currently_processing,
                 recent_files,
             ]
@@ -166,7 +159,6 @@ class TestStatusAPI:
         with patch('routes.api.execute_query') as mock_query:
             mock_query.side_effect = [
                 summary_result,
-                [],  # no processing details
                 [],  # no currently processing
                 [{'id': 1, 'file_name': 'a.pdf', 'status': 'Completed', 'status_code': 5, 'created': '2024-06-01 10:00:00', 'completed': '2024-06-01 10:00:30', 'pdf_pages': 1}],
             ]
@@ -196,7 +188,6 @@ class TestStatusAPI:
         with patch('routes.api.execute_query') as mock_query:
             mock_query.side_effect = [
                 summary_result,
-                [{'status': 'Reading Metadata', 'status_code': 1, 'count': 1}],
                 [{'id': 1, 'file_name': 'new.pdf', 'status': 'Reading Metadata', 'status_code': 1, 'created': '2024-06-01 12:00:00', 'pdf_pages': 0}],
                 [],
             ]
@@ -243,7 +234,6 @@ class TestStatusAPI:
             mock_query.side_effect = [
                 summary_result,
                 [],
-                [],
                 recent,
             ]
             response = client.get('/api/status')
@@ -266,16 +256,16 @@ class TestStatusAPI:
             'avg_processing_seconds': 40.0,
         }
 
-        processing_details = [
-            {'status': 'Reading Metadata', 'status_code': 1, 'count': 1},
-            {'status': 'OCR Processing', 'status_code': 2, 'count': 2},
+        currently_processing = [
+            {'id': 1, 'file_name': 'a.pdf', 'status': 'Reading Metadata', 'status_code': 1, 'created': '2024-06-01 12:00:00', 'pdf_pages': 1},
+            {'id': 2, 'file_name': 'b.pdf', 'status': 'OCR Processing', 'status_code': 2, 'created': '2024-06-01 11:59:00', 'pdf_pages': 2},
+            {'id': 3, 'file_name': 'c.pdf', 'status': 'OCR Processing', 'status_code': 2, 'created': '2024-06-01 11:58:00', 'pdf_pages': 3},
         ]
 
         with patch('routes.api.execute_query') as mock_query:
             mock_query.side_effect = [
                 summary_result,
-                processing_details,
-                [],
+                currently_processing,
                 [],
             ]
             response = client.get('/api/status')
@@ -314,7 +304,6 @@ class TestStatusAPI:
             mock_query.side_effect = [
                 summary_result,
                 [],
-                [],
                 recent_files,
             ]
             response = client.get('/api/status')
@@ -343,7 +332,6 @@ class TestStatusAPI:
         with patch('routes.api.execute_query') as mock_query:
             mock_query.side_effect = [
                 summary_result,
-                None,  # processing_details returns None
                 None,  # currently_processing returns None
                 None,  # recent_files returns None
             ]
