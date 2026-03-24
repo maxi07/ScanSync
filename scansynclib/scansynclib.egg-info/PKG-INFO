@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: scansynclib
+Version: 0.1.0
+Summary: Shared helper library for ScanSync
+Requires-Python: >=3.13
+Requires-Dist: colorlog
+Requires-Dist: tenacity
+Requires-Dist: pika
+Requires-Dist: openai
+Requires-Dist: msal
+Requires-Dist: pypdf
+Requires-Dist: redis
