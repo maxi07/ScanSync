@@ -57,6 +57,73 @@ For development purposes, you can use the built-in Flask server:
 3. Run pytests via the [run-tests.sh](run-tests.sh) script (Spins up a docker [test-service](/test_service/Dockerfile))
 
 
+## 📡 API
+
+### `GET /api/status`
+
+Returns aggregated document processing status including per-stage breakdowns, currently processing items, and recent completion history.
+
+**Response fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `processed_pdfs` | `int` | Count of completed documents |
+| `processing_pdfs` | `int` | Count of in-progress documents |
+| `latest_processing_timestamp` | `string\|null` | Most recent processing update timestamp |
+| `latest_completed_timestamp` | `string\|null` | Most recent completion timestamp |
+| `latest_created_name` | `string\|null` | Filename of the latest document |
+| `latest_created_status` | `int\|null` | Status code of the latest document |
+| `total_pdfs` | `int` | Total document count across all statuses |
+| `failed_pdfs` | `int` | Count of failed documents |
+| `avg_processing_seconds` | `float\|null` | Average processing time for completed documents |
+| `processing_details` | `array` | Breakdown of in-progress documents grouped by status |
+| `currently_processing` | `array` | List of individual documents currently being processed |
+| `recent_files` | `array` | Last 5 completed or failed documents with timestamps |
+
+<details>
+<summary>Example response</summary>
+
+```json
+{
+  "processed_pdfs": 10,
+  "processing_pdfs": 3,
+  "latest_processing_timestamp": "2024-06-01 12:00:00",
+  "latest_completed_timestamp": "2024-06-01 11:30:00",
+  "latest_created_name": "invoice.pdf",
+  "latest_created_status": 2,
+  "total_pdfs": 15,
+  "failed_pdfs": 2,
+  "avg_processing_seconds": 45.68,
+  "processing_details": [
+    {"status": "OCR Processing", "status_code": 2, "count": 2},
+    {"status": "Reading Metadata", "status_code": 1, "count": 1}
+  ],
+  "currently_processing": [
+    {
+      "id": 12,
+      "file_name": "scan1.pdf",
+      "status": "OCR Processing",
+      "status_code": 2,
+      "created": "2024-06-01 12:00:00",
+      "pdf_pages": 3
+    }
+  ],
+  "recent_files": [
+    {
+      "id": 11,
+      "file_name": "doc1.pdf",
+      "status": "Completed",
+      "status_code": 5,
+      "created": "2024-06-01 10:00:00",
+      "completed": "2024-06-01 10:01:00",
+      "pdf_pages": 2
+    }
+  ]
+}
+```
+
+</details>
+
 ## 🔮 Upcoming Features
 - **Notifications**: Stay informed with real-time updates.
 - **OCR Settings**: Take control of OCR settings in the web interface

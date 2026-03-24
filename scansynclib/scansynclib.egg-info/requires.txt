@@ -1,0 +1,7 @@
+colorlog
+tenacity
+pika
+openai
+msal
+pypdf
+redis

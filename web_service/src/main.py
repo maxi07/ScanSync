@@ -41,7 +41,11 @@ def start_rabbitmq_listener():
 def rabbitmq_listener():
     logger.info("Started RabbitMQ listener thread.")
 
-    connection, channel = connect_rabbitmq()
+    result = connect_rabbitmq()
+    if result is None:
+        logger.warning("RabbitMQ is not available. SSE updates will be disabled.")
+        return
+    connection, channel = result
 
     # Use fanout as exchange type to broadcast messages to all connected clients
     exchange_name = "sse_updates_fanout"

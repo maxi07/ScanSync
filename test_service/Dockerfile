@@ -4,8 +4,10 @@ FROM seleniarm/standalone-chromium:latest
 # Switch to the root user to install dependencies
 USER root
 
-# Update package lists and install Python3, pip, and venv
-RUN apt-get update && apt-get install -y python3 python3-pip python3-venv
+# Update package lists and install Python3, pip, and venv.
+# --force-overwrite handles file ownership changes during package splits
+# (e.g. openssl-provider-legacy taking legacy.so from libssl3t64).
+RUN apt-get update && apt-get install -y -o Dpkg::Options::="--force-overwrite" python3 python3-pip python3-venv
 
 # Create a Python virtual environment
 RUN python3 -m venv /opt/venv

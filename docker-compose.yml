@@ -103,8 +103,7 @@ services:
       - rabbitmq
     command: ["python", "main.py"]
   
-  web_service:
-    image: web_service
+  web-service:
     restart: unless-stopped
     build:
       context: .
