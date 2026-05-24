@@ -12,8 +12,8 @@ export FLASK_APP=src.main:app
 # session.
 if [ "$FLASK_ENV" = "development" ]; then
     echo "Starting Flask development server..."
-    exec su appuser -c "exec flask run --host=0.0.0.0 --port=5001 --reload --debug"
+    exec gosu appuser flask run --host=0.0.0.0 --port=5001 --reload --debug
 else
     echo "Starting app with Gunicorn..."
-    exec su appuser -c "exec gunicorn --worker-class gevent --bind 0.0.0.0:5001 --graceful-timeout 30 src.main:app"
+    exec gosu appuser gunicorn --worker-class gevent --bind 0.0.0.0:5001 --graceful-timeout 5 src.main:app
 fi
