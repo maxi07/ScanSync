@@ -16,6 +16,7 @@ from routes.settings import settings_bp
 from routes.api import api_bp
 from routes.onedrive import onedrive_bp
 from scansynclib.sqlite_wrapper import execute_query
+from scansynclib.onedrive_api import is_token_expired
 from scansynclib.config import config
 
 logger.info("Starting web service...")
@@ -41,7 +42,11 @@ def start_rabbitmq_listener():
 def rabbitmq_listener():
     logger.info("Started RabbitMQ listener thread.")
 
-    connection, channel = connect_rabbitmq()
+    result = connect_rabbitmq()
+    if result is None:
+        logger.warning("RabbitMQ is not available. SSE updates will be disabled.")
+        return
+    connection, channel = result
 
     # Use fanout as exchange type to broadcast messages to all connected clients
     exchange_name = "sse_updates_fanout"
@@ -164,6 +169,7 @@ def inject_config():
     return dict(
         failed_document_count=failed_document_count,
         version=config.get("version", "Unknown"),
+        onedrive_token_error=is_token_expired(),
     )
 
 
@@ -196,6 +202,13 @@ def favicon():
     prefers_dark = 'dark' in request.headers.get('User-Agent', '').lower()
     favicon_file = 'ScanSync_logo_black.ico' if prefers_dark else 'ScanSync_logo_white.ico'
     return send_from_directory(os.path.join(app.root_path, 'static/images'), favicon_file, mimetype="image/x-icon")
+
+
+@app.route("/apple-touch-icon.png")
+@app.route("/apple-touch-icon-precomposed.png")
+def apple_touch_icon():
+    """Serve the Apple touch icon."""
+    return send_from_directory(os.path.join(app.root_path, 'static/images'), 'apple-touch-icon.png', mimetype="image/png")
 
 
 start_rabbitmq_listener()
