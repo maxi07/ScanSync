@@ -145,6 +145,11 @@ def upgrade_sql_database():
                 logger.info("Migration: Adding 'additional_smb' column to scanneddata table")
                 cursor.execute("ALTER TABLE scanneddata ADD COLUMN additional_smb TEXT")
                 conn.commit()
+
+            if "ocr_status" not in columns:
+                logger.info("Migration: Adding 'ocr_status' column to scanneddata table")
+                cursor.execute("ALTER TABLE scanneddata ADD COLUMN ocr_status TEXT")
+                conn.commit()
     except sqlite3.OperationalError as e:
         if "no such table: scanneddata" in str(e):
             logger.error("Database schema is missing. Please ensure the schema.sql file is present.")

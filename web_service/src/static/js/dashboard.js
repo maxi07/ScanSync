@@ -172,9 +172,35 @@ function updateCard(updateData) {
             } else {
                 element.textContent = updateData.file_status;
             }
+            // Re-append trailing <br> that gets wiped out by setting textContent,
+            // so the OCR status span renders on a new line (see createCard).
+            element.appendChild(document.createElement('br'));
         }
     } catch (error) {
         console.error(`Error updating file status: ${error.message}`);
+    }
+
+    // Update OCR Status
+    try {
+        if (updateData.ocr_status !== undefined) {
+            const ocrStatusSpan = document.getElementById(updateData.id + "_ocr_status");
+            if (ocrStatusSpan) {
+                const ocrStatusText = getOcrStatusText(updateData.ocr_status);
+                ocrStatusSpan.innerHTML = '';
+                if (ocrStatusText) {
+                    const icon = document.createElement('i');
+                    icon.className = 'bi bi-exclamation-triangle-fill text-warning';
+                    const small = document.createElement('small');
+                    small.textContent = ocrStatusText;
+                    ocrStatusSpan.appendChild(icon);
+                    ocrStatusSpan.appendChild(document.createTextNode(' '));
+                    ocrStatusSpan.appendChild(small);
+                    ocrStatusSpan.appendChild(document.createElement('br'));
+                }
+            }
+        }
+    } catch (error) {
+        console.error(`Error updating OCR status: ${error.message}`);
     }
 
     // Update File Name
@@ -446,6 +472,21 @@ function addPdfCard(pdfData) {
     statusSpan.textContent = pdfData.file_status || "N/A";
     statusSpan.innerHTML += brElement;
 
+    // Create OCR status element (only shown when OCR failed)
+    let ocrStatusSpan = document.createElement('span');
+    ocrStatusSpan.id = pdfData.id + '_ocr_status';
+    const ocrStatusText = getOcrStatusText(pdfData.ocr_status);
+    if (ocrStatusText) {
+        const ocrIcon = document.createElement('i');
+        ocrIcon.className = 'bi bi-exclamation-triangle-fill text-warning';
+        const ocrSmall = document.createElement('small');
+        ocrSmall.textContent = ocrStatusText;
+        ocrStatusSpan.appendChild(ocrIcon);
+        ocrStatusSpan.appendChild(document.createTextNode(' '));
+        ocrStatusSpan.appendChild(ocrSmall);
+        ocrStatusSpan.appendChild(document.createElement('br'));
+    }
+
     // Create segmented progress bar container
     const progressContainer = document.createElement('div');
     progressContainer.classList.add('progress-bar-wrapper');
@@ -475,6 +516,7 @@ function addPdfCard(pdfData) {
     infoParagraph.appendChild(smbContainer);
     infoParagraph.appendChild(statusText);
     infoParagraph.appendChild(statusSpan);
+    infoParagraph.appendChild(ocrStatusSpan);
 
     bodyDiv.appendChild(titleElement);
     bodyDiv.appendChild(infoParagraph);
@@ -531,6 +573,17 @@ function getStatusIcon(file_status) {
     }
 
     return status_icon;
+}
+
+function getOcrStatusText(ocr_status) {
+    const ocrFailureMessages = {
+        'FAILED': 'OCR: Failed',
+        'UNSUPPORTED': 'OCR: Unsupported format',
+        'DPI_ERROR': 'OCR: Image DPI too low',
+        'INPUT_ERROR': 'OCR: Input file error',
+        'OUTPUT_ERROR': 'OCR: Output file error',
+    };
+    return ocrFailureMessages[ocr_status] || null;
 }
 
 function updateProgressBar(pdfId, newStep) {

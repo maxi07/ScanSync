@@ -15,7 +15,7 @@ WORKDIR /app
 ENV TZ=Europe/Berlin
 ENV CONFIG_PATH=/app/scansynclib/scansynclib/config.json
 COPY web_service/requirements.txt .
-RUN apt-get update && apt-get install -y --no-install-recommends sqlite3 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends sqlite3 gosu && rm -rf /var/lib/apt/lists/*
 RUN python -m pip install -r requirements.txt
 COPY web_service/ /app
 COPY scansynclib/ /app/scansynclib/
