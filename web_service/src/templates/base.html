@@ -40,7 +40,14 @@
                                 </a>
                             </li>
                             <li class="nav-item position-relative">
-                                <a class="nav-link" href="/settings">Settings</a>
+                                <a class="nav-link d-flex align-items-center" href="/settings">Settings
+                                    {% if onedrive_token_error %}
+                                    <span class="ms-2 badge rounded-pill bg-danger">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                        <span class="visually-hidden">authentication error</span>
+                                    </span>
+                                    {% endif %}
+                                </a>
                             </li>
                         </ul>
                         <span class="navbar-text">

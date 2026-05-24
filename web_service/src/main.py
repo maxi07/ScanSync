@@ -16,6 +16,7 @@ from routes.settings import settings_bp
 from routes.api import api_bp
 from routes.onedrive import onedrive_bp
 from scansynclib.sqlite_wrapper import execute_query
+from scansynclib.onedrive_api import is_token_expired
 from scansynclib.config import config
 
 logger.info("Starting web service...")
@@ -167,6 +168,7 @@ def inject_config():
     return dict(
         failed_document_count=failed_document_count,
         version=config.get("version", "Unknown"),
+        onedrive_token_error=is_token_expired(),
     )
 
 

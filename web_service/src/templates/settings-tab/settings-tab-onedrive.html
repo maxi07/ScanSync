@@ -1,4 +1,14 @@
 <div class="tab-pane active" id="onedrive-tabpanel" role="tabpanel" aria-labelledby="onedrive-tab">
+    {% if onedrive_token_error %}
+    <div class="alert alert-danger d-flex align-items-center mb-3" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2" style="font-size: 1.5rem;"></i>
+        <div>
+            <strong>OneDrive authentication expired!</strong> Your Microsoft token has expired and uploads will fail. Please
+            <a href="#" onclick="openLoginPopup(); return false;" class="alert-link">re-authenticate</a>
+            to restore OneDrive connectivity.
+        </div>
+    </div>
+    {% endif %}
     <div class="accordion" id="accordionInstructionsAzure">
         <div class="accordion-item">
             <h2 class="accordion-header">

@@ -9,7 +9,7 @@
             <a class="nav-link active" id="onedrive-tab" data-bs-toggle="tab" href="#onedrive-tabpanel" role="tab"
                 aria-controls="onedrive-tabpanel" aria-selected="true">
                 <i class="bi-cloud"></i> OneDrive
-                {% if not user_name %}
+                {% if not user_name or onedrive_token_error %}
                 <span class="badge bg-danger ms-1">!</span>
                 {% endif %}
             </a>

@@ -12,6 +12,7 @@ from scansynclib.settings import settings
 
 
 TOKEN_FILE = '/app/data/token.json'
+TOKEN_ERROR_FILE = '/app/data/token_error.json'
 USER_PROFILE_FILE = '/app/data/user_profile.json'
 USER_IMAGE_FILE = '/app/data/user_image.jpeg'
 
@@ -31,6 +32,35 @@ def save_token(token):
     with open(TOKEN_FILE, 'w') as file:
         json.dump(token, file)
     logger.debug("Token saved to file")
+    clear_token_error()
+
+
+def save_token_error(error_message):
+    """Saves a token error flag to file so the web UI can display it."""
+    try:
+        with open(TOKEN_ERROR_FILE, 'w') as file:
+            json.dump({"error": error_message, "timestamp": int(time.time())}, file)
+        logger.debug("Token error saved to file")
+    except Exception as e:
+        logger.error(f"Failed to save token error: {str(e)}")
+
+
+def clear_token_error():
+    """Clears the token error flag file."""
+    if os.path.exists(TOKEN_ERROR_FILE):
+        os.remove(TOKEN_ERROR_FILE)
+        logger.debug("Token error file cleared")
+
+
+def is_token_expired():
+    """Checks if a token error flag exists, indicating the token has expired."""
+    if os.path.exists(TOKEN_ERROR_FILE):
+        try:
+            with open(TOKEN_ERROR_FILE, 'r') as file:
+                return json.load(file)
+        except Exception:
+            return {"error": "Unknown token error"}
+    return None
 
 
 def delete_token():
@@ -40,6 +70,8 @@ def delete_token():
         logger.info("Token file deleted")
     else:
         logger.warning("Token file not found, nothing to delete")
+
+    clear_token_error()
 
     if os.path.exists(USER_PROFILE_FILE):
         os.remove(USER_PROFILE_FILE)
@@ -84,7 +116,10 @@ def get_access_token():
                 save_token(result)
                 return result["access_token"]
             else:
+                error_description = result.get('error_description', 'Unknown error')
                 logger.error(f"Failed to refresh Microsoft token: {result}")
+                if result.get('error') == 'invalid_grant':
+                    save_token_error(error_description)
         return None
     except requests.exceptions.RequestException as e:
         logger.error(f"Network error occurred while getting access token: {str(e)}")
