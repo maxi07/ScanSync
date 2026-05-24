@@ -454,6 +454,7 @@ function addPdfCard(pdfData) {
     const progressStep = pdfData.status_progressbar || 1;
     const isFailed = pdfData.file_status?.toLowerCase().includes("failed") || pdfData.file_status?.toLowerCase().includes("deleted") || pdfData.status_progressbar === -1;
     const isCompleted = pdfData.file_status?.toLowerCase().includes("completed");
+    const stepLabels = ["File Detection", "Reading Metadata", "OCR", "File Naming", "Upload"];
 
     for (let i = 0; i < 5; i++) {
         const segment = document.createElement('div');
@@ -461,10 +462,18 @@ function addPdfCard(pdfData) {
 
         if (isFailed) {
             segment.classList.add('failed');
+            segment.title = stepLabels[i] + " – Failed";
         } else if (isCompleted) {
             segment.classList.add('completed');
+            segment.title = stepLabels[i] + " – Completed";
         } else if (i < progressStep) {
-            segment.classList.add('active');
+            segment.classList.add('completed');
+            segment.title = stepLabels[i] + " – Completed";
+        } else if (i === progressStep) {
+            segment.classList.add('current');
+            segment.title = stepLabels[i] + " – In Progress";
+        } else {
+            segment.title = stepLabels[i] + " – Pending";
         }
 
         progressContainer.appendChild(segment);
@@ -538,19 +547,28 @@ function updateProgressBar(pdfId, newStep) {
     if (!progressBar) return;
 
     const segments = progressBar.querySelectorAll('.progress-segment');
+    const stepLabels = ["File Detection", "Reading Metadata", "OCR", "File Naming", "Upload"];
 
     // Clamp value to -1–5
     const clampedStep = Math.max(-1, Math.min(5, newStep));
 
     segments.forEach((segment, index) => {
-        segment.classList.remove('active', 'failed', 'completed');
+        segment.classList.remove('active', 'failed', 'completed', 'current');
 
         if (clampedStep === -1) {
             segment.classList.add('failed');
+            segment.title = stepLabels[index] + " – Failed";
         } else if (clampedStep === 5) {
             segment.classList.add('completed');
+            segment.title = stepLabels[index] + " – Completed";
         } else if (index < clampedStep) {
-            segment.classList.add('active');
+            segment.classList.add('completed');
+            segment.title = stepLabels[index] + " – Completed";
+        } else if (index === clampedStep) {
+            segment.classList.add('current');
+            segment.title = stepLabels[index] + " – In Progress";
+        } else {
+            segment.title = stepLabels[index] + " – Pending";
         }
     });
 }
