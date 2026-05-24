@@ -135,8 +135,13 @@ class SettingsManager:
                     self._shutdown()
                     if callable(prev):
                         prev(signum, frame)
-                    else:
-                        raise SystemExit(0)
+                        return
+                    if prev == signal.SIG_IGN:
+                        return
+                    if prev == signal.SIG_DFL:
+                        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+                        os.kill(os.getpid(), signal.SIGTERM)
+                        return
 
                 signal.signal(signal.SIGTERM, _sigterm)
         except Exception:
