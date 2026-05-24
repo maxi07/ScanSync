@@ -203,10 +203,10 @@ function updateCard(updateData) {
 
     // Update Progress Bar
     try {
-        if (updateData.status_progressbar) {
+        if (updateData.status_progressbar !== undefined && updateData.status_progressbar !== null) {
             const progressBar = document.getElementById(`${updateData.id}_progress_bar`);
             if (progressBar) {
-                updateProgressBar(updateData.id, updateData.status_progressbar);
+                updateProgressBar(updateData.id, updateData.status_progressbar, updateData);
             } else {
                 console.warn(`Progress bar with ID ${updateData.id}_progress_bar not found.`);
             }
@@ -452,24 +452,24 @@ function addPdfCard(pdfData) {
     progressContainer.id = pdfData.id + '_progress_bar';
 
     const progressStep = pdfData.status_progressbar || 1;
-    const isFailed = pdfData.file_status?.toLowerCase().includes("failed") || pdfData.file_status?.toLowerCase().includes("deleted") || pdfData.status_progressbar === -1;
+    const isDeleted = pdfData.file_status?.toLowerCase().includes("deleted");
+    const isFailed = pdfData.file_status?.toLowerCase().includes("failed") || isDeleted || pdfData.status_progressbar === -1;
     const isCompleted = pdfData.file_status?.toLowerCase().includes("completed");
     const stepLabels = ["File Detection", "Reading Metadata", "OCR", "File Naming", "Upload"];
+    const stepStatuses = getStepStatuses(progressStep, isFailed, isDeleted, isCompleted, pdfData);
 
     for (let i = 0; i < 5; i++) {
         const segment = document.createElement('div');
         segment.classList.add('progress-segment');
 
-        if (isFailed) {
+        const status = stepStatuses[i];
+        if (status === "failed") {
             segment.classList.add('failed');
             segment.title = stepLabels[i] + " – Failed";
-        } else if (isCompleted) {
+        } else if (status === "completed") {
             segment.classList.add('completed');
             segment.title = stepLabels[i] + " – Completed";
-        } else if (i < progressStep) {
-            segment.classList.add('completed');
-            segment.title = stepLabels[i] + " – Completed";
-        } else if (i === progressStep) {
+        } else if (status === "current") {
             segment.classList.add('current');
             segment.title = stepLabels[i] + " – In Progress";
         } else {
@@ -542,7 +542,91 @@ function getStatusIcon(file_status) {
     return status_icon;
 }
 
-function updateProgressBar(pdfId, newStep) {
+// OCR statuses that indicate failure
+const ocrFailureStatuses = ["FAILED", "UNSUPPORTED", "DPI_ERROR", "INPUT_ERROR", "OUTPUT_ERROR"];
+
+// File naming statuses that indicate failure
+const fileNamingFailureStatuses = ["FAILED", "NO_OCR_FILE", "NO_PDF_TEXT", "NO_SERVER_CONNECTION",
+    "MODEL_NOT_FOUND", "AUTHENTICATION_ERROR", "RATE_LIMIT_ERROR"];
+
+/**
+ * Determine the visual status for each of the 5 progress bar steps.
+ * Returns an array of 5 strings: "completed", "failed", "current", or "pending".
+ */
+function getStepStatuses(progressStep, isFailed, isDeleted, isCompleted, pdfData) {
+    const statuses = ["pending", "pending", "pending", "pending", "pending"];
+
+    // If file is deleted, all steps show as failed
+    if (isDeleted) {
+        return ["failed", "failed", "failed", "failed", "failed"];
+    }
+
+    // If overall failed, mark completed steps and the failing step
+    if (isFailed) {
+        // Determine which step failed based on file_status and per-step statuses
+        const fileStatus = (pdfData.file_status || "").toLowerCase();
+        let failedStep = -1;
+
+        if (fileStatus.includes("invalid file")) {
+            failedStep = 0; // Detection failed
+        } else if (fileStatus === "failed" && progressStep <= 1) {
+            failedStep = 1; // Metadata failed
+        } else if (pdfData.ocr_status && ocrFailureStatuses.includes(pdfData.ocr_status)) {
+            failedStep = 2; // OCR failed
+        } else if (pdfData.file_naming_status && fileNamingFailureStatuses.includes(pdfData.file_naming_status)) {
+            failedStep = 3; // File naming failed
+        } else if (fileStatus.includes("sync failed")) {
+            failedStep = 4; // Upload failed
+        } else {
+            // Generic failure - mark all as failed
+            return ["failed", "failed", "failed", "failed", "failed"];
+        }
+
+        for (let i = 0; i < 5; i++) {
+            if (i < failedStep) {
+                statuses[i] = "completed";
+            } else if (i === failedStep) {
+                statuses[i] = "failed";
+            }
+        }
+        return statuses;
+    }
+
+    // All completed
+    if (isCompleted) {
+        for (let i = 0; i < 5; i++) {
+            // Check if individual steps had issues even though overall completed
+            if (i === 2 && pdfData.ocr_status && ocrFailureStatuses.includes(pdfData.ocr_status)) {
+                statuses[i] = "failed";
+            } else if (i === 3 && pdfData.file_naming_status && fileNamingFailureStatuses.includes(pdfData.file_naming_status)) {
+                statuses[i] = "failed";
+            } else {
+                statuses[i] = "completed";
+            }
+        }
+        return statuses;
+    }
+
+    // In progress - mark completed steps, current step, and check per-step failures
+    for (let i = 0; i < 5; i++) {
+        if (i < progressStep) {
+            // Check individual step failures for completed steps
+            if (i === 2 && pdfData.ocr_status && ocrFailureStatuses.includes(pdfData.ocr_status)) {
+                statuses[i] = "failed";
+            } else if (i === 3 && pdfData.file_naming_status && fileNamingFailureStatuses.includes(pdfData.file_naming_status)) {
+                statuses[i] = "failed";
+            } else {
+                statuses[i] = "completed";
+            }
+        } else if (i === progressStep) {
+            statuses[i] = "current";
+        }
+        // else remains "pending"
+    }
+    return statuses;
+}
+
+function updateProgressBar(pdfId, newStep, pdfData) {
     const progressBar = document.getElementById(`${pdfId}_progress_bar`);
     if (!progressBar) return;
 
@@ -552,19 +636,22 @@ function updateProgressBar(pdfId, newStep) {
     // Clamp value to -1–5
     const clampedStep = Math.max(-1, Math.min(5, newStep));
 
+    const isDeleted = pdfData?.file_status?.toLowerCase().includes("deleted");
+    const isFailed = clampedStep === -1;
+    const isCompleted = clampedStep === 5;
+    const stepStatuses = getStepStatuses(clampedStep, isFailed, isDeleted, isCompleted, pdfData || {});
+
     segments.forEach((segment, index) => {
         segment.classList.remove('active', 'failed', 'completed', 'current');
 
-        if (clampedStep === -1) {
+        const status = stepStatuses[index];
+        if (status === "failed") {
             segment.classList.add('failed');
             segment.title = stepLabels[index] + " – Failed";
-        } else if (clampedStep === 5) {
+        } else if (status === "completed") {
             segment.classList.add('completed');
             segment.title = stepLabels[index] + " – Completed";
-        } else if (index < clampedStep) {
-            segment.classList.add('completed');
-            segment.title = stepLabels[index] + " – Completed";
-        } else if (index === clampedStep) {
+        } else if (status === "current") {
             segment.classList.add('current');
             segment.title = stepLabels[index] + " – In Progress";
         } else {
