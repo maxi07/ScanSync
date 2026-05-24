@@ -277,8 +277,11 @@ def extract_text(pdf_path: str, max_pages: int = 10, max_chars: int = 50_000) ->
                 break
             page_text = page.extract_text() or ""
             if page_text:
-                parts.append(page_text)
-                total_chars += len(page_text)
+                remaining = max_chars - total_chars
+                if remaining <= 0:
+                    break
+                parts.append(page_text[:remaining])
+                total_chars += min(len(page_text), remaining)
                 if total_chars >= max_chars:
                     break
         result = "\n".join(parts)

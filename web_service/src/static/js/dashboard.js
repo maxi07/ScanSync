@@ -189,7 +189,6 @@ function updateCard(updateData) {
                     icon.className = 'bi bi-exclamation-triangle-fill text-warning';
                     const small = document.createElement('small');
                     small.textContent = ocrStatusText;
-                    ocrStatusSpan.appendChild(document.createElement('br'));
                     ocrStatusSpan.appendChild(icon);
                     ocrStatusSpan.appendChild(document.createTextNode(' '));
                     ocrStatusSpan.appendChild(small);

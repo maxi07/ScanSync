@@ -15,11 +15,5 @@ if [ "$FLASK_ENV" = "development" ]; then
     exec su appuser -c "exec flask run --host=0.0.0.0 --port=5001 --reload --debug"
 else
     echo "Starting app with Gunicorn..."
-    exec gunicorn \
-        --user appuser \
-        --group appuser \
-        --worker-class gevent \
-        --bind 0.0.0.0:5001 \
-        --graceful-timeout 30 \
-        src.main:app
+    exec su appuser -c "exec gunicorn --worker-class gevent --bind 0.0.0.0:5001 --graceful-timeout 30 src.main:app"
 fi
