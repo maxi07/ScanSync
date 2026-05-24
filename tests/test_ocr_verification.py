@@ -47,6 +47,35 @@ class TestOCRTextVerification:
         result = extract_text("dummy_path.pdf")
         assert result == "  \n\t  Some text  \n\t  "  # Should return raw text, not stripped
 
+    @patch('scansynclib.helpers.PdfReader')
+    def test_extract_text_respects_max_pages(self, mock_pdf_reader):
+        """Test that extract_text stops after max_pages."""
+        from scansynclib.helpers import extract_text
+
+        pages = [Mock() for _ in range(5)]
+        for i, p in enumerate(pages):
+            p.extract_text.return_value = f"Page {i}"
+        mock_reader = Mock()
+        mock_reader.pages = pages
+        mock_pdf_reader.return_value = mock_reader
+
+        result = extract_text("dummy.pdf", max_pages=2)
+        assert result == "Page 0\nPage 1"
+
+    @patch('scansynclib.helpers.PdfReader')
+    def test_extract_text_respects_max_chars(self, mock_pdf_reader):
+        """Test that extract_text truncates at max_chars."""
+        from scansynclib.helpers import extract_text
+
+        mock_page = Mock()
+        mock_page.extract_text.return_value = "A" * 100
+        mock_reader = Mock()
+        mock_reader.pages = [mock_page, mock_page, mock_page]
+        mock_pdf_reader.return_value = mock_reader
+
+        result = extract_text("dummy.pdf", max_chars=50)
+        assert len(result) == 50
+
     def test_process_item_has_ocr_file_attribute(self):
         """Test that ProcessItem correctly sets the OCR file path."""
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
