@@ -5,7 +5,13 @@ FROM seleniarm/standalone-chromium:latest
 USER root
 
 # Update package lists and install Python3, pip, and venv
-RUN apt-get update && apt-get install -y python3 python3-pip python3-venv
+# Note: --force-overwrite works around a Debian trixie transition conflict between
+# libssl3t64 (shipped in the base image) and openssl-provider-legacy, which both
+# claim /usr/lib/*/ossl-modules/legacy.so.
+RUN apt-get update && \
+    apt-get install -y -o Dpkg::Options::="--force-overwrite" \
+        python3 python3-pip python3-venv && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create a Python virtual environment
 RUN python3 -m venv /opt/venv
