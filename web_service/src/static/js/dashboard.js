@@ -188,8 +188,8 @@ function updateCard(updateData) {
                     const icon = document.createElement('i');
                     icon.className = 'bi bi-exclamation-triangle-fill text-warning';
                     const small = document.createElement('small');
-                    small.className = 'text-warning';
                     small.textContent = ocrStatusText;
+                    ocrStatusSpan.appendChild(document.createElement('br'));
                     ocrStatusSpan.appendChild(icon);
                     ocrStatusSpan.appendChild(document.createTextNode(' '));
                     ocrStatusSpan.appendChild(small);
@@ -478,7 +478,6 @@ function addPdfCard(pdfData) {
         const ocrIcon = document.createElement('i');
         ocrIcon.className = 'bi bi-exclamation-triangle-fill text-warning';
         const ocrSmall = document.createElement('small');
-        ocrSmall.className = 'text-warning';
         ocrSmall.textContent = ocrStatusText;
         ocrStatusSpan.appendChild(ocrIcon);
         ocrStatusSpan.appendChild(document.createTextNode(' '));
