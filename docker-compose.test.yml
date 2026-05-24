@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: web_service/Dockerfile
+      args:
+        - APP_VERSION=${APP_VERSION:-dev}
     ports:
       - 5001:5001
     environment:

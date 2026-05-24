@@ -17,6 +17,8 @@ services:
     build:
       context: .
       dockerfile: ocr_service/Dockerfile
+      args:
+        - APP_VERSION=${APP_VERSION:-dev}
     restart: unless-stopped
     volumes:
       - scans:/mnt/scans
@@ -35,6 +37,8 @@ services:
     build:
       context: .
       dockerfile: file_naming_service/Dockerfile
+      args:
+        - APP_VERSION=${APP_VERSION:-dev}
     restart: unless-stopped
     volumes:
       - scans:/mnt/scans
@@ -56,6 +60,8 @@ services:
     build:
       context: .
       dockerfile: detection_service/Dockerfile
+      args:
+        - APP_VERSION=${APP_VERSION:-dev}
     container_name: detection_service
     restart: unless-stopped
     volumes:
@@ -72,6 +78,8 @@ services:
     build:
       context: .
       dockerfile: metadata_service/Dockerfile
+      args:
+        - APP_VERSION=${APP_VERSION:-dev}
     restart: unless-stopped
     volumes:
       - scans:/mnt/scans
@@ -91,6 +99,8 @@ services:
     build:
       context: .
       dockerfile: upload_service/Dockerfile
+      args:
+        - APP_VERSION=${APP_VERSION:-dev}
     container_name: upload_service
     restart: unless-stopped
     volumes:
@@ -108,6 +118,8 @@ services:
     build:
       context: .
       dockerfile: web_service/Dockerfile
+      args:
+        - APP_VERSION=${APP_VERSION:-dev}
     ports:
       - 5001:5001
     extra_hosts:

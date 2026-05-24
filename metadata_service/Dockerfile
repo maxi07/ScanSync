@@ -2,6 +2,8 @@ FROM python:3.13-slim
 
 WORKDIR /app
 ENV TZ=Europe/Berlin
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 ENV CONFIG_PATH=/app/scansynclib/scansynclib/config.json
 COPY metadata_service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
