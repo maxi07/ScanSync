@@ -574,7 +574,7 @@ function getStatusIcon(file_status) {
 
 function getOcrStatusText(ocr_status) {
     const ocrFailureMessages = {
-        'FAILED': 'OCR: No text found',
+        'FAILED': 'OCR: Failed',
         'UNSUPPORTED': 'OCR: Unsupported format',
         'DPI_ERROR': 'OCR: Image DPI too low',
         'INPUT_ERROR': 'OCR: Input file error',
