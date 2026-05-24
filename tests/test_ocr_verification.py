@@ -33,8 +33,8 @@ class TestOCRTextVerification:
         assert result == ""
 
     @patch('scansynclib.helpers.PdfReader')
-    def test_extract_text_strips_whitespace(self, mock_pdf_reader):
-        """Test that extract_text properly handles text with whitespace."""
+    def test_extract_text_preserves_whitespace(self, mock_pdf_reader):
+        """Test that extract_text returns the raw text without stripping whitespace."""
         from scansynclib.helpers import extract_text
 
         # Mock the PDF reader to return text with whitespace
@@ -93,6 +93,7 @@ def _load_ocr_main():
     module_patches = {
         'ocrmypdf': mock_ocrmypdf,
         'pika': mock_pika,
+        'pika.exceptions': mock_pika.exceptions,
         'scansynclib.settings': mock_settings_mod,
         'scansynclib.sqlite_wrapper': MagicMock(),
     }

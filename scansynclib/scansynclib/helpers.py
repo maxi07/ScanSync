@@ -252,19 +252,23 @@ def validate_smb_filename(filename: str) -> str:
 
 
 def extract_text(pdf_path: str) -> str:
-    """Extracts text from a PDF file, only the first page.
+    """Extracts text from a PDF file across all pages.
 
     Args:
         pdf_path (str): The path to the PDF file.
 
     Returns:
-        str: The extracted text from the PDF. An empty string is returned if the extraction fails.
+        str: The extracted text from the PDF. An empty string is returned if the
+            extraction fails or no text is present.
     """
     try:
         reader = PdfReader(pdf_path)
-        page = reader.pages[0]
-        text = page.extract_text()
-        return text
+        parts = []
+        for page in reader.pages:
+            page_text = page.extract_text() or ""
+            if page_text:
+                parts.append(page_text)
+        return "\n".join(parts)
     except Exception as ex:
         logger.exception(f"Failed extracting text: {ex}")
         return ""

@@ -88,7 +88,7 @@ def rabbitmq_listener():
                 currently_uploading=item.current_uploading,
                 current_upload_target=item.current_upload_target,
                 badges=badges,  # Add the generated badges
-                ocr_status=item.ocr_status.name if item.ocr_status else None,
+                ocr_status=item.ocr_status.name if getattr(item, "ocr_status", None) else None,
             )
             payload["dashboard_data"] = get_dashboard_info()  # Nur bei Bedarf abrufen
             sse_queue.put(json.dumps(payload, default=str))  # Ensure all objects are serializable
