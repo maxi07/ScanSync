@@ -172,6 +172,9 @@ function updateCard(updateData) {
             } else {
                 element.textContent = updateData.file_status;
             }
+            // Re-append trailing <br> that gets wiped out by setting textContent,
+            // so the OCR status span renders on a new line (see createCard).
+            element.appendChild(document.createElement('br'));
         }
     } catch (error) {
         console.error(`Error updating file status: ${error.message}`);
