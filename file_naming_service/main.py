@@ -17,6 +17,20 @@ from scansynclib.settings import settings
 RABBITQUEUE = "file_naming_queue"
 
 
+def get_latest_file_naming_status(item: ProcessItem):
+    status_name = execute_query(
+        "SELECT file_naming_status FROM file_naming_jobs WHERE id = ?",
+        (item.file_naming_db_id,),
+        return_scalar=True
+    )
+    if status_name:
+        try:
+            return FileNamingStatus[status_name]
+        except KeyError:
+            logger.warning(f"Unknown file naming status '{status_name}' for item {item.filename}")
+    return item.file_naming_status
+
+
 def callback(ch, method, properties, body):
     try:
         item: ProcessItem = pickle.loads(body)
@@ -42,6 +56,7 @@ def callback(ch, method, properties, body):
 
         if not openai_enabled and not ollama_enabled:
             logger.error("Neither OpenAI nor Ollama is enabled. Please enable one of them in the settings.")
+        item.file_naming_status = FileNamingStatus.PROCESSING
         execute_query('UPDATE file_naming_jobs SET file_naming_status = ? WHERE id = ?', (FileNamingStatus.PROCESSING.name, item.file_naming_db_id))
 
         method_setting = settings.file_naming.method
@@ -78,6 +93,8 @@ def callback(ch, method, properties, body):
             connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=120)
             channel.basic_ack(delivery_tag=method.delivery_tag)
         if item:
+            if item.file_naming_db_id:
+                item.file_naming_status = get_latest_file_naming_status(item)
             item.status = ProcessStatus.SYNC_PENDING
             update_scanneddata_database(item, {"file_status": item.status.value})
             forward_to_rabbitmq("upload_queue", item)

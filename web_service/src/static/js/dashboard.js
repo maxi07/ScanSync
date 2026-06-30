@@ -451,10 +451,11 @@ function addPdfCard(pdfData) {
     progressContainer.classList.add('progress-bar-wrapper');
     progressContainer.id = pdfData.id + '_progress_bar';
 
-    const parsedProgressStep = Number(pdfData.status_progressbar);
+    const hasProgressStep = pdfData.status_progressbar !== undefined && pdfData.status_progressbar !== null && pdfData.status_progressbar !== "";
+    const parsedProgressStep = hasProgressStep ? Number(pdfData.status_progressbar) : NaN;
     const progressStep = Number.isFinite(parsedProgressStep) ? parsedProgressStep : 1;
     const isDeleted = pdfData.file_status?.toLowerCase().includes("deleted");
-    const isFailed = pdfData.file_status?.toLowerCase().includes("failed") || isDeleted || pdfData.status_progressbar === -1;
+    const isFailed = pdfData.file_status?.toLowerCase().includes("failed") || isDeleted || progressStep === -1;
     const isCompleted = pdfData.file_status?.toLowerCase().includes("completed");
     const stepLabels = ["File Detection", "Reading Metadata", "OCR", "File Naming", "Upload"];
     const stepStatuses = getStepStatuses(progressStep, isFailed, isDeleted, isCompleted, pdfData);
@@ -477,6 +478,7 @@ function addPdfCard(pdfData) {
             segment.setAttribute('data-tooltip', stepLabels[i] + " – In Progress");
             segment.setAttribute('aria-label', stepLabels[i] + " – In Progress");
         } else {
+            segment.classList.add('pending');
             segment.setAttribute('data-tooltip', stepLabels[i] + " – Pending");
             segment.setAttribute('aria-label', stepLabels[i] + " – Pending");
         }
@@ -574,7 +576,7 @@ function getStepStatuses(progressStep, isFailed, isDeleted, isCompleted, pdfData
 
         if (fileStatus.includes("invalid file")) {
             failedStep = 0; // Detection failed
-        } else if (fileStatus === "failed" && progressStep <= 1) {
+        } else if (fileStatus === "failed" && progressStep >= 0 && progressStep <= 1) {
             failedStep = 1; // Metadata failed
         } else if (pdfData.ocr_status && ocrFailureStatuses.includes(pdfData.ocr_status)) {
             failedStep = 2; // OCR failed
@@ -648,7 +650,7 @@ function updateProgressBar(pdfId, newStep, pdfData) {
     const stepStatuses = getStepStatuses(clampedStep, isFailed, isDeleted, isCompleted, pdfData || {});
 
     segments.forEach((segment, index) => {
-        segment.classList.remove('active', 'failed', 'completed', 'current');
+        segment.classList.remove('active', 'failed', 'completed', 'current', 'pending');
 
         const status = stepStatuses[index];
         if (status === "failed") {
@@ -664,6 +666,7 @@ function updateProgressBar(pdfId, newStep, pdfData) {
             segment.setAttribute('data-tooltip', stepLabels[index] + " – In Progress");
             segment.setAttribute('aria-label', stepLabels[index] + " – In Progress");
         } else {
+            segment.classList.add('pending');
             segment.setAttribute('data-tooltip', stepLabels[index] + " – Pending");
             segment.setAttribute('aria-label', stepLabels[index] + " – Pending");
         }

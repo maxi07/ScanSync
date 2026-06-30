@@ -72,6 +72,10 @@ animation: marquee 1.5s linear infinite;
 background-color: #dc3545;
 }
 
+.progress-segment.pending {
+background-color: #dee2e6;
+}
+
 @keyframes marquee {
 0% { background-position: 100% 0; }
 100% { background-position: -100% 0; }
