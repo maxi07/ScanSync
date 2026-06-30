@@ -124,5 +124,6 @@ def start_consuming_with_reconnect():
             time.sleep(5)
 
 
-# Start the consumer with reconnect logic
-start_consuming_with_reconnect()
+if __name__ == "__main__":
+    # Start the consumer with reconnect logic
+    start_consuming_with_reconnect()
