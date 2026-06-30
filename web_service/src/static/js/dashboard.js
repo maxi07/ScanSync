@@ -451,7 +451,8 @@ function addPdfCard(pdfData) {
     progressContainer.classList.add('progress-bar-wrapper');
     progressContainer.id = pdfData.id + '_progress_bar';
 
-    const progressStep = pdfData.status_progressbar || 1;
+    const parsedProgressStep = Number(pdfData.status_progressbar);
+    const progressStep = Number.isFinite(parsedProgressStep) ? parsedProgressStep : 1;
     const isDeleted = pdfData.file_status?.toLowerCase().includes("deleted");
     const isFailed = pdfData.file_status?.toLowerCase().includes("failed") || isDeleted || pdfData.status_progressbar === -1;
     const isCompleted = pdfData.file_status?.toLowerCase().includes("completed");
@@ -465,15 +466,19 @@ function addPdfCard(pdfData) {
         const status = stepStatuses[i];
         if (status === "failed") {
             segment.classList.add('failed');
-            segment.title = stepLabels[i] + " – Failed";
+            segment.setAttribute('data-tooltip', stepLabels[i] + " – Failed");
+            segment.setAttribute('aria-label', stepLabels[i] + " – Failed");
         } else if (status === "completed") {
             segment.classList.add('completed');
-            segment.title = stepLabels[i] + " – Completed";
+            segment.setAttribute('data-tooltip', stepLabels[i] + " – Completed");
+            segment.setAttribute('aria-label', stepLabels[i] + " – Completed");
         } else if (status === "current") {
             segment.classList.add('current');
-            segment.title = stepLabels[i] + " – In Progress";
+            segment.setAttribute('data-tooltip', stepLabels[i] + " – In Progress");
+            segment.setAttribute('aria-label', stepLabels[i] + " – In Progress");
         } else {
-            segment.title = stepLabels[i] + " – Pending";
+            segment.setAttribute('data-tooltip', stepLabels[i] + " – Pending");
+            segment.setAttribute('aria-label', stepLabels[i] + " – Pending");
         }
 
         progressContainer.appendChild(segment);
@@ -636,9 +641,10 @@ function updateProgressBar(pdfId, newStep, pdfData) {
     // Clamp value to -1–5
     const clampedStep = Math.max(-1, Math.min(5, newStep));
 
-    const isDeleted = pdfData?.file_status?.toLowerCase().includes("deleted");
-    const isFailed = clampedStep === -1;
-    const isCompleted = clampedStep === 5;
+    const fileStatus = pdfData?.file_status?.toLowerCase() || "";
+    const isDeleted = fileStatus.includes("deleted");
+    const isFailed = fileStatus.includes("failed") || fileStatus.includes("invalid file") || isDeleted || clampedStep === -1;
+    const isCompleted = fileStatus.includes("completed") || clampedStep === 5;
     const stepStatuses = getStepStatuses(clampedStep, isFailed, isDeleted, isCompleted, pdfData || {});
 
     segments.forEach((segment, index) => {
@@ -647,15 +653,19 @@ function updateProgressBar(pdfId, newStep, pdfData) {
         const status = stepStatuses[index];
         if (status === "failed") {
             segment.classList.add('failed');
-            segment.title = stepLabels[index] + " – Failed";
+            segment.setAttribute('data-tooltip', stepLabels[index] + " – Failed");
+            segment.setAttribute('aria-label', stepLabels[index] + " – Failed");
         } else if (status === "completed") {
             segment.classList.add('completed');
-            segment.title = stepLabels[index] + " – Completed";
+            segment.setAttribute('data-tooltip', stepLabels[index] + " – Completed");
+            segment.setAttribute('aria-label', stepLabels[index] + " – Completed");
         } else if (status === "current") {
             segment.classList.add('current');
-            segment.title = stepLabels[index] + " – In Progress";
+            segment.setAttribute('data-tooltip', stepLabels[index] + " – In Progress");
+            segment.setAttribute('aria-label', stepLabels[index] + " – In Progress");
         } else {
-            segment.title = stepLabels[index] + " – Pending";
+            segment.setAttribute('data-tooltip', stepLabels[index] + " – Pending");
+            segment.setAttribute('aria-label', stepLabels[index] + " – Pending");
         }
     });
 }
