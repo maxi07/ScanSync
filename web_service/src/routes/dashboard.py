@@ -71,11 +71,12 @@ def index():
                     FROM ocr_jobs
                     WHERE id IN (SELECT MAX(id) FROM ocr_jobs GROUP BY scanneddata_id)
                 ) ocr ON d.id = ocr.scanneddata_id
-                LEFT JOIN (
-                    SELECT scanneddata_id, file_naming_status
-                    FROM file_naming_jobs
-                    WHERE id IN (SELECT MAX(id) FROM file_naming_jobs GROUP BY scanneddata_id)
-                ) fn ON d.id = fn.scanneddata_id
+                LEFT JOIN file_naming_jobs fn
+                    ON fn.id = (
+                        SELECT MAX(id)
+                        FROM file_naming_jobs
+                        WHERE scanneddata_id = d.id
+                    )
             '''
             result = db.execute(query, {'limit': entries_per_page, 'offset': offset}).fetchall()
 
