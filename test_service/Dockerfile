@@ -1,6 +1,9 @@
 # Use the latest Seleniarm standalone Chromium image as the base image
 FROM seleniarm/standalone-chromium:latest
 
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 # Switch to the root user to install dependencies
 USER root
 
