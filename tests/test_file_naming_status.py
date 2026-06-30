@@ -12,11 +12,20 @@ import pytest
 _sqlite_stub = types.ModuleType("scansynclib.sqlite_wrapper")
 _sqlite_stub.execute_query = lambda *args, **kwargs: None
 _sqlite_stub.update_scanneddata_database = lambda *args, **kwargs: None
-sys.modules.setdefault("scansynclib.sqlite_wrapper", _sqlite_stub)
+
+_original_sqlite_wrapper = sys.modules.get("scansynclib.sqlite_wrapper")
+sys.modules["scansynclib.sqlite_wrapper"] = _sqlite_stub
+
+
+def teardown_module(module):
+    if _original_sqlite_wrapper is None:
+        sys.modules.pop("scansynclib.sqlite_wrapper", None)
+    else:
+        sys.modules["scansynclib.sqlite_wrapper"] = _original_sqlite_wrapper
+
 
 import file_naming_service.main as fn_main  # noqa: E402
 from scansynclib.ProcessItem import ProcessItem, ItemType, FileNamingStatus  # noqa: E402
-
 
 @pytest.fixture
 def item(tmp_path):
