@@ -618,15 +618,16 @@ function getStepStatuses(progressStep, isFailed, isDeleted, isCompleted, pdfData
 
     // In progress - mark completed steps, current step, and check per-step failures
     for (let i = 0; i < 5; i++) {
-        if (i < progressStep) {
-            // Check individual step failures for completed steps
-            if (i === 2 && pdfData.ocr_status && ocrFailureStatuses.includes(pdfData.ocr_status)) {
-                statuses[i] = "failed";
-            } else if (i === 3 && pdfData.file_naming_status && fileNamingFailureStatuses.includes(pdfData.file_naming_status)) {
-                statuses[i] = "failed";
-            } else {
-                statuses[i] = "completed";
-            }
+        // Surface OCR / file naming failures regardless of the current step. After a
+        // non-fatal OCR failure processing continues to the next stage, so the OCR step
+        // can equal progressStep while it has already failed. Checking the sub-status
+        // first prevents showing a failed step as still "in progress".
+        if (i === 2 && pdfData.ocr_status && ocrFailureStatuses.includes(pdfData.ocr_status)) {
+            statuses[i] = "failed";
+        } else if (i === 3 && pdfData.file_naming_status && fileNamingFailureStatuses.includes(pdfData.file_naming_status)) {
+            statuses[i] = "failed";
+        } else if (i < progressStep) {
+            statuses[i] = "completed";
         } else if (i === progressStep) {
             statuses[i] = "current";
         }
