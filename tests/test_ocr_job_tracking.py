@@ -36,8 +36,6 @@ _ocrmypdf_stub.InputFileError = _InputFileError
 _ocrmypdf_stub.OutputFileAccessError = _OutputFileAccessError
 _ocrmypdf_stub.MissingDependencyError = _MissingDependencyError
 _ocrmypdf_stub.ocr = lambda *args, **kwargs: 0
-sys.modules.setdefault("ocrmypdf", _ocrmypdf_stub)
-
 
 # Importing the service pulls in scansynclib.sqlite_wrapper, which initializes a
 # real SQLite database at import time. That database is not available in the unit
@@ -46,11 +44,25 @@ sys.modules.setdefault("ocrmypdf", _ocrmypdf_stub)
 _sqlite_stub = types.ModuleType("scansynclib.sqlite_wrapper")
 _sqlite_stub.execute_query = lambda *args, **kwargs: None
 _sqlite_stub.update_scanneddata_database = lambda *args, **kwargs: None
-sys.modules.setdefault("scansynclib.sqlite_wrapper", _sqlite_stub)
+
+_original_modules = {
+    "ocrmypdf": sys.modules.get("ocrmypdf"),
+    "scansynclib.sqlite_wrapper": sys.modules.get("scansynclib.sqlite_wrapper"),
+}
+sys.modules["ocrmypdf"] = _ocrmypdf_stub
+sys.modules["scansynclib.sqlite_wrapper"] = _sqlite_stub
+
+
+def teardown_module(module):
+    for name, original in _original_modules.items():
+        if original is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = original
+
 
 import ocr_service.main as ocr_main  # noqa: E402
 from scansynclib.ProcessItem import ProcessItem, ItemType, OCRStatus, ProcessStatus  # noqa: E402
-
 
 @pytest.fixture
 def item(tmp_path):
