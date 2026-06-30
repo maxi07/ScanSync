@@ -7,6 +7,25 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
 
+def _render_progress_segments(driver, pdf_data):
+    script = """
+        const pdfData = arguments[0];
+        const existingCol = document.getElementById(pdfData.id + '_col');
+        if (existingCol) {
+            existingCol.remove();
+        }
+        addPdfCard(pdfData);
+        return Array.from(
+            document.querySelectorAll(`#${pdfData.id}_progress_bar .progress-segment`)
+        ).map((segment) => ({
+            classes: Array.from(segment.classList),
+            tooltip: segment.getAttribute('data-tooltip'),
+            ariaLabel: segment.getAttribute('aria-label'),
+        }));
+    """
+    return driver.execute_script(script, pdf_data)
+
+
 @pytest.fixture
 def driver():
     options = Options()
@@ -124,3 +143,137 @@ def test_dashboard_settings_ollama_first_start(driver):
     error_div = driver.find_element(By.ID, "ollama-error")
     models_section = driver.find_element(By.ID, "ollama-models-section")
     assert error_div.is_displayed() or models_section.is_displayed()
+
+
+@pytest.mark.parametrize(
+    "pdf_data,expected",
+    [
+        (
+            {
+                "id": 9901,
+                "file_name": "progress-step-2.pdf",
+                "file_status": "OCR Processing",
+                "status_progressbar": 2,
+                "badges": [],
+            },
+            [
+                ("completed", "File Detection – Completed"),
+                ("completed", "Reading Metadata – Completed"),
+                ("current", "OCR – In Progress"),
+                ("pending", "File Naming – Pending"),
+                ("pending", "Upload – Pending"),
+            ],
+        ),
+        (
+            {
+                "id": 9902,
+                "file_name": "invalid-file.pdf",
+                "file_status": "Invalid File",
+                "status_progressbar": -1,
+                "badges": [],
+            },
+            [
+                ("failed", "File Detection – Failed"),
+                ("pending", "Reading Metadata – Pending"),
+                ("pending", "OCR – Pending"),
+                ("pending", "File Naming – Pending"),
+                ("pending", "Upload – Pending"),
+            ],
+        ),
+        (
+            {
+                "id": 9903,
+                "file_name": "ocr-failed.pdf",
+                "file_status": "Failed",
+                "status_progressbar": 3,
+                "ocr_status": "INPUT_ERROR",
+                "badges": [],
+            },
+            [
+                ("completed", "File Detection – Completed"),
+                ("completed", "Reading Metadata – Completed"),
+                ("failed", "OCR – Failed"),
+                ("pending", "File Naming – Pending"),
+                ("pending", "Upload – Pending"),
+            ],
+        ),
+        (
+            {
+                "id": 9904,
+                "file_name": "naming-failed.pdf",
+                "file_status": "Failed",
+                "status_progressbar": 4,
+                "file_naming_status": "NO_SERVER_CONNECTION",
+                "badges": [],
+            },
+            [
+                ("completed", "File Detection – Completed"),
+                ("completed", "Reading Metadata – Completed"),
+                ("completed", "OCR – Completed"),
+                ("failed", "File Naming – Failed"),
+                ("pending", "Upload – Pending"),
+            ],
+        ),
+        (
+            {
+                "id": 9905,
+                "file_name": "sync-failed.pdf",
+                "file_status": "Sync Failed",
+                "status_progressbar": 5,
+                "badges": [],
+            },
+            [
+                ("completed", "File Detection – Completed"),
+                ("completed", "Reading Metadata – Completed"),
+                ("completed", "OCR – Completed"),
+                ("completed", "File Naming – Completed"),
+                ("failed", "Upload – Failed"),
+            ],
+        ),
+        (
+            {
+                "id": 9906,
+                "file_name": "deleted.pdf",
+                "file_status": "Deleted",
+                "status_progressbar": 2,
+                "badges": [],
+            },
+            [
+                ("failed", "File Detection – Failed"),
+                ("failed", "Reading Metadata – Failed"),
+                ("failed", "OCR – Failed"),
+                ("failed", "File Naming – Failed"),
+                ("failed", "Upload – Failed"),
+            ],
+        ),
+        (
+            {
+                "id": 9907,
+                "file_name": "completed-with-ocr-failure.pdf",
+                "file_status": "Completed",
+                "status_progressbar": 5,
+                "ocr_status": "UNSUPPORTED",
+                "badges": [],
+            },
+            [
+                ("completed", "File Detection – Completed"),
+                ("completed", "Reading Metadata – Completed"),
+                ("failed", "OCR – Failed"),
+                ("completed", "File Naming – Completed"),
+                ("completed", "Upload – Completed"),
+            ],
+        ),
+    ],
+)
+def test_dashboard_progress_bar_step_statuses(driver, pdf_data, expected):
+    driver.get("http://web-service:5001")
+    WebDriverWait(driver, 10).until(EC.title_contains("ScanSync"))
+
+    rendered = _render_progress_segments(driver, pdf_data)
+    assert len(rendered) == 5
+
+    for index, (expected_class, expected_tooltip) in enumerate(expected):
+        segment = rendered[index]
+        assert expected_class in segment["classes"]
+        assert segment["tooltip"] == expected_tooltip
+        assert segment["ariaLabel"] == expected_tooltip
