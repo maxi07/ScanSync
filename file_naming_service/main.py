@@ -32,6 +32,7 @@ def get_latest_file_naming_status(item: ProcessItem):
 
 
 def callback(ch, method, properties, body):
+    item = None
     try:
         item: ProcessItem = pickle.loads(body)
 
@@ -80,7 +81,12 @@ def callback(ch, method, properties, body):
         execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, "OCR file does not exist", item.file_naming_db_id))
     except TypeError as e:
         logger.error(f"Received object is not a ProcessItem: {e}. Skipping.")
-        execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
+        item_file_naming_db_id = getattr(item, "file_naming_db_id", None)
+        if item_file_naming_db_id:
+            execute_query(
+                "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+                (FileNamingStatus.FAILED.name, str(e), item_file_naming_db_id)
+            )
         return
     except Exception as e:
         logger.exception(f"Failed processing {item.filename}.")
@@ -92,8 +98,9 @@ def callback(ch, method, properties, body):
             logger.error("Connection lost while acknowledging message. Reconnecting...")
             connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=120)
             channel.basic_ack(delivery_tag=method.delivery_tag)
-        if item:
-            if item.file_naming_db_id:
+        if isinstance(item, ProcessItem):
+            item_file_naming_db_id = getattr(item, "file_naming_db_id", None)
+            if item_file_naming_db_id:
                 item.file_naming_status = get_latest_file_naming_status(item)
             item.status = ProcessStatus.SYNC_PENDING
             update_scanneddata_database(item, {"file_status": item.status.value})

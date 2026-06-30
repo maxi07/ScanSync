@@ -40,16 +40,18 @@ def start_processing(item: ProcessItem):
 
     logger.info(f"Processing file with OCR: {item.filename}")
     ocr_error = None
+    ocr_result = None
 
     try:
-        result = ocrmypdf.ocr(item.local_file_path, item.ocr_file, output_type='pdfa', skip_text=True, rotate_pages=True, jpg_quality=80, png_quality=80, optimize=2, language=["eng", "deu"], tesseract_timeout=120)
-        if result != 0:
-            logger.error(f"OCR exited with code {result}")
+        ocr_result = ocrmypdf.ocr(item.local_file_path, item.ocr_file, output_type='pdfa', skip_text=True, rotate_pages=True, jpg_quality=80, png_quality=80, optimize=2, language=["eng", "deu"], tesseract_timeout=120)
+        if ocr_result != 0:
+            logger.error(f"OCR exited with code {ocr_result}")
             item.ocr_status = OCRStatus.FAILED
+            ocr_error = f"OCR exited with code {ocr_result}"
         else:
             logger.info(f"OCR processing completed: {item.filename}")
-        logger.debug(f"OCR exited with code {result}")
-        item.ocr_status = OCRStatus.COMPLETED
+            item.ocr_status = OCRStatus.COMPLETED
+        logger.debug(f"OCR exited with code {ocr_result}")
     except ocrmypdf.UnsupportedImageFormatError:
         logger.error(f"Unsupported image format: {item.local_file_path}")
         item.ocr_status = OCRStatus.UNSUPPORTED
@@ -76,6 +78,10 @@ def start_processing(item: ProcessItem):
         ocr_error = str(ex)
     finally:
         item.time_ocr_finished = datetime.now()
+        if ocr_result is not None and ocr_result != 0:
+            item.ocr_status = OCRStatus.FAILED
+            if not ocr_error:
+                ocr_error = f"OCR exited with code {ocr_result}"
         if item.ocr_db_id:
             execute_query(
                 "UPDATE ocr_jobs SET ocr_status = ?, ocr_error = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",

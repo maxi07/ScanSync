@@ -81,20 +81,26 @@ background-color: #dee2e6;
 100% { background-position: -100% 0; }
 }
 
-.progress-segment[data-tooltip]:hover::after {
-content: attr(data-tooltip);
-position: absolute;
-bottom: calc(100% + 6px);
-left: 50%;
-transform: translateX(-50%);
-background-color: rgba(0, 0, 0, 0.85);
-color: #fff;
-padding: 4px 8px;
-border-radius: 4px;
-font-size: 0.7rem;
-white-space: nowrap;
-z-index: 10;
-pointer-events: none;
+.progress-segment[data-tooltip]:hover::after,
+.progress-segment[data-tooltip]:focus-visible::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.progress-segment:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 1px;
 }
 
 .rotating {

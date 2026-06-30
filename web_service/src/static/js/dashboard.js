@@ -463,6 +463,8 @@ function addPdfCard(pdfData) {
     for (let i = 0; i < 5; i++) {
         const segment = document.createElement('div');
         segment.classList.add('progress-segment');
+        segment.setAttribute('tabindex', '0');
+        segment.setAttribute('role', 'img');
 
         const status = stepStatuses[i];
         if (status === "failed") {
