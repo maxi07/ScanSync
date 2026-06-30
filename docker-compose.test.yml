@@ -30,6 +30,8 @@ services:
     build:
       context: .
       dockerfile: test_service/Dockerfile
+      args:
+        - APP_VERSION=${APP_VERSION:-dev}
     depends_on:
       - web-service
       - redis

@@ -1,5 +1,7 @@
 FROM alpine:latest
 ENV TZ=Europe/Berlin
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 RUN apk add --no-cache samba samba-common-tools
 
 RUN adduser -D ocr && echo -e "ocr\nocr" | smbpasswd -a -s ocr && \

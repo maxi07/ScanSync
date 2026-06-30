@@ -1,6 +1,7 @@
 # Git Version (Tag or Commit-Hash)
 GIT_VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-export APP_VERSION := $(GIT_VERSION)
+APP_VERSION ?= $(GIT_VERSION)
+export APP_VERSION
 
 # Variables
 DOCKER_COMPOSE = docker compose -f docker-compose.yml
@@ -31,7 +32,7 @@ help:
 .PHONY: start
 start:
 	@echo "Starting ScanSync (Version: $(GIT_VERSION))..."
-	APP_VERSION=$(GIT_VERSION) $(DOCKER_COMPOSE) up --build -d
+	$(DOCKER_COMPOSE) up --build -d
 
 .PHONY: stop
 stop:
@@ -47,7 +48,7 @@ logs:
 .PHONY: build
 build:
 	@echo "Building ScanSync (Version: $(GIT_VERSION))..."
-	APP_VERSION=$(GIT_VERSION) $(DOCKER_COMPOSE) build
+	$(DOCKER_COMPOSE) build
 
 # General
 .PHONY: status

@@ -1,6 +1,9 @@
 services:    
   smb_service:
-    build: ./smb_service
+    build:
+      context: ./smb_service
+      args:
+        - APP_VERSION=${APP_VERSION:-dev}
     container_name: smb_service
     ports:
       - "137:137/udp"
