@@ -559,6 +559,24 @@ const fileNamingFailureStatuses = ["FAILED", "NO_OCR_FILE", "NO_PDF_TEXT", "NO_S
     "MODEL_NOT_FOUND", "AUTHENTICATION_ERROR", "RATE_LIMIT_ERROR"];
 
 /**
+ * Resolve which of the 5 progress steps is currently active from the textual
+ * file_status. The numeric status_progressbar maps "pending" states to the
+ * previously completed step (e.g. "File Name Pending" -> 2 = OCR), which would
+ * place the in-progress marker on the wrong/failed step. Deriving it from the
+ * status text keeps the active marker (and its marquee animation) on the stage
+ * the pipeline has actually advanced to.
+ */
+function getCurrentStepIndex(fileStatus, progressStep) {
+    const status = (fileStatus || "").toLowerCase();
+    if (status.includes("file name") || status.includes("file naming")) return 3;
+    if (status.includes("sync") || status.includes("upload")) return 4;
+    if (status.includes("ocr")) return 2;
+    if (status.includes("metadata")) return 1;
+    if (status.includes("not ready") || status.includes("detection")) return 0;
+    return progressStep;
+}
+
+/**
  * Determine the visual status for each of the 5 progress bar steps.
  * Returns an array of 5 strings: "completed", "failed", "current", or "pending".
  */
@@ -617,6 +635,7 @@ function getStepStatuses(progressStep, isFailed, isDeleted, isCompleted, pdfData
     }
 
     // In progress - mark completed steps, current step, and check per-step failures
+    const currentStep = getCurrentStepIndex(pdfData.file_status, progressStep);
     for (let i = 0; i < 5; i++) {
         // Surface OCR / file naming failures regardless of the current step. After a
         // non-fatal OCR failure processing continues to the next stage, so the OCR step
@@ -626,9 +645,9 @@ function getStepStatuses(progressStep, isFailed, isDeleted, isCompleted, pdfData
             statuses[i] = "failed";
         } else if (i === 3 && pdfData.file_naming_status && fileNamingFailureStatuses.includes(pdfData.file_naming_status)) {
             statuses[i] = "failed";
-        } else if (i < progressStep) {
+        } else if (i < currentStep) {
             statuses[i] = "completed";
-        } else if (i === progressStep) {
+        } else if (i === currentStep) {
             statuses[i] = "current";
         }
         // else remains "pending"
