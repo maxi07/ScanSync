@@ -27,7 +27,7 @@ def get_db():
 @dashboard_bp.route('/')
 def index():
     try:
-        logger.info("Loading dashboard...")
+        logger.debug("Loading dashboard...")
         db = get_db()
         entries_per_page = 8
         try:

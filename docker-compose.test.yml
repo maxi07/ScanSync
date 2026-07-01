@@ -13,6 +13,7 @@ services:
       - preview_images_test:/app/src/static/images/pdfpreview
     networks:
       - test-network
+    stop_grace_period: 30s
     # depends_on:
     #   - rabbitmq
 
