@@ -1,9 +1,10 @@
 from scansynclib.logging import logger
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus, OCRStatus
 from scansynclib.sqlite_wrapper import execute_query, update_scanneddata_database
-from scansynclib.helpers import connect_rabbitmq, forward_to_rabbitmq
+from scansynclib.helpers import connect_rabbitmq, forward_to_rabbitmq, extract_text
 import pickle
 import ocrmypdf
+import os
 from datetime import datetime
 import time
 import pika.exceptions
@@ -40,18 +41,31 @@ def start_processing(item: ProcessItem):
 
     logger.info(f"Processing file with OCR: {item.filename}")
     ocr_error = None
-    ocr_result = None
+    result = None
 
     try:
-        ocr_result = ocrmypdf.ocr(item.local_file_path, item.ocr_file, output_type='pdfa', skip_text=True, rotate_pages=True, jpg_quality=80, png_quality=80, optimize=2, language=["eng", "deu"], tesseract_timeout=120)
-        if ocr_result != 0:
-            logger.error(f"OCR exited with code {ocr_result}")
+        result = ocrmypdf.ocr(item.local_file_path, item.ocr_file, output_type='pdfa', skip_text=True, rotate_pages=True, jpg_quality=80, png_quality=80, optimize=2, language=["eng", "deu"], tesseract_timeout=120)
+        logger.debug(f"OCR exited with code {result}")
+
+        if result != 0:
+            logger.error(f"OCR exited with code {result}")
             item.ocr_status = OCRStatus.FAILED
-            ocr_error = f"OCR exited with code {ocr_result}"
+            ocr_error = f"OCR exited with code {result}"
         else:
             logger.info(f"OCR processing completed: {item.filename}")
-            item.ocr_status = OCRStatus.COMPLETED
-        logger.debug(f"OCR exited with code {ocr_result}")
+
+            # Verify that the OCR file actually contains text
+            if os.path.exists(item.ocr_file):
+                extracted_text = (extract_text(item.ocr_file, max_pages=2, max_chars=2048) or "").strip()
+                if extracted_text:
+                    logger.info(f"OCR verification successful: extracted {len(extracted_text)} characters from {item.filename}")
+                    item.ocr_status = OCRStatus.COMPLETED
+                else:
+                    logger.warning(f"OCR verification failed: no text found in OCR output file {item.ocr_file}")
+                    item.ocr_status = OCRStatus.FAILED
+            else:
+                logger.error(f"OCR output file not found: {item.ocr_file}")
+                item.ocr_status = OCRStatus.OUTPUT_ERROR
     except ocrmypdf.UnsupportedImageFormatError:
         logger.error(f"Unsupported image format: {item.local_file_path}")
         item.ocr_status = OCRStatus.UNSUPPORTED
@@ -78,10 +92,10 @@ def start_processing(item: ProcessItem):
         ocr_error = str(ex)
     finally:
         item.time_ocr_finished = datetime.now()
-        if ocr_result is not None and ocr_result != 0:
+        if result is not None and result != 0:
             item.ocr_status = OCRStatus.FAILED
             if not ocr_error:
-                ocr_error = f"OCR exited with code {ocr_result}"
+                ocr_error = f"OCR exited with code {result}"
         if item.ocr_db_id:
             execute_query(
                 "UPDATE ocr_jobs SET ocr_status = ?, ocr_error = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
@@ -105,7 +119,7 @@ def start_processing(item: ProcessItem):
             logger.error(f"Failed to forward item {item.filename} to the next service: {e}")
             item.status = ProcessStatus.FAILED
         finally:
-            update_scanneddata_database(item, {"file_status": item.status.value})
+            update_scanneddata_database(item, {"file_status": item.status.value, "ocr_status": item.ocr_status.name})
         return item
 
 
@@ -124,6 +138,6 @@ def start_consuming_with_reconnect():
             time.sleep(5)
 
 
+# Start the consumer with reconnect logic
 if __name__ == "__main__":
-    # Start the consumer with reconnect logic
     start_consuming_with_reconnect()

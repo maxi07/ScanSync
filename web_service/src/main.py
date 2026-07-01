@@ -205,6 +205,13 @@ def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static/images'), favicon_file, mimetype="image/x-icon")
 
 
+@app.route("/apple-touch-icon.png")
+@app.route("/apple-touch-icon-precomposed.png")
+def apple_touch_icon():
+    """Serve the Apple touch icon."""
+    return send_from_directory(os.path.join(app.root_path, 'static/images'), 'apple-touch-icon.png', mimetype="image/png")
+
+
 start_rabbitmq_listener()
 
 if __name__ == '__main__':

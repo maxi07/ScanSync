@@ -251,20 +251,41 @@ def validate_smb_filename(filename: str) -> str:
     return filename
 
 
-def extract_text(pdf_path: str) -> str:
-    """Extracts text from a PDF file, only the first page.
+def extract_text(pdf_path: str, max_pages: int = 10, max_chars: int = 50_000) -> str:
+    """Extracts text from a PDF file with configurable limits.
+
+    To avoid excessive memory usage on large documents, extraction stops after
+    *max_pages* pages have been read or *max_chars* characters have been
+    accumulated (whichever comes first).
 
     Args:
         pdf_path (str): The path to the PDF file.
+        max_pages (int): Maximum number of pages to read (default 10).
+        max_chars (int): Maximum number of characters to return (default 50 000).
 
     Returns:
-        str: The extracted text from the PDF. An empty string is returned if the extraction fails.
+        str: The extracted text from the PDF, truncated to the limits above.
+            An empty string is returned if the extraction fails or no text is
+            present.
     """
     try:
         reader = PdfReader(pdf_path)
-        page = reader.pages[0]
-        text = page.extract_text()
-        return text
+        parts: list[str] = []
+        total_chars = 0
+        for i, page in enumerate(reader.pages):
+            if i >= max_pages:
+                break
+            page_text = page.extract_text() or ""
+            if page_text:
+                remaining = max_chars - total_chars
+                if remaining <= 0:
+                    break
+                parts.append(page_text[:remaining])
+                total_chars += min(len(page_text), remaining)
+                if total_chars >= max_chars:
+                    break
+        result = "\n".join(parts)
+        return result[:max_chars]
     except Exception as ex:
         logger.exception(f"Failed extracting text: {ex}")
         return ""

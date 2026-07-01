@@ -101,6 +101,7 @@ class SettingsManager:
         self._pubsub = self._redis.pubsub()
         self._pubsub.subscribe(REDIS_CHANNEL)
         self._lock = threading.Lock()
+        self._stopping = False
 
         raw = self._redis.get(REDIS_KEY)
         if raw:
@@ -117,6 +118,48 @@ class SettingsManager:
         # Pub/Sub Listener
         threading.Thread(target=self._listen_pubsub, daemon=True).start()
 
+        # Best-effort graceful shutdown: stop pubsub loop quietly when the
+        # process receives SIGTERM (e.g. `docker compose down`). Without this
+        # the daemon thread keeps trying to reconnect to a dying Redis and
+        # spams a ConnectionError traceback at shutdown.
+        try:
+            import atexit
+            import signal
+            atexit.register(self._shutdown)
+            # Only install signal handler in the main thread (will fail in
+            # worker threads / gunicorn workers, which is fine).
+            if threading.current_thread() is threading.main_thread():
+                prev = signal.getsignal(signal.SIGTERM)
+
+                def _sigterm(signum, frame):
+                    self._shutdown()
+                    if callable(prev):
+                        prev(signum, frame)
+                        return
+                    if prev == signal.SIG_IGN:
+                        return
+                    if prev == signal.SIG_DFL:
+                        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+                        os.kill(os.getpid(), signal.SIGTERM)
+                        return
+
+                signal.signal(signal.SIGTERM, _sigterm)
+        except Exception:
+            pass
+
+    def _shutdown(self):
+        if self._stopping:
+            return
+        self._stopping = True
+        try:
+            self._pubsub.close()
+        except Exception:
+            pass
+        try:
+            self._redis.close()
+        except Exception:
+            pass
+
     def _on_change(self):
         with self._lock:
             # Safe changes to redis
@@ -126,13 +169,34 @@ class SettingsManager:
         logger.debug("Settings updated and published to Redis.")
 
     def _listen_pubsub(self):
-        for message in self._pubsub.listen():
-            if message["type"] == "message":
-                # Get updates and reload
-                with self._lock:
-                    raw = self._redis.get(REDIS_KEY)
-                    if raw:
-                        self.settings.update_from_json(raw)
+        try:
+            for message in self._pubsub.listen():
+                if self._stopping:
+                    break
+                if message["type"] == "message":
+                    # Get updates and reload
+                    with self._lock:
+                        raw = self._redis.get(REDIS_KEY)
+                        if raw:
+                            self.settings.update_from_json(raw)
+        except (redis.exceptions.ConnectionError, redis.exceptions.RedisError,
+                ValueError, OSError) as e:
+            # ValueError / OSError happen when the pubsub socket is closed
+            # from another thread during shutdown. Swallow silently in that
+            # case; the logging subsystem may itself already be torn down.
+            if self._stopping:
+                return
+            try:
+                logger.warning(f"Pub/Sub listener lost Redis connection: {e}")
+            except Exception:
+                pass
+        except Exception as e:
+            if self._stopping:
+                return
+            try:
+                logger.exception(f"Pub/Sub listener crashed: {e}")
+            except Exception:
+                pass
 
 
 settings_manager = SettingsManager()
