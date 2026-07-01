@@ -116,3 +116,64 @@ test("file naming failure is surfaced as failed at its step", () => {
 
     assert.equal(statuses[3], "failed");
 });
+
+// Mirror how addPdfCard / updateProgressBar derive the branch flags from the data.
+function deriveFlags(fileStatus, progressStep) {
+    const s = (fileStatus || "").toLowerCase();
+    const isDeleted = s.includes("deleted");
+    const isFailed = s.includes("failed") || isDeleted || progressStep === -1;
+    const isCompleted = s.includes("completed");
+    return { isFailed, isDeleted, isCompleted };
+}
+
+function statusesFor(fileStatus, progressStep, extra = {}) {
+    const { isFailed, isDeleted, isCompleted } = deriveFlags(fileStatus, progressStep);
+    return getStepStatuses(progressStep, isFailed, isDeleted, isCompleted, {
+        file_status: fileStatus,
+        ...extra
+    });
+}
+
+// Every in-progress pipeline state must place exactly one "current" (marquee)
+// segment on the stage the pipeline has actually reached. status_progressbar
+// values mirror StatusProgressBar._progress_map on the server.
+const inProgressCases = [
+    { file_status: "File Not Ready", pb: 0, current: 0 },
+    { file_status: "Reading Metadata", pb: 1, current: 1 },
+    { file_status: "OCR Pending", pb: 1, current: 2 },
+    { file_status: "OCR Processing", pb: 2, current: 2 },
+    { file_status: "File Name Pending", pb: 2, current: 3 },
+    { file_status: "File Name Processing", pb: 3, current: 3 },
+    { file_status: "Sync Pending", pb: 3, current: 4 },
+    { file_status: "Syncing", pb: 4, current: 4 }
+];
+
+for (const { file_status, pb, current } of inProgressCases) {
+    test(`in-progress "${file_status}" marks exactly one current step at index ${current}`, () => {
+        const statuses = statusesFor(file_status, pb);
+        const currentIndexes = Array.from(statuses).map((s, i) => (s === "current" ? i : -1)).filter((i) => i >= 0);
+        assert.deepEqual(currentIndexes, [current], `single marquee step expected at ${current}`);
+        // Everything before the current step is done, everything after is pending.
+        for (let i = 0; i < 5; i++) {
+            if (i < current) assert.equal(statuses[i], "completed", `step ${i} should be completed`);
+            if (i > current) assert.equal(statuses[i], "pending", `step ${i} should be pending`);
+        }
+    });
+}
+
+// Terminal states never show a marquee (no "current" segment).
+const terminalCases = [
+    { file_status: "Completed", pb: 5, expected: ["completed", "completed", "completed", "completed", "completed"] },
+    { file_status: "Invalid File", pb: -1, expected: ["failed", "pending", "pending", "pending", "pending"] },
+    { file_status: "Sync Failed", pb: -1, expected: ["completed", "completed", "completed", "completed", "failed"] },
+    { file_status: "Deleted", pb: -1, expected: ["failed", "failed", "failed", "failed", "failed"] }
+];
+
+for (const { file_status, pb, expected } of terminalCases) {
+    test(`terminal "${file_status}" shows no marquee and renders as expected`, () => {
+        const statuses = statusesFor(file_status, pb, { ocr_status: "COMPLETED", file_naming_status: "COMPLETED" });
+        assert.ok(!statuses.includes("current"), "terminal state must not show a current/marquee step");
+        assert.deepEqual(Array.from(statuses), expected);
+    });
+}
+
