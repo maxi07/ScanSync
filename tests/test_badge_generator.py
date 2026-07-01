@@ -162,7 +162,7 @@ class TestBadgeGenerator:
         except ImportError:
             # For Docker environment
             from badge_generator import _deterministic_hash
-        
+
         expected_hash = _deterministic_hash('N/A') % len(SMB_TAG_COLORS)
         expected_color = SMB_TAG_COLORS[expected_hash]
         assert badges[0]['color'] == expected_color

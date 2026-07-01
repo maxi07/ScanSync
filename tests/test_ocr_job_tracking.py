@@ -64,6 +64,7 @@ def teardown_module(module):
 import ocr_service.main as ocr_main  # noqa: E402
 from scansynclib.ProcessItem import ProcessItem, ItemType, OCRStatus, ProcessStatus  # noqa: E402
 
+
 @pytest.fixture
 def item(tmp_path):
     file_path = tmp_path / "scan.pdf"

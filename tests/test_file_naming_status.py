@@ -27,6 +27,7 @@ def teardown_module(module):
 import file_naming_service.main as fn_main  # noqa: E402
 from scansynclib.ProcessItem import ProcessItem, ItemType, FileNamingStatus  # noqa: E402
 
+
 @pytest.fixture
 def item(tmp_path):
     file_path = tmp_path / "doc.pdf"

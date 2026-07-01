@@ -593,6 +593,19 @@ function getStatusIcon(file_status) {
     return status_icon;
 }
 
+// Human-readable warning text for a failed OCR status. Returns null for
+// non-failure statuses so the OCR warning is only rendered when OCR failed.
+function getOcrStatusText(ocr_status) {
+    const ocrFailureMessages = {
+        'FAILED': 'OCR: Failed',
+        'UNSUPPORTED': 'OCR: Unsupported format',
+        'DPI_ERROR': 'OCR: Image DPI too low',
+        'INPUT_ERROR': 'OCR: Input file error',
+        'OUTPUT_ERROR': 'OCR: Output file error',
+    };
+    return ocrFailureMessages[ocr_status] || null;
+}
+
 // OCR statuses that indicate failure
 const ocrFailureStatuses = ["FAILED", "UNSUPPORTED", "DPI_ERROR", "INPUT_ERROR", "OUTPUT_ERROR"];
 
