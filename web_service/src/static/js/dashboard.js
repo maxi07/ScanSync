@@ -496,7 +496,7 @@ function addPdfCard(pdfData) {
     const parsedProgressStep = hasProgressStep ? Number(pdfData.status_progressbar) : NaN;
     const progressStep = Number.isFinite(parsedProgressStep) ? parsedProgressStep : 1;
     const isDeleted = pdfData.file_status?.toLowerCase().includes("deleted");
-    const isFailed = pdfData.file_status?.toLowerCase().includes("failed") || isDeleted || progressStep === -1;
+    const isFailed = pdfData.file_status?.toLowerCase().includes("failed") || pdfData.file_status?.toLowerCase().includes("invalid file") || isDeleted || progressStep === -1;
     const isCompleted = pdfData.file_status?.toLowerCase().includes("completed");
     const stepLabels = ["File Detection", "Reading Metadata", "OCR", "File Naming", "Upload"];
     const stepStatuses = getStepStatuses(progressStep, isFailed, isDeleted, isCompleted, pdfData);
