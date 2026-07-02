@@ -274,8 +274,14 @@ def _fetch_job_logs(table, success_filter, failed_filter):
     they are safe to interpolate into the query. Only pagination values come
     from the request and those are passed as bound parameters.
     """
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 20))
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (ValueError, TypeError):
+        page = 1
+    try:
+        per_page = max(1, min(100, int(request.args.get('per_page', 20))))
+    except (ValueError, TypeError):
+        per_page = 20
     filter = request.args.get('filter', 'all').lower()
     offset = (page - 1) * per_page
 

@@ -24,6 +24,7 @@ def finalize_sync_job(item: ProcessItem, error: str = None):
 
 
 def callback(ch, method, properties, body):
+    item = None
     try:
         item: ProcessItem = pickle.loads(body)
         if not isinstance(item, ProcessItem):
@@ -46,9 +47,11 @@ def callback(ch, method, properties, body):
         ch.basic_ack(delivery_tag=method.delivery_tag)
     except Exception:
         logger.exception(f"Failed processing {body}.")
-        item.status = ProcessStatus.SYNC_FAILED
-        update_scanneddata_database(item, {"file_status": item.status.value})
-        finalize_sync_job(item, "Unexpected error during upload")
+        if item is not None and isinstance(item, ProcessItem):
+            item.status = ProcessStatus.SYNC_FAILED
+            update_scanneddata_database(item, {"file_status": item.status.value})
+            if item.sync_db_id is not None:
+                finalize_sync_job(item, "Unexpected error during upload")
 
 
 def start_processing(item: ProcessItem):

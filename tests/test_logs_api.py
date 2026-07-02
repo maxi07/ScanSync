@@ -15,7 +15,6 @@ os.makedirs(os.path.join(os.path.dirname(__file__), '../data'), exist_ok=True)
 
 # Mock Redis before any scansynclib imports, since settings.py connects at module level
 import redis as _real_redis
-_orig_from_url = _real_redis.Redis.from_url
 
 
 def _mock_from_url(*args, **kwargs):
@@ -30,7 +29,13 @@ def _mock_from_url(*args, **kwargs):
     return mock_client
 
 
-_real_redis.Redis.from_url = _mock_from_url
+@pytest.fixture(scope="session", autouse=True)
+def mock_redis_from_url():
+    """Patch redis.Redis.from_url for the entire test session and restore afterwards."""
+    orig = _real_redis.Redis.from_url
+    _real_redis.Redis.from_url = _mock_from_url
+    yield
+    _real_redis.Redis.from_url = orig
 
 
 @pytest.fixture
