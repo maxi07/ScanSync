@@ -1,0 +1,8 @@
+./detection_service/requirements.txt
+./file_naming_service/requirements.txt
+./metadata_service/requirements.txt
+./ocr_service/requirements.txt
+./test_service/requirements.txt
+./tests/requirements.txt
+./upload_service/requirements.txt
+./web_service/requirements.txt
