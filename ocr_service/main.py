@@ -90,7 +90,7 @@ def start_processing(item: ProcessItem):
     except Exception as ex:
         logger.exception(f"Failed processing {item.local_file_path} with OCR: {ex}")
         item.ocr_status = OCRStatus.FAILED
-        ocr_error = str(ex)
+        ocr_error = f"{OCRStatus.FAILED.value}: {ex}" if str(ex) else OCRStatus.FAILED.value
     finally:
         item.time_ocr_finished = datetime.now()
         item.status = ProcessStatus.SYNC_PENDING
