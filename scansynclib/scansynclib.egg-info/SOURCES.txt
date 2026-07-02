@@ -1,16 +1,4 @@
 pyproject.toml
-./scansynclib/ProcessItem.py
-./scansynclib/__init__.py
-./scansynclib/config.py
-./scansynclib/helpers.py
-./scansynclib/logging.py
-./scansynclib/ollama_helper.py
-./scansynclib/onedrive_api.py
-./scansynclib/onedrive_smb_manager.py
-./scansynclib/openai_helper.py
-./scansynclib/settings.py
-./scansynclib/settings_schema.py
-./scansynclib/sqlite_wrapper.py
 scansynclib/ProcessItem.py
 scansynclib/__init__.py
 scansynclib/config.py

@@ -117,6 +117,12 @@ def rabbitmq_listener():
         except Exception as e:
             logger.exception(f"Unexpected error in SSE listener: {e}. Reconnecting in 5 seconds...")
             time.sleep(5)
+        finally:
+            try:
+                if connection.is_open:
+                    connection.close()
+            except Exception:
+                logger.debug("Failed closing RabbitMQ SSE listener connection during reconnect.")
 
 
 def get_dashboard_info() -> dict:

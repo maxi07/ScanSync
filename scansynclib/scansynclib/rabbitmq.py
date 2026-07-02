@@ -155,17 +155,25 @@ class RabbitMQClient:
                 return True
             return self._connect()
 
-    def declare_queue(self, queue_name: str, durable: bool = True):
-        if not queue_name or queue_name in self._declared_queues:
-            return
-        self._channel.queue_declare(queue=queue_name, durable=durable)
-        self._declared_queues.add(queue_name)
+    def declare_queue(self, queue_name: str, durable: bool = True) -> bool:
+        with self._lock:
+            if not queue_name or queue_name in self._declared_queues:
+                return True
+            if not self.ensure_connection():
+                return False
+            self._channel.queue_declare(queue=queue_name, durable=durable)
+            self._declared_queues.add(queue_name)
+            return True
 
-    def declare_exchange(self, exchange: str, exchange_type: str = "fanout"):
-        if not exchange or exchange in self._declared_exchanges:
-            return
-        self._channel.exchange_declare(exchange=exchange, exchange_type=exchange_type)
-        self._declared_exchanges.add(exchange)
+    def declare_exchange(self, exchange: str, exchange_type: str = "fanout") -> bool:
+        with self._lock:
+            if not exchange or exchange in self._declared_exchanges:
+                return True
+            if not self.ensure_connection():
+                return False
+            self._channel.exchange_declare(exchange=exchange, exchange_type=exchange_type)
+            self._declared_exchanges.add(exchange)
+            return True
 
     def publish(
         self,
@@ -203,9 +211,11 @@ class RabbitMQClient:
                     if not self.ensure_connection():
                         return False
                     if exchange_type:
-                        self.declare_exchange(exchange, exchange_type)
+                        if not self.declare_exchange(exchange, exchange_type):
+                            return False
                     if declare_queue and queue_name:
-                        self.declare_queue(queue_name)
+                        if not self.declare_queue(queue_name):
+                            return False
                     self._channel.basic_publish(
                         exchange=exchange,
                         routing_key=routing_key,

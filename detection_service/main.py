@@ -90,7 +90,9 @@ def publish_new_files(channel, queue_name, grouped_files):
 def main():
     ensure_scan_directory_exists(SCAN_DIR)
     client = RabbitMQClient(name="detection")
-    client.ensure_connection()
+    while not client.ensure_connection():
+        logger.warning("RabbitMQ is not available. Retrying detection startup in 5 seconds...")
+        time.sleep(5)
     client.declare_queue(RABBITQUEUE)
 
     logger.info(f"Scanning {SCAN_DIR} for new files...")
@@ -103,7 +105,10 @@ def main():
             # Keep the single connection alive and reconnect if it was dropped.
             if not client.is_open():
                 logger.warning("RabbitMQ connection lost. Reconnecting...")
-                client.ensure_connection()
+                if not client.ensure_connection():
+                    logger.warning("RabbitMQ reconnect failed. Retrying in 5 seconds...")
+                    time.sleep(5)
+                    continue
                 client.declare_queue(RABBITQUEUE)
             else:
                 # Give pika a chance to send heartbeats between scans.
