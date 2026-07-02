@@ -34,8 +34,12 @@ def _move_leftover_to_failed(file_name: str, local_dir: str):
         source_path = os.path.join(smb_path, local_dir, file_name)
         if os.path.exists(source_path):
             try:
-                os.rename(source_path, os.path.join(failed_dir, file_name))
-                logger.info(f"Moved leftover file {source_path} to failed directory {failed_dir}")
+                dest_path = os.path.join(failed_dir, file_name)
+                if os.path.exists(dest_path):
+                    base, ext = os.path.splitext(file_name)
+                    dest_path = os.path.join(failed_dir, f"{base}_{local_dir}{ext}")
+                os.rename(source_path, dest_path)
+                logger.info(f"Moved leftover file {source_path} to failed directory {dest_path}")
             except Exception:
                 logger.exception(f"Failed to move leftover file {source_path} to failed directory {failed_dir}")
         else:
