@@ -56,13 +56,13 @@ def start_processing(item: ProcessItem):
 
             # Verify that the OCR file actually contains text
             if os.path.exists(item.ocr_file):
-                extracted_text = (extract_text(item.ocr_file, max_pages=2, max_chars=2048) or "").strip()
+                extracted_text = (extract_text(item.ocr_file, max_pages=5, max_chars=2048) or "").strip()
                 if extracted_text:
                     logger.info(f"OCR verification successful: extracted {len(extracted_text)} characters from {item.filename}")
                     item.ocr_status = OCRStatus.COMPLETED
                 else:
                     logger.warning(f"OCR verification failed: no text found in OCR output file {item.ocr_file}")
-                    item.ocr_status = OCRStatus.FAILED
+                    item.ocr_status = OCRStatus.NO_TEXT
             else:
                 logger.error(f"OCR output file not found: {item.ocr_file}")
                 item.ocr_status = OCRStatus.OUTPUT_ERROR

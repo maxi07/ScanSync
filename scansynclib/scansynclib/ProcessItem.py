@@ -69,6 +69,7 @@ class OCRStatus(Enum):
     DPI_ERROR: Image DPI is too low for accurate OCR.
     INPUT_ERROR: Error reading input image/PDF.
     OUTPUT_ERROR: Error writing OCR output file.
+    NO_TEXT: OCR completed but the output file contained no extractable text.
     """
     UNKNOWN = 0
     PENDING = 1
@@ -80,6 +81,7 @@ class OCRStatus(Enum):
     DPI_ERROR = -4
     INPUT_ERROR = -5
     OUTPUT_ERROR = -6
+    NO_TEXT = -7
 
 
 class FileNamingStatus(Enum):

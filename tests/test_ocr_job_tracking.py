@@ -143,6 +143,12 @@ def _ocr_job_update_args(execute_query):
 )
 def test_start_processing_persists_ocr_job_status(item, patched, mocker, ocr_behavior, expected_status, expected_error):
     mocker.patch.object(ocr_main.ocrmypdf, "ocr", **ocr_behavior)
+    # On the success path the service verifies that ocrmypdf produced an output
+    # file containing text. ocrmypdf is stubbed here, so provide the artifacts it
+    # would normally create for the "completed" case.
+    with open(item.ocr_file, "wb") as ocr_file:
+        ocr_file.write(b"%PDF-1.4 ocr")
+    mocker.patch.object(ocr_main, "extract_text", return_value="sample text")
 
     ocr_main.start_processing(item)
 

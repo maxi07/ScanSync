@@ -98,7 +98,7 @@ test("successful OCR shows the OCR step as completed once processing moved on", 
 });
 
 test("other OCR failure variants are surfaced as failed", () => {
-    for (const ocrStatus of ["UNSUPPORTED", "DPI_ERROR", "INPUT_ERROR", "OUTPUT_ERROR"]) {
+    for (const ocrStatus of ["NO_TEXT", "UNSUPPORTED", "DPI_ERROR", "INPUT_ERROR", "OUTPUT_ERROR"]) {
         const statuses = getStepStatuses(2, false, false, false, {
             file_status: "File Name Pending",
             ocr_status: ocrStatus
