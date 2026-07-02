@@ -542,6 +542,12 @@ function createLogsTable(config) {
         logs.forEach((log) => {
             tbody.innerHTML += config.renderRow(log);
         });
+        // Attach click handlers to show the full (untruncated) text. The full
+        // value is stored in a data attribute rather than an inline onclick to
+        // avoid embedding untrusted content in a JavaScript string literal.
+        tbody.querySelectorAll('.js-show-full').forEach((el) => {
+            el.addEventListener('click', () => alert(el.getAttribute('data-fulltext')));
+        });
         renderPagination(pagination, page, totalPages, load, () => currentFilter);
     }
 
@@ -634,7 +640,7 @@ function renderFileNameCell(fileName) {
     const truncated = truncate(fileName, 15);
     if (fileName && fileName.length > 15) {
         return `
-            <span title="${escapeHtml(fileName)}" style="cursor:pointer;" onclick="alert('${escapeHtml(fileName).replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
+            <span class="js-show-full" title="${escapeHtml(fileName)}" data-fulltext="${escapeHtml(fileName)}" style="cursor:pointer;">
                 ${escapeHtml(truncated)}
             </span>
         `;
@@ -649,7 +655,7 @@ function renderErrorCell(errorText) {
     }
     const truncated = truncate(errorText, 40);
     return `
-        <span class="text-danger" title="${escapeHtml(errorText)}" style="cursor:pointer;" onclick="alert('${escapeHtml(errorText).replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
+        <span class="text-danger js-show-full" title="${escapeHtml(errorText)}" data-fulltext="${escapeHtml(errorText)}" style="cursor:pointer;">
             ${escapeHtml(truncated)}
         </span>
     `;
