@@ -6,6 +6,7 @@ import threading
 import time
 from flask import Flask, Response, request, send_from_directory
 import sys
+import pika.exceptions
 sys.path.append('/app/src')
 from scansynclib.ProcessItem import ProcessItem, StatusProgressBar
 from scansynclib.helpers import connect_rabbitmq, format_time_difference
@@ -43,19 +44,7 @@ def start_rabbitmq_listener():
 def rabbitmq_listener():
     logger.info("Started RabbitMQ listener thread.")
 
-    result = connect_rabbitmq()
-    if result is None:
-        logger.warning("RabbitMQ is not available. SSE updates will be disabled.")
-        return
-    connection, channel = result
-
-    # Use fanout as exchange type to broadcast messages to all connected clients
     exchange_name = "sse_updates_fanout"
-    channel.exchange_declare(exchange=exchange_name, exchange_type='fanout')
-    result = channel.queue_declare(queue='', exclusive=True)
-    queue_name = result.method.queue
-
-    channel.queue_bind(exchange=exchange_name, queue=queue_name)
 
     def callback(ch, method, properties, body):
         if connected_clients > 0:
@@ -103,8 +92,31 @@ def rabbitmq_listener():
         else:
             logger.debug("No connected clients. Skipping SSE queue update.")
 
-    channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
-    channel.start_consuming()
+    # Keep the SSE listener alive: reconnect automatically if the broker drops
+    # the connection instead of silently ending the thread.
+    while True:
+        result = connect_rabbitmq()
+        if result is None:
+            logger.warning("RabbitMQ is not available. Retrying SSE listener in 5 seconds...")
+            time.sleep(5)
+            continue
+        connection, channel = result
+
+        try:
+            # Use fanout as exchange type to broadcast messages to all connected clients
+            channel.exchange_declare(exchange=exchange_name, exchange_type='fanout')
+            queue_result = channel.queue_declare(queue='', exclusive=True)
+            queue_name = queue_result.method.queue
+            channel.queue_bind(exchange=exchange_name, queue=queue_name)
+
+            channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
+            channel.start_consuming()
+        except pika.exceptions.AMQPError as e:
+            logger.error(f"RabbitMQ SSE listener connection lost: {e}. Reconnecting in 5 seconds...")
+            time.sleep(5)
+        except Exception as e:
+            logger.exception(f"Unexpected error in SSE listener: {e}. Reconnecting in 5 seconds...")
+            time.sleep(5)
 
 
 def get_dashboard_info() -> dict:

@@ -4,8 +4,7 @@ import pickle
 
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus, FileNamingStatus
 from scansynclib.logging import logger
-from scansynclib.helpers import connect_rabbitmq, forward_to_rabbitmq
-import time
+from scansynclib.helpers import consume, forward_to_rabbitmq
 import pika.exceptions
 from scansynclib.openai_helper import generate_filename_openai
 from scansynclib.ollama_helper import generate_filename_ollama
@@ -94,10 +93,10 @@ def callback(ch, method, properties, body):
     finally:
         try:
             ch.basic_ack(delivery_tag=method.delivery_tag)
-        except pika.exceptions.AMQPConnectionError:
-            logger.error("Connection lost while acknowledging message. Reconnecting...")
-            connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=120)
-            channel.basic_ack(delivery_tag=method.delivery_tag)
+        except pika.exceptions.AMQPError:
+            # The connection was lost before we could acknowledge. The unified
+            # consumer will reconnect and the broker will redeliver the message.
+            logger.error("Connection lost while acknowledging message. It will be redelivered after reconnect.")
         if isinstance(item, ProcessItem):
             item_file_naming_db_id = getattr(item, "file_naming_db_id", None)
             if item_file_naming_db_id:
@@ -110,19 +109,7 @@ def callback(ch, method, properties, body):
 
 
 def start_consuming_with_reconnect():
-    global channel, connection
-    while True:
-        try:
-            connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=120)
-            channel.basic_consume(queue=RABBITQUEUE, on_message_callback=callback)
-            logger.info("File naming service started, waiting for messages...")
-            channel.start_consuming()
-        except pika.exceptions.AMQPConnectionError as e:
-            logger.error(f"Connection lost: {e}. Reconnecting in 5 seconds...")
-            time.sleep(5)
-        except Exception as e:
-            logger.exception(f"Unexpected error: {e}. Restarting consumer...")
-            time.sleep(5)
+    consume(RABBITQUEUE, callback, heartbeat=120)
 
 
 if __name__ == "__main__":

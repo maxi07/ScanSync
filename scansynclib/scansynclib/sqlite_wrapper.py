@@ -1,16 +1,14 @@
 from contextlib import contextmanager
 import pickle
 import sqlite3
-import pika.exceptions
 from scansynclib.config import config
 from scansynclib.logging import logger
 from scansynclib.ProcessItem import ProcessItem, StatusProgressBar
+from scansynclib.rabbitmq import publish_to_exchange
 import os
-import pika
 
-# Initialize RabbitMQ connection and channel globally
-rabbit_connection = None
-rabbit_channel = None
+# Exchange used to broadcast live updates to the web service SSE clients.
+SSE_EXCHANGE = "sse_updates_fanout"
 
 
 @contextmanager
@@ -101,36 +99,21 @@ def update_scanneddata_database(item: ProcessItem, update_values: dict):
         logger.exception(f"Error updating database for id {id}.")
 
 
-def initialize_rabbitmq():
-    global rabbit_connection, rabbit_channel
-    try:
-        rabbit_connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
-        rabbit_channel = rabbit_connection.channel()
-        # Declare the fanout exchange (idempotent)
-        rabbit_channel.exchange_declare(exchange='sse_updates_fanout', exchange_type='fanout')
-        logger.info("RabbitMQ connection initialized successfully.")
-    except Exception:
-        logger.exception("Failed to initialize RabbitMQ connection.")
+def notify_sse_clients(item: ProcessItem):
+    """Broadcast an item update to SSE clients via the shared RabbitMQ connection.
 
-
-def notify_sse_clients(item: ProcessItem, retry_count=0, max_retries=3):
-    try:
-        if rabbit_channel is None or rabbit_connection is None or rabbit_connection.is_closed:
-            initialize_rabbitmq()
-        rabbit_channel.basic_publish(
-            exchange='sse_updates_fanout',
-            routing_key='',  # fanout ignores this
-            body=pickle.dumps(item),
-        )
-    except pika.exceptions.StreamLostError:
-        if retry_count < max_retries:
-            logger.warning(f"RabbitMQ connection lost. Retrying... Attempt {retry_count + 1}/{max_retries}")
-            initialize_rabbitmq()
-            notify_sse_clients(item, retry_count=retry_count + 1, max_retries=max_retries)
-        else:
-            logger.error("Max retries reached. Failed to send update to SSE queue.")
-    except Exception:
-        logger.exception("Error sending update to SSE queue.")
+    Publishing goes through the unified, long-lived publisher connection which
+    keeps itself alive and reconnects automatically, so the previous
+    "missed heartbeats from client" connection churn no longer occurs.
+    """
+    published = publish_to_exchange(
+        SSE_EXCHANGE,
+        pickle.dumps(item),
+        exchange_type="fanout",
+        persistent=False,
+    )
+    if not published:
+        logger.error("Failed to send update to SSE queue.")
 
 
 def upgrade_sql_database():

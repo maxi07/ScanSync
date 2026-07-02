@@ -1,14 +1,20 @@
 from datetime import datetime, timedelta
 import os
-import pickle
 import re
-import pika
-import socket
-import time
 from scansynclib.ProcessItem import ProcessItem
 from scansynclib.config import config
-import pika.exceptions
 from scansynclib.logging import logger
+# RabbitMQ handling now lives in the unified scansynclib.rabbitmq module. The
+# functions are re-exported here for backwards compatibility with existing
+# imports (e.g. ``from scansynclib.helpers import forward_to_rabbitmq``).
+from scansynclib.rabbitmq import (  # noqa: F401
+    RabbitMQClient,
+    connect_rabbitmq,
+    consume,
+    forward_to_rabbitmq,
+    publish,
+    publish_to_exchange,
+)
 from pypdf import PdfReader
 
 SMB_TAG_COLORS = [
@@ -30,80 +36,6 @@ SMB_TAG_COLORS = [
             '#9B2335', '#F0EAD6', '#5DADE2', '#45B39D', '#D65076',
             '#7DCEA0'
         ]
-
-
-def connect_rabbitmq(queue_names: list = None, heartbeat: int = 30):
-    """
-    Establishes a connection to a RabbitMQ server and declares multiple queues.
-
-    This function attempts to connect to a RabbitMQ server up to 10 times,
-    with a 2-second delay between each attempt. If the connection is
-    successful, it declares durable queues with the specified names.
-
-    Args:
-        queue_names (list): A list of RabbitMQ queue names to declare.
-        heartbeat (int): The heartbeat timeout in seconds for the RabbitMQ connection.
-
-    Returns:
-        tuple: A tuple containing the RabbitMQ connection and channel objects
-               if the connection is successful.
-        None: If the connection could not be established after 10 attempts.
-
-    Raises:
-        None: The function handles `socket.gaierror` and
-              `pika.exceptions.AMQPConnectionError` internally.
-    """
-    for i in range(10):
-        try:
-            connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitmq", heartbeat=heartbeat))
-            channel = connection.channel()
-            if queue_names:
-                for queue_name in queue_names:
-                    channel.queue_declare(queue=queue_name, durable=True)
-            channel.basic_qos(prefetch_count=1)
-            return connection, channel
-        except (socket.gaierror, pika.exceptions.AMQPConnectionError):
-            time.sleep(2)
-    logger.critical("Couldn't connect to RabbitMQ.")
-    return None
-
-
-def setup_rabbitmq_connection(queue_name):
-    try:
-        connection, channel = connect_rabbitmq([queue_name])
-        logger.debug(f"Connected to RabbitMQ on {channel.channel_number}")
-        logger.debug(f"Connected to queue {queue_name}")
-        return connection, channel
-    except Exception as e:
-        logger.critical(f"Failed to connect to RabbitMQ: {e}")
-        exit(1)
-
-
-def reconnect_rabbitmq(queue_name):
-    while True:
-        try:
-            logger.warning("Attempting to reconnect to RabbitMQ...")
-            connection, channel = setup_rabbitmq_connection(queue_name)
-            logger.info("Reconnected to RabbitMQ successfully.")
-            return connection, channel
-        except Exception as e:
-            logger.critical(f"Failed to reconnect to RabbitMQ: {e}")
-            time.sleep(5)  # Wait before retrying
-
-
-def forward_to_rabbitmq(queue_name: str, item: ProcessItem):
-    try:
-        connection, channel = connect_rabbitmq([queue_name])
-        channel.basic_publish(
-            exchange='',
-            routing_key=queue_name,
-            body=pickle.dumps(item),
-            properties=pika.BasicProperties(delivery_mode=2)  # Make message persistent
-        )
-        logger.info(f"Item {item.filename} forwarded to {queue_name}.")
-        connection.close()
-    except Exception as e:
-        logger.error(f"Failed to forward item {item.filename} to RabbitMQ queue {queue_name}: {e}")
 
 
 def parse_timestamp(timestamp: str) -> datetime:
