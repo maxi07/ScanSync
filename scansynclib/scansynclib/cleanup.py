@@ -62,14 +62,14 @@ def cleanup_dangling_documents():
     are marked as failed and their leftover source files are moved to the failed
     directory so they remain recoverable from the web UI.
     """
-    try:
-        pending = execute_query(
-            "SELECT id, file_name, local_filepath FROM scanneddata WHERE status_code BETWEEN 0 AND 4",
-            fetchall=True,
-        ) or []
-    except Exception:
-        logger.exception("Failed querying dangling documents during startup cleanup.")
+    pending = execute_query(
+        "SELECT id, file_name, local_filepath FROM scanneddata WHERE status_code BETWEEN 0 AND 4",
+        fetchall=True,
+    )
+    if pending is None:
+        logger.error("Startup cleanup: failed querying dangling documents (database query returned None).")
         return
+    pending = pending or []
 
     if not pending:
         logger.info("Startup cleanup: no dangling documents found.")
