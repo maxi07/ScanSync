@@ -43,7 +43,8 @@ def index():
                     stats.processing_pdfs,
                     stats.latest_processing,
                     stats.latest_completed,
-                    smb.id AS smb_target_id
+                    smb.id AS smb_target_id,
+                    fn.file_naming_status AS file_naming_status
                 FROM (
                     SELECT
                         COUNT(*) AS total_entries,
@@ -64,6 +65,12 @@ def index():
                     LIMIT :limit OFFSET :offset
                 ) d ON 1=1
                 LEFT JOIN smb_onedrive smb ON d.local_filepath = smb.smb_name
+                LEFT JOIN file_naming_jobs fn
+                    ON fn.id = (
+                        SELECT MAX(id)
+                        FROM file_naming_jobs
+                        WHERE scanneddata_id = d.id
+                    )
             '''
             result = db.execute(query, {'limit': entries_per_page, 'offset': offset}).fetchall()
 

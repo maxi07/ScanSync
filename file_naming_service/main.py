@@ -17,7 +17,22 @@ from scansynclib.settings import settings
 RABBITQUEUE = "file_naming_queue"
 
 
+def get_latest_file_naming_status(item: ProcessItem):
+    status_name = execute_query(
+        "SELECT file_naming_status FROM file_naming_jobs WHERE id = ?",
+        (item.file_naming_db_id,),
+        return_scalar=True
+    )
+    if status_name:
+        try:
+            return FileNamingStatus[status_name]
+        except KeyError:
+            logger.warning(f"Unknown file naming status '{status_name}' for item {item.filename}")
+    return item.file_naming_status
+
+
 def callback(ch, method, properties, body):
+    item = None
     try:
         item: ProcessItem = pickle.loads(body)
 
@@ -42,6 +57,7 @@ def callback(ch, method, properties, body):
 
         if not openai_enabled and not ollama_enabled:
             logger.error("Neither OpenAI nor Ollama is enabled. Please enable one of them in the settings.")
+        item.file_naming_status = FileNamingStatus.PROCESSING
         execute_query('UPDATE file_naming_jobs SET file_naming_status = ? WHERE id = ?', (FileNamingStatus.PROCESSING.name, item.file_naming_db_id))
 
         method_setting = settings.file_naming.method
@@ -65,7 +81,12 @@ def callback(ch, method, properties, body):
         execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, "OCR file does not exist", item.file_naming_db_id))
     except TypeError as e:
         logger.error(f"Received object is not a ProcessItem: {e}. Skipping.")
-        execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
+        item_file_naming_db_id = getattr(item, "file_naming_db_id", None)
+        if item_file_naming_db_id:
+            execute_query(
+                "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+                (FileNamingStatus.FAILED.name, str(e), item_file_naming_db_id)
+            )
         return
     except Exception as e:
         logger.exception(f"Failed processing {item.filename}.")
@@ -77,7 +98,10 @@ def callback(ch, method, properties, body):
             logger.error("Connection lost while acknowledging message. Reconnecting...")
             connection, channel = connect_rabbitmq([RABBITQUEUE], heartbeat=120)
             channel.basic_ack(delivery_tag=method.delivery_tag)
-        if item:
+        if isinstance(item, ProcessItem):
+            item_file_naming_db_id = getattr(item, "file_naming_db_id", None)
+            if item_file_naming_db_id:
+                item.file_naming_status = get_latest_file_naming_status(item)
             item.status = ProcessStatus.SYNC_PENDING
             update_scanneddata_database(item, {"file_status": item.status.value})
             forward_to_rabbitmq("upload_queue", item)
@@ -101,5 +125,6 @@ def start_consuming_with_reconnect():
             time.sleep(5)
 
 
-# Start the consumer with reconnect logic
-start_consuming_with_reconnect()
+if __name__ == "__main__":
+    # Start the consumer with reconnect logic
+    start_consuming_with_reconnect()

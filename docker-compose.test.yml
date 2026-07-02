@@ -45,6 +45,7 @@ services:
       - ./detection_service:/tests/tests/detection_service
       - ./web_service:/tests/tests/web_service
       - ./ocr_service:/tests/tests/ocr_service
+      - ./file_naming_service:/tests/tests/file_naming_service
   
   redis:
     image: redis:latest
