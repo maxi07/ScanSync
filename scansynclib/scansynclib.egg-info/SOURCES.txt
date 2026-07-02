@@ -8,6 +8,7 @@ scansynclib/ollama_helper.py
 scansynclib/onedrive_api.py
 scansynclib/onedrive_smb_manager.py
 scansynclib/openai_helper.py
+scansynclib/rabbitmq.py
 scansynclib/settings.py
 scansynclib/settings_schema.py
 scansynclib/sqlite_wrapper.py

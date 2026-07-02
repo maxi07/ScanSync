@@ -280,7 +280,6 @@ class RabbitMQClient:
 # ---------------------------------------------------------------------------
 
 _publisher = RabbitMQClient(name="publisher")
-_publisher_lock = threading.Lock()
 
 
 def get_publisher() -> RabbitMQClient:

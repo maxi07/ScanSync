@@ -91,16 +91,12 @@ def callback(ch, method, properties, body):
         logger.exception(f"Failed processing {item.filename}.")
         execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
     finally:
-        acknowledged = False
         try:
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            acknowledged = True
         except pika.exceptions.AMQPError:
             # The connection was lost before we could acknowledge. The unified
             # consumer will reconnect and the broker will redeliver the message.
             logger.error("Connection lost while acknowledging message. It will be redelivered after reconnect.")
-        if not acknowledged:
-            return
         if isinstance(item, ProcessItem):
             item_file_naming_db_id = getattr(item, "file_naming_db_id", None)
             if item_file_naming_db_id:
