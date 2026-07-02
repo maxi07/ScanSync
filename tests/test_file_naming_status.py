@@ -126,11 +126,11 @@ def test_callback_with_non_processitem_does_not_crash(mocker):
     forward.assert_not_called()
 
 
-def test_callback_continues_pipeline_when_ack_fails(item, mocker):
+def test_callback_skips_followup_when_ack_fails(item, mocker):
     mocker.patch.object(fn_main.settings.file_naming, "method", FileNamingMethod.OPENAI)
     mocker.patch.object(fn_main.settings.file_naming, "openai_api_key", "test-key")
     mocker.patch.object(fn_main, "generate_filename_openai", return_value="renamed")
-    execute_query = mocker.patch.object(fn_main, "execute_query", return_value=item.file_naming_db_id)
+    mocker.patch.object(fn_main, "execute_query", return_value=item.file_naming_db_id)
     mocker.patch.object(fn_main, "get_latest_file_naming_status", return_value=FileNamingStatus.COMPLETED)
     update = mocker.patch.object(fn_main, "update_scanneddata_database")
     forward = mocker.patch.object(fn_main, "forward_to_rabbitmq")
@@ -143,13 +143,5 @@ def test_callback_continues_pipeline_when_ack_fails(item, mocker):
     fn_main.callback(ch, method, None, pickle.dumps(item))
 
     ch.basic_ack.assert_called_once_with(delivery_tag=456)
-    execute_query.assert_called()
-    update.assert_called_once()
-    updated_item = update.call_args.args[0]
-    assert update.call_args.args[1] == {"file_status": ProcessStatus.SYNC_PENDING.value}
-    assert updated_item.filename == "renamed.pdf"
-    assert updated_item.status == ProcessStatus.SYNC_PENDING
-    forward.assert_called_once()
-    forwarded_item = forward.call_args.args[1]
-    assert forwarded_item.filename == "renamed.pdf"
-    assert forwarded_item.ocr_file.endswith("renamed_OCR.pdf")
+    update.assert_not_called()
+    forward.assert_not_called()
