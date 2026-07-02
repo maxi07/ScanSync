@@ -16,7 +16,9 @@ function getBadgeColor(id) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('top-progress-bar').style.display = 'block';
+    if (current_page === 1) {
+        document.getElementById('top-progress-bar').style.display = 'block';
+    }
     console.log("Creating " + pdfsData.length + " pdf cards.");
     // Iterate over the PDF data and add cards dynamically
     pdfsData.forEach(function(pdfData) {
