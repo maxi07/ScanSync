@@ -5,6 +5,7 @@ from scansynclib.sqlite_wrapper import execute_query
 from scansynclib.ollama_helper import test_ollama_server
 from scansynclib.settings import settings
 from scansynclib.settings_schema import FileNamingMethod, FileNamingSettings
+from scansynclib.ProcessItem import OCRStatus
 
 api_bp = Blueprint('api', __name__)
 
@@ -263,6 +264,101 @@ def file_naming_logs():
         return Response(json.dumps(response_data, default=str), mimetype='application/json', status=200)
     except Exception as e:
         logger.exception(f"Error retrieving file naming logs: {e}")
+        return Response(json.dumps({}), mimetype='application/json', status=500)
+
+
+def _fetch_job_logs(table, success_filter, failed_filter):
+    """Build a paginated, filterable response for a *_jobs logging table.
+
+    The ``table``, ``success_filter`` and ``failed_filter`` arguments are
+    hardcoded constants supplied by the calling route (never user input), so
+    they are safe to interpolate into the query. Only pagination values come
+    from the request and those are passed as bound parameters.
+    """
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (ValueError, TypeError):
+        page = 1
+    try:
+        per_page = max(1, min(100, int(request.args.get('per_page', 20))))
+    except (ValueError, TypeError):
+        per_page = 20
+    filter = request.args.get('filter', 'all').lower()
+    offset = (page - 1) * per_page
+
+    where_clause = ""
+    if filter == "success":
+        where_clause = f"WHERE {success_filter}"
+    elif filter == "failed":
+        where_clause = f"WHERE {failed_filter}"
+
+    count_query = f"SELECT COUNT(*) FROM {table} {where_clause}"
+    total_count = execute_query(count_query, (), return_scalar=True) or 0
+    logger.debug(f"Total {table} count (filter={filter}): {total_count}")
+
+    logs_query = f"""
+        SELECT {table}.*, scanneddata.file_name
+        FROM {table}
+        LEFT JOIN scanneddata ON {table}.scanneddata_id = scanneddata.id
+        {where_clause}
+        ORDER BY {table}.started DESC
+        LIMIT ? OFFSET ?
+    """
+    logs = execute_query(logs_query, (per_page, offset), fetchall=True)
+
+    return {
+        "logs": logs,
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "total_pages": (total_count + per_page - 1) // per_page
+    }
+
+
+@api_bp.get('/api/ocr-logs')
+def ocr_logs():
+    """
+    Route to display the OCR logs with pagination.
+    Accepts 'page', 'per_page' and 'filter' as URL query parameters.
+    Each log entry is enriched with 'ocr_status_text' (the human-readable
+    description from OCRStatus) so the frontend never needs to re-define it.
+    """
+    try:
+        logger.info("Requested OCR logs")
+        logger.debug(f"Request args: {request.args}")
+        response_data = _fetch_job_logs(
+            "ocr_jobs",
+            "ocr_jobs.ocr_status = 'COMPLETED'",
+            "ocr_jobs.ocr_status NOT IN ('COMPLETED', 'PROCESSING')"
+        )
+        for log in (response_data.get("logs") or []):
+            try:
+                log["ocr_status_text"] = OCRStatus[log["ocr_status"]].value
+            except (KeyError, TypeError):
+                log["ocr_status_text"] = log.get("ocr_status") or "Unknown"
+        return Response(json.dumps(response_data, default=str), mimetype='application/json', status=200)
+    except Exception as e:
+        logger.exception(f"Error retrieving OCR logs: {e}")
+        return Response(json.dumps({}), mimetype='application/json', status=500)
+
+
+@api_bp.get('/api/sync-logs')
+def sync_logs():
+    """
+    Route to display the sync (upload) logs with pagination.
+    Accepts 'page', 'per_page' and 'filter' as URL query parameters.
+    """
+    try:
+        logger.info("Requested sync logs")
+        logger.debug(f"Request args: {request.args}")
+        response_data = _fetch_job_logs(
+            "sync_jobs",
+            "sync_jobs.success = 1",
+            "sync_jobs.success = 0"
+        )
+        return Response(json.dumps(response_data, default=str), mimetype='application/json', status=200)
+    except Exception as e:
+        logger.exception(f"Error retrieving sync logs: {e}")
         return Response(json.dumps({}), mimetype='application/json', status=500)
 
 

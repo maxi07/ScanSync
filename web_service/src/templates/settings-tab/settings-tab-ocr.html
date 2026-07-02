@@ -1,1 +1,57 @@
- <div class="tab-pane" id="ocr-tabpanel" role="tabpanel" aria-labelledby="ocr-tab">OCR settings will be available in the future.</div>
+ <div class="tab-pane" id="ocr-tabpanel" role="tabpanel" aria-labelledby="ocr-tab">
+    <p>OCR settings will be available in the future.</p>
+    <div class="accordion mt-4" id="ocr-logsAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="ocr-logsHeading">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ocr-logsCollapse" aria-expanded="false" aria-controls="ocr-logsCollapse">
+                    <i class="bi bi-journal-text me-2"></i> OCR Logs
+                </button>
+            </h2>
+            <div id="ocr-logsCollapse" class="accordion-collapse collapse" aria-labelledby="ocr-logsHeading" data-bs-parent="#ocr-logsAccordion">
+                <div class="accordion-body">
+                    <div id="ocr-logs-table-container">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold">Recent Activity</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <select id="ocr-logs-success-filter" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="all">All</option>
+                                    <option value="success">Success</option>
+                                    <option value="failed">Failed</option>
+                                </select>
+                                <button class="btn btn-outline-secondary btn-sm" id="refresh-ocr-logs-btn" title="Refresh logs">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover align-middle mb-0" id="ocr-logs-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col">#</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col">File Name</th>
+                                        <th scope="col" style="min-width: 120px;">Started</th>
+                                        <th scope="col" style="min-width: 120px;">Finished</th>
+                                        <th scope="col" style="min-width: 150px;">Error</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Logs will be dynamically inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <nav aria-label="OCR logs pagination" class="mt-3">
+                            <ul class="pagination justify-content-center mb-0" id="ocr-logs-pagination">
+                                <!-- Pagination will be dynamically inserted here -->
+                            </ul>
+                        </nav>
+                    </div>
+                    <div id="ocr-logs-empty" class="text-center text-muted d-none py-4">
+                        <i class="bi bi-inbox fs-2"></i>
+                        <div>No logs found.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

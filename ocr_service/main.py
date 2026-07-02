@@ -69,7 +69,7 @@ def start_processing(item: ProcessItem):
     except ocrmypdf.UnsupportedImageFormatError:
         logger.error(f"Unsupported image format: {item.local_file_path}")
         item.ocr_status = OCRStatus.UNSUPPORTED
-        ocr_error = "Unsupported image format"
+        ocr_error = OCRStatus.UNSUPPORTED.value
     except ocrmypdf.DpiError as dpiex:
         logger.error(f"DPI error: {item.local_file_path} {dpiex}")
         item.ocr_status = OCRStatus.DPI_ERROR
