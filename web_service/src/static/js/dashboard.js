@@ -1,4 +1,4 @@
-/* global entries_per_page pdfsData smb_tag_colors getContrastYIQ */
+/* global entries_per_page current_page pdfsData smb_tag_colors getContrastYIQ */
 
 // Set to track which card IDs have been displayed to avoid race condition issues
 let displayedCardIds = new Set();
@@ -16,7 +16,9 @@ function getBadgeColor(id) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('top-progress-bar').style.display = 'block';
+    if (current_page === 1) {
+        document.getElementById('top-progress-bar').style.display = 'block';
+    }
     console.log("Creating " + pdfsData.length + " pdf cards.");
     // Iterate over the PDF data and add cards dynamically
     pdfsData.forEach(function(pdfData) {
@@ -24,29 +26,39 @@ document.addEventListener('DOMContentLoaded', function() {
         displayedCardIds.add(pdfData.id);
     });
 
-    let eventSource = new EventSource("/stream");
-    eventSource.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        console.log("Received data:", data);
-        // Check if the data has card id
-        if (data.id) {
-            console.log("Updating card with ID:", data.id);
-            updateCard(data);
-        }
-    };
-    
-    eventSource.onerror = function(err) {
-        console.error("SSE error", err);
-    };
+    // Only open the live SSE connection on the first page of the dashboard.
+    // The dashboard is sorted newest-first, so new documents belong at the top
+    // of page 1. On later pages, inserting new cards would show entries that
+    // don't belong to that page and drop the genuine last entry, and keeping the
+    // connection alive on every paginated page wastes a long-lived server worker.
+    if (current_page === 1) {
+        let eventSource = new EventSource("/stream");
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            console.log("Received data:", data);
+            // Check if the data has card id
+            if (data.id) {
+                console.log("Updating card with ID:", data.id);
+                updateCard(data);
+            }
+        };
 
-    eventSource.onopen = function() {
-        console.log("SSE connection opened");
+        eventSource.onerror = function(err) {
+            console.error("SSE error", err);
+        };
+
+        eventSource.onopen = function() {
+            console.log("SSE connection opened");
+            document.getElementById('top-progress-bar').style.display = 'none';
+        };
+
+        eventSource.onclose = function() {
+            console.log("SSE connection closed");
+        };
+    } else {
+        console.log("SSE connection skipped on page " + current_page + " (only page 1 streams live updates).");
         document.getElementById('top-progress-bar').style.display = 'none';
-    };
-
-    eventSource.onclose = function() {
-        console.log("SSE connection closed");
-    };
+    }
 });
 
 
