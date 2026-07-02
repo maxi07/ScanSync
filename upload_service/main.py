@@ -3,7 +3,7 @@ import pickle
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus
 from scansynclib.logging import logger
 from scansynclib.helpers import connect_rabbitmq, move_to_failed
-from scansynclib.sqlite_wrapper import update_scanneddata_database
+from scansynclib.sqlite_wrapper import update_scanneddata_database, execute_query
 from scansynclib.onedrive_api import upload_small
 from scansynclib.config import config
 import os
@@ -14,6 +14,15 @@ logger.info("Starting Upload service...")
 RABBITQUEUE = "upload_queue"
 
 
+def finalize_sync_job(item: ProcessItem, error: str = None):
+    """Persist the final state of a sync (upload) job to the sync_jobs table."""
+    success = 1 if item.status == ProcessStatus.COMPLETED else 0
+    execute_query(
+        "UPDATE sync_jobs SET sync_status = ?, success = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+        (item.status.name, success, error, item.sync_db_id)
+    )
+
+
 def callback(ch, method, properties, body):
     try:
         item: ProcessItem = pickle.loads(body)
@@ -21,10 +30,16 @@ def callback(ch, method, properties, body):
             logger.warning("Received object, that is not of type ProcessItem. Skipping.")
             return
         logger.info(f"Received PDF for Upload: {item.filename}")
+        item.sync_db_id = execute_query(
+            "INSERT INTO sync_jobs (scanneddata_id, sync_status) VALUES (?, ?)",
+            (item.db_id, ProcessStatus.SYNC.name),
+            return_last_id=True
+        )
         if not os.path.exists(item.ocr_file):
             logger.error(f"OCR file does not exist for upload: {item.ocr_file}")
             item.status = ProcessStatus.SYNC_FAILED
             update_scanneddata_database(item, {"file_status": item.status.value})
+            finalize_sync_job(item, "OCR file does not exist for upload")
             move_to_failed(item)
         else:
             start_processing(item)
@@ -33,6 +48,7 @@ def callback(ch, method, properties, body):
         logger.exception(f"Failed processing {body}.")
         item.status = ProcessStatus.SYNC_FAILED
         update_scanneddata_database(item, {"file_status": item.status.value})
+        finalize_sync_job(item, "Unexpected error during upload")
 
 
 def start_processing(item: ProcessItem):
@@ -68,6 +84,7 @@ def start_processing(item: ProcessItem):
         logger.error(f"Failed to upload {item.ocr_file}")
         item.status = ProcessStatus.SYNC_FAILED
         move_to_failed(item)
+        finalize_sync_job(item, "Failed to upload file to OneDrive")
     else:
         logger.info(f"Upload completed: {item.filename}")
 
@@ -95,6 +112,7 @@ def start_processing(item: ProcessItem):
                 logger.exception(f"Failed to delete additional local file {additional_path}")
 
         item.status = ProcessStatus.COMPLETED
+        finalize_sync_job(item)
     update_scanneddata_database(item, {"file_status": item.status.value})
 
 

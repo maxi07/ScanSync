@@ -183,6 +183,9 @@ class ProcessItem:
         self.file_naming_db_id = None
         """The ID of the file naming entry in the database, if applicable."""
 
+        self.sync_db_id = None
+        """The ID of the sync (upload) entry in the database, if applicable."""
+
         self.file_naming_status = FileNamingStatus.PENDING
         """The status of the file naming process."""
 

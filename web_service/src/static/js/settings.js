@@ -2,8 +2,6 @@
 
 let isRequestPending = false;
 const LOGS_PER_PAGE = 5;
-let logsPage = 1;
-let logsSuccessFilter = 'all';
 
 document.getElementById('onedrive-settings-form').addEventListener('submit', async function(event) {
     event.preventDefault();
@@ -181,17 +179,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-        // Only fetch logs when the accordion is opened for the first time
-        let loaded = false;
-        const logsCollapse = document.getElementById('logsCollapse');
-        logsCollapse.addEventListener('show.bs.collapse', function() {
-            if (!loaded) {
-                fetchLogs();
-                loaded = true;
-            }
-        });
+        // Initialise the log tables. Each table lazily loads its data the first
+        // time its accordion is expanded (see createLogsTable).
+        initLogTables();
     } catch (error) {
-        console.error('Error attaching logsCollapse event listener:', error);
+        console.error('Error initialising log tables:', error);
     }
 
     if (ollama_enabled) {
@@ -202,13 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error auto-clicking Ollama connect button:', error);
         }
     }
-});
-
-document.getElementById('refresh-logs-btn').onclick = () => fetchLogs(logsPage, logsSuccessFilter);
-
-document.getElementById('logs-success-filter').addEventListener('change', function() {
-    logsSuccessFilter = this.value;
-    fetchLogs(1, logsSuccessFilter);
 });
 
 /* exported openLoginPopup */
@@ -507,80 +492,170 @@ function deleteOllama() {
         });
 }
 
-function fetchLogs(page = 1, filter = logsSuccessFilter) {
-    document.querySelector('#refresh-logs-btn').disabled = true;
-    let url = `/api/file-naming-logs?page=${page}&per_page=${LOGS_PER_PAGE}`;
-    if (filter && filter !== 'all') {
-        url += `&filter=${filter}`;
+// Factory that wires up a paginated, filterable logs table. Each instance owns
+// its own page/filter state and lazily loads data the first time its accordion
+// is expanded. This is shared by the File Naming, OCR and Sync log tables.
+function createLogsTable(config) {
+    let currentPage = 1;
+    let currentFilter = 'all';
+
+    const refreshBtn = document.getElementById(config.refreshBtnId);
+    const filterSelect = document.getElementById(config.filterId);
+    const collapse = document.getElementById(config.collapseId);
+    let loaded = false;
+
+    function load(page = currentPage, filter = currentFilter) {
+        currentPage = page;
+        currentFilter = filter;
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+        }
+        let url = `${config.endpoint}?page=${page}&per_page=${LOGS_PER_PAGE}`;
+        if (filter && filter !== 'all') {
+            url += `&filter=${filter}`;
+        }
+        fetch(url)
+            .then(res => res.json())
+            .then(data => render(data.logs, data.page, data.total_pages))
+            .catch(() => render([], 1, 1))
+            .finally(() => {
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                }
+            });
     }
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            renderLogsTable(data.logs, data.page, data.total_pages, data.total_count);
-        })
-        .catch(() => {
-            renderLogsTable([], 1, 1, 0);
-        })
-        .finally(() => {
-            document.querySelector('#refresh-logs-btn').disabled = false;
+
+    function render(logs, page, totalPages) {
+        const table = document.getElementById(config.tableId);
+        const tbody = table.querySelector('tbody');
+        const empty = document.getElementById(config.emptyId);
+        const pagination = document.getElementById(config.paginationId);
+        tbody.innerHTML = '';
+        if (!logs || logs.length === 0) {
+            empty.classList.remove('d-none');
+            table.classList.add('d-none');
+            pagination.innerHTML = '';
+            return;
+        }
+        empty.classList.add('d-none');
+        table.classList.remove('d-none');
+        logs.forEach((log) => {
+            tbody.innerHTML += config.renderRow(log);
         });
+        renderPagination(pagination, page, totalPages, load, () => currentFilter);
+    }
+
+    if (refreshBtn) {
+        refreshBtn.onclick = () => load(currentPage, currentFilter);
+    }
+    if (filterSelect) {
+        filterSelect.addEventListener('change', function() {
+            load(1, this.value);
+        });
+    }
+    if (collapse) {
+        collapse.addEventListener('show.bs.collapse', function() {
+            if (!loaded) {
+                load();
+                loaded = true;
+            }
+        });
+    }
+
+    return { load };
 }
 
-function renderLogsTable(logs, page, totalPages) {
-    const tbody = document.querySelector('#logs-table tbody');
-    const empty = document.getElementById('logs-empty');
-    const pagination = document.getElementById('logs-pagination');
-    tbody.innerHTML = '';
-    if (!logs || logs.length === 0) {
-        empty.classList.remove('d-none');
-        document.getElementById('logs-table').classList.add('d-none');
-        pagination.innerHTML = '';
-        return;
-    }
-    empty.classList.add('d-none');
-    document.getElementById('logs-table').classList.remove('d-none');
-    logs.forEach((log) => {
-        const statusBadge = getStatusBadge(log.file_naming_status);
-        // Show full error on click for mobile (and always show truncated with tooltip on desktop)
-        let error = '';
-        if (log.error_description) {
-            const truncated = truncate(log.error_description, 40);
-            error = `
-                <span class="text-danger" title="${log.error_description}" style="cursor:pointer;" onclick="alert('${log.error_description.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
-                    ${truncated}
-                </span>
-            `;
-        }
-        // Truncate file name to 15 characters
-        const truncatedFileName = truncate(log.file_name, 15);
-        let fileNameHtml = '';
-        if (log.file_name && log.file_name.length > 15) {
-            fileNameHtml = `
-                <span title="${escapeHtml(log.file_name)}" style="cursor:pointer;" onclick="alert('${escapeHtml(log.file_name).replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
-                    ${escapeHtml(truncatedFileName)}
-                </span>
-            `;
-        } else {
-            fileNameHtml = escapeHtml(log.file_name);
-        }
-        tbody.innerHTML += `
+function initLogTables() {
+    createLogsTable({
+        endpoint: '/api/file-naming-logs',
+        collapseId: 'logsCollapse',
+        tableId: 'logs-table',
+        emptyId: 'logs-empty',
+        paginationId: 'logs-pagination',
+        filterId: 'logs-success-filter',
+        refreshBtnId: 'refresh-logs-btn',
+        renderRow: (log) => `
             <tr>
                 <td>${log.id}</td>
-                <td>${statusBadge}</td>
-                <td>${fileNameHtml}</td>
+                <td>${getStatusBadge(log.file_naming_status)}</td>
+                <td>${renderFileNameCell(log.file_name)}</td>
                 <td>${escapeHtml(log.method)}</td>
                 <td>${escapeHtml(log.model)}</td>
                 <td><span class="text-secondary">${escapeHtml(log.started)}</span></td>
                 <td><span class="text-secondary">${escapeHtml(log.finished)}</span></td>
-                <td>${error}</td>
+                <td>${renderErrorCell(log.error_description)}</td>
             </tr>
-        `;
+        `
     });
-    renderPagination(page, totalPages);
+
+    createLogsTable({
+        endpoint: '/api/ocr-logs',
+        collapseId: 'ocr-logsCollapse',
+        tableId: 'ocr-logs-table',
+        emptyId: 'ocr-logs-empty',
+        paginationId: 'ocr-logs-pagination',
+        filterId: 'ocr-logs-success-filter',
+        refreshBtnId: 'refresh-ocr-logs-btn',
+        renderRow: (log) => `
+            <tr>
+                <td>${log.id}</td>
+                <td>${getStatusBadge(log.ocr_status)}</td>
+                <td>${renderFileNameCell(log.file_name)}</td>
+                <td><span class="text-secondary">${escapeHtml(log.started)}</span></td>
+                <td><span class="text-secondary">${escapeHtml(log.finished)}</span></td>
+                <td>${renderErrorCell(log.ocr_error)}</td>
+            </tr>
+        `
+    });
+
+    createLogsTable({
+        endpoint: '/api/sync-logs',
+        collapseId: 'sync-logsCollapse',
+        tableId: 'sync-logs-table',
+        emptyId: 'sync-logs-empty',
+        paginationId: 'sync-logs-pagination',
+        filterId: 'sync-logs-success-filter',
+        refreshBtnId: 'refresh-sync-logs-btn',
+        renderRow: (log) => `
+            <tr>
+                <td>${log.id}</td>
+                <td>${getStatusBadge(log.sync_status)}</td>
+                <td>${renderFileNameCell(log.file_name)}</td>
+                <td><span class="text-secondary">${escapeHtml(log.started)}</span></td>
+                <td><span class="text-secondary">${escapeHtml(log.finished)}</span></td>
+                <td>${renderErrorCell(log.error_description)}</td>
+            </tr>
+        `
+    });
 }
 
-function renderPagination(page, totalPages) {
-    const pagination = document.getElementById('logs-pagination');
+// Show full file name on click (mobile) and via tooltip (desktop), truncated to 15 chars.
+function renderFileNameCell(fileName) {
+    const truncated = truncate(fileName, 15);
+    if (fileName && fileName.length > 15) {
+        return `
+            <span title="${escapeHtml(fileName)}" style="cursor:pointer;" onclick="alert('${escapeHtml(fileName).replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
+                ${escapeHtml(truncated)}
+            </span>
+        `;
+    }
+    return escapeHtml(fileName);
+}
+
+// Show full error on click (mobile) and via tooltip (desktop), truncated to 40 chars.
+function renderErrorCell(errorText) {
+    if (!errorText) {
+        return '';
+    }
+    const truncated = truncate(errorText, 40);
+    return `
+        <span class="text-danger" title="${escapeHtml(errorText)}" style="cursor:pointer;" onclick="alert('${escapeHtml(errorText).replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
+            ${escapeHtml(truncated)}
+        </span>
+    `;
+}
+
+function renderPagination(pagination, page, totalPages, loadFn, getFilter) {
     pagination.innerHTML = '';
     if (totalPages <= 1) return;
     let html = '';
@@ -598,22 +673,27 @@ function renderPagination(page, totalPages) {
         link.onclick = (e) => {
             e.preventDefault();
             const p = parseInt(link.getAttribute('data-page'));
-            if (p >= 1 && p <= totalPages) fetchLogs(p, logsSuccessFilter);
+            if (p >= 1 && p <= totalPages) loadFn(p, getFilter());
         };
     });
 }
 
 function getStatusBadge(status) {
-    switch (status) {
-    case 'COMPLETED':
-        return '<span class="badge bg-success">Completed</span>';
-    case 'FAILED':
-        return '<span class="badge bg-danger">Failed</span>';
-    case 'PROCESSING':
-        return '<span class="badge bg-warning text-dark">Processing</span>';
-    default:
-        return `<span class="badge bg-danger">${escapeHtml("Failed")}</span>`;
+    if (!status) {
+        return '<span class="badge bg-secondary">Unknown</span>';
     }
+    const normalized = status.toUpperCase();
+    if (normalized === 'COMPLETED') {
+        return '<span class="badge bg-success">Completed</span>';
+    }
+    if (['PENDING', 'PROCESSING', 'SYNC', 'SYNCING'].includes(normalized)) {
+        return `<span class="badge bg-warning text-dark">${escapeHtml(toTitleCase(status))}</span>`;
+    }
+    return `<span class="badge bg-danger">${escapeHtml(toTitleCase(status))}</span>`;
+}
+
+function toTitleCase(status) {
+    return status.toLowerCase().split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 }
 
 function truncate(str, n) {
