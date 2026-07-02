@@ -91,21 +91,24 @@ def callback(ch, method, properties, body):
         logger.exception(f"Failed processing {item.filename}.")
         execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
     finally:
+        ack_ok = True
         try:
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except pika.exceptions.AMQPError:
+            ack_ok = False
             # The connection was lost before we could acknowledge. The unified
             # consumer will reconnect and the broker will redeliver the message.
             logger.error("Connection lost while acknowledging message. It will be redelivered after reconnect.")
-        if isinstance(item, ProcessItem):
-            item_file_naming_db_id = getattr(item, "file_naming_db_id", None)
-            if item_file_naming_db_id:
-                item.file_naming_status = get_latest_file_naming_status(item)
-            item.status = ProcessStatus.SYNC_PENDING
-            update_scanneddata_database(item, {"file_status": item.status.value})
-            forward_to_rabbitmq("upload_queue", item)
-        else:
-            logger.error("Item is None, cannot forward to upload queue.")
+        if ack_ok:
+            if isinstance(item, ProcessItem):
+                item_file_naming_db_id = getattr(item, "file_naming_db_id", None)
+                if item_file_naming_db_id:
+                    item.file_naming_status = get_latest_file_naming_status(item)
+                item.status = ProcessStatus.SYNC_PENDING
+                update_scanneddata_database(item, {"file_status": item.status.value})
+                forward_to_rabbitmq("upload_queue", item)
+            else:
+                logger.error("Item is None, cannot forward to upload queue.")
 
 
 def start_consuming_with_reconnect():
