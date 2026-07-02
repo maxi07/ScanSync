@@ -5,6 +5,7 @@ from scansynclib.sqlite_wrapper import execute_query
 from scansynclib.ollama_helper import test_ollama_server
 from scansynclib.settings import settings
 from scansynclib.settings_schema import FileNamingMethod, FileNamingSettings
+from scansynclib.ProcessItem import OCRStatus
 
 api_bp = Blueprint('api', __name__)
 
@@ -319,6 +320,8 @@ def ocr_logs():
     """
     Route to display the OCR logs with pagination.
     Accepts 'page', 'per_page' and 'filter' as URL query parameters.
+    Each log entry is enriched with 'ocr_status_text' (the human-readable
+    description from OCRStatus) so the frontend never needs to re-define it.
     """
     try:
         logger.info("Requested OCR logs")
@@ -328,6 +331,11 @@ def ocr_logs():
             "ocr_jobs.ocr_status = 'COMPLETED'",
             "ocr_jobs.ocr_status NOT IN ('COMPLETED', 'PROCESSING')"
         )
+        for log in (response_data.get("logs") or []):
+            try:
+                log["ocr_status_text"] = OCRStatus[log["ocr_status"]].value
+            except (KeyError, TypeError):
+                log["ocr_status_text"] = log.get("ocr_status") or "Unknown"
         return Response(json.dumps(response_data, default=str), mimetype='application/json', status=200)
     except Exception as e:
         logger.exception(f"Error retrieving OCR logs: {e}")

@@ -59,27 +59,31 @@ class StatusProgressBar:
 class OCRStatus(Enum):
     """Enumeration of possible OCR statuses.
 
-    UNKNOWN: OCR status not yet determined.
-    PENDING: Item is queued for OCR.
-    PROCESSING: OCR is currently running on the item.
-    COMPLETED: OCR completed successfully on the item.
-    FAILED: OCR failed on the item.
-    SKIPPED: Item was skipped and OCR was not performed.
-    UNSUPPORTED: Item type is not supported for OCR.
-    DPI_ERROR: Image DPI is too low for accurate OCR.
-    INPUT_ERROR: Error reading input image/PDF.
-    OUTPUT_ERROR: Error writing OCR output file.
+    Each value is the human-readable description shown in the web UI and stored
+    as the base error message when that status is the reason for failure.
+    Additional exception detail is appended (": <detail>") where available.
+
+    UNKNOWN: Status has not yet been determined for this item.
+    PENDING: Item is queued and waiting for OCR processing to begin.
+    PROCESSING: OCR is actively running on the item.
+    COMPLETED: OCR finished successfully and text was extracted.
+    FAILED: OCR finished but the output was unusable (e.g. no text found).
+    SKIPPED: OCR was not performed on this item.
+    UNSUPPORTED: The image format is not supported by the OCR engine.
+    DPI_ERROR: The image resolution is too low for accurate OCR.
+    INPUT_ERROR: The input file could not be read by the OCR engine.
+    OUTPUT_ERROR: The OCR engine could not write the output file.
     """
-    UNKNOWN = 0
-    PENDING = 1
-    PROCESSING = 2
-    COMPLETED = 3
-    FAILED = -1
-    SKIPPED = -2
-    UNSUPPORTED = -3
-    DPI_ERROR = -4
-    INPUT_ERROR = -5
-    OUTPUT_ERROR = -6
+    UNKNOWN = "Unknown"
+    PENDING = "Waiting for OCR"
+    PROCESSING = "OCR in progress"
+    COMPLETED = "OCR completed"
+    FAILED = "OCR failed"
+    SKIPPED = "OCR skipped"
+    UNSUPPORTED = "Unsupported image format"
+    DPI_ERROR = "Image DPI too low for accurate OCR"
+    INPUT_ERROR = "Error reading input file"
+    OUTPUT_ERROR = "Error writing OCR output file"
 
 
 class FileNamingStatus(Enum):

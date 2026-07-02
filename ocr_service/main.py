@@ -49,7 +49,7 @@ def start_processing(item: ProcessItem):
         if result != 0:
             logger.error(f"OCR exited with code {result}")
             item.ocr_status = OCRStatus.FAILED
-            ocr_error = f"OCR exited with code {result}"
+            ocr_error = f"{OCRStatus.FAILED.value}: exited with non-zero code {result}"
         else:
             logger.info(f"OCR processing completed: {item.filename}")
 
@@ -62,31 +62,31 @@ def start_processing(item: ProcessItem):
                 else:
                     logger.warning(f"OCR verification failed: no text found in OCR output file {item.ocr_file}")
                     item.ocr_status = OCRStatus.FAILED
-                    ocr_error = "OCR verification failed: no text found in output file"
+                    ocr_error = f"{OCRStatus.FAILED.value}: no text found in output file"
             else:
                 logger.error(f"OCR output file not found: {item.ocr_file}")
                 item.ocr_status = OCRStatus.OUTPUT_ERROR
-                ocr_error = "OCR output file not found"
-    except ocrmypdf.UnsupportedImageFormatError:
+                ocr_error = f"{OCRStatus.OUTPUT_ERROR.value}: output file not created"
+    except ocrmypdf.UnsupportedImageFormatError as unsup_ex:
         logger.error(f"Unsupported image format: {item.local_file_path}")
         item.ocr_status = OCRStatus.UNSUPPORTED
-        ocr_error = "Unsupported image format"
+        ocr_error = f"{OCRStatus.UNSUPPORTED.value}: {unsup_ex}" if str(unsup_ex) else OCRStatus.UNSUPPORTED.value
     except ocrmypdf.DpiError as dpiex:
         logger.error(f"DPI error: {item.local_file_path} {dpiex}")
         item.ocr_status = OCRStatus.DPI_ERROR
-        ocr_error = f"DPI error: {dpiex}"
+        ocr_error = f"{OCRStatus.DPI_ERROR.value}: {dpiex}"
     except ocrmypdf.InputFileError as inex:
         logger.error(f"Input error: {item.local_file_path} {inex}")
         item.ocr_status = OCRStatus.INPUT_ERROR
-        ocr_error = f"Input error: {inex}"
+        ocr_error = f"{OCRStatus.INPUT_ERROR.value}: {inex}"
     except ocrmypdf.OutputFileAccessError as outex:
         logger.error(f"Output error: {item.local_file_path} {outex}")
         item.ocr_status = OCRStatus.OUTPUT_ERROR
-        ocr_error = f"Output error: {outex}"
+        ocr_error = f"{OCRStatus.OUTPUT_ERROR.value}: {outex}"
     except ocrmypdf.MissingDependencyError:
         logger.exception("Cannot process with OCR due to missing dependencies.")
         item.ocr_status = OCRStatus.FAILED
-        ocr_error = "Missing dependency for OCR processing"
+        ocr_error = f"{OCRStatus.FAILED.value}: missing OCR dependency"
     except Exception as ex:
         logger.exception(f"Failed processing {item.local_file_path} with OCR: {ex}")
         item.ocr_status = OCRStatus.FAILED

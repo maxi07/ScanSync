@@ -605,7 +605,7 @@ function initLogTables() {
         renderRow: (log) => `
             <tr>
                 <td>${log.id}</td>
-                <td>${getStatusBadge(log.ocr_status)}</td>
+                <td>${getStatusBadge(log.ocr_status, log.ocr_status_text)}</td>
                 <td>${renderFileNameCell(log.file_name)}</td>
                 <td><span class="text-secondary">${escapeHtml(log.started)}</span></td>
                 <td><span class="text-secondary">${escapeHtml(log.finished)}</span></td>
@@ -684,18 +684,19 @@ function renderPagination(pagination, page, totalPages, loadFn, getFilter) {
     });
 }
 
-function getStatusBadge(status) {
+function getStatusBadge(status, displayText) {
     if (!status) {
         return '<span class="badge bg-secondary">Unknown</span>';
     }
     const normalized = status.toUpperCase();
+    const label = escapeHtml(displayText || toTitleCase(status));
     if (normalized === 'COMPLETED') {
-        return '<span class="badge bg-success">Completed</span>';
+        return `<span class="badge bg-success">${label}</span>`;
     }
     if (['PENDING', 'PROCESSING', 'SYNC', 'SYNCING'].includes(normalized)) {
-        return `<span class="badge bg-warning text-dark">${escapeHtml(toTitleCase(status))}</span>`;
+        return `<span class="badge bg-warning text-dark">${label}</span>`;
     }
-    return `<span class="badge bg-danger">${escapeHtml(toTitleCase(status))}</span>`;
+    return `<span class="badge bg-danger">${label}</span>`;
 }
 
 function toTitleCase(status) {
