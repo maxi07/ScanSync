@@ -44,7 +44,7 @@
     height: 8px;
     background-color: #e9ecef;
     border-radius: 4px;
-    overflow: hidden;
+    overflow: visible;
     gap: 2px;
     margin-bottom: 1px;
   }
@@ -54,18 +54,53 @@ flex: 1;
 background-color: #dee2e6;
 transition: background-color 0.3s;
 border-radius: 2px;
-}
-
-.progress-segment.active {
-background-color: #0d6efd; /* Bootstrap-Blau */
-}
-
-.progress-segment.failed {
-background-color: #dc3545; /* Bootstrap-Rot */
+position: relative;
+cursor: default;
 }
 
 .progress-segment.completed {
-background-color: green; /* Bootstrap-Rot */
+background-color: #198754;
+}
+
+.progress-segment.current {
+background: linear-gradient(90deg, #0d6efd 0%, #6db3f8 50%, #0d6efd 100%);
+background-size: 200% 100%;
+animation: marquee 1.5s linear infinite;
+}
+
+.progress-segment.failed {
+background-color: #dc3545;
+}
+
+.progress-segment.pending {
+background-color: #dee2e6;
+}
+
+@keyframes marquee {
+0% { background-position: 100% 0; }
+100% { background-position: -100% 0; }
+}
+
+.progress-segment[data-tooltip]:hover::after,
+.progress-segment[data-tooltip]:focus-visible::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.progress-segment:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 1px;
 }
 
 .rotating {

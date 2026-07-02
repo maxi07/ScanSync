@@ -1,0 +1,31 @@
+name: Run JS Tests
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.js'
+      - '**/*.mjs'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '**/*.js'
+      - '**/*.mjs'
+
+jobs:
+  run-js-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+
+      - name: Run JS tests
+        run: npm run test:js

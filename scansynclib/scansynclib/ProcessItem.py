@@ -59,20 +59,19 @@ class StatusProgressBar:
 class OCRStatus(Enum):
     """Enumeration of possible OCR statuses.
 
-    Each value is the human-readable description shown in the web UI and stored
-    as the base error message when that status is the reason for failure.
-    Additional exception detail is appended (": <detail>") where available.
+    Each value is the human-readable description shown in the web UI as the status badge.
 
     UNKNOWN: Status has not yet been determined for this item.
     PENDING: Item is queued and waiting for OCR processing to begin.
     PROCESSING: OCR is actively running on the item.
     COMPLETED: OCR finished successfully and text was extracted.
-    FAILED: OCR finished but the output was unusable (e.g. no text found).
+    FAILED: OCR finished but the output was unusable.
     SKIPPED: OCR was not performed on this item.
     UNSUPPORTED: The image format is not supported by the OCR engine.
     DPI_ERROR: The image resolution is too low for accurate OCR.
     INPUT_ERROR: The input file could not be read by the OCR engine.
     OUTPUT_ERROR: The OCR engine could not write the output file.
+    NO_TEXT: OCR completed but the output file contained no extractable text.
     """
     UNKNOWN = "Unknown"
     PENDING = "Waiting for OCR"
@@ -84,6 +83,7 @@ class OCRStatus(Enum):
     DPI_ERROR = "Image DPI too low for accurate OCR"
     INPUT_ERROR = "Error reading input file"
     OUTPUT_ERROR = "Error writing OCR output file"
+    NO_TEXT = "No text found in OCR output"
 
 
 class FileNamingStatus(Enum):

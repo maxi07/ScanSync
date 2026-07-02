@@ -188,8 +188,8 @@ class TestStartProcessing:
             final_call = mock_update_db.call_args_list[-1][0][1]
             assert final_call.get("ocr_status") == OCRStatus.COMPLETED.name
 
-    def test_ocr_success_no_text_sets_failed(self):
-        """When OCR succeeds but no text found, ocr_status should be FAILED."""
+    def test_ocr_success_no_text_sets_no_text(self):
+        """When OCR succeeds but no text found, ocr_status should be NO_TEXT."""
         ocr_main, mock_ocrmypdf = _load_ocr_main()
 
         with patch.object(ocr_main, 'ocrmypdf') as mock_ocr_mod, \
@@ -205,12 +205,12 @@ class TestStartProcessing:
             item = self._create_mock_item()
             ocr_main.start_processing(item)
 
-            assert item.ocr_status == OCRStatus.FAILED
+            assert item.ocr_status == OCRStatus.NO_TEXT
             final_call = mock_update_db.call_args_list[-1][0][1]
-            assert final_call.get("ocr_status") == OCRStatus.FAILED.name
+            assert final_call.get("ocr_status") == OCRStatus.NO_TEXT.name
 
-    def test_ocr_success_whitespace_only_sets_failed(self):
-        """When OCR succeeds but only whitespace found, ocr_status should be FAILED."""
+    def test_ocr_success_whitespace_only_sets_no_text(self):
+        """When OCR succeeds but only whitespace found, ocr_status should be NO_TEXT."""
         ocr_main, mock_ocrmypdf = _load_ocr_main()
 
         with patch.object(ocr_main, 'ocrmypdf') as mock_ocr_mod, \
@@ -226,7 +226,7 @@ class TestStartProcessing:
             item = self._create_mock_item()
             ocr_main.start_processing(item)
 
-            assert item.ocr_status == OCRStatus.FAILED
+            assert item.ocr_status == OCRStatus.NO_TEXT
 
     def test_ocr_success_missing_output_file_sets_output_error(self):
         """When OCR succeeds but output file is missing, status should be OUTPUT_ERROR."""
