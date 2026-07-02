@@ -8,7 +8,7 @@ from scansynclib.sqlite_wrapper import execute_query
 def _move_leftover_to_failed(file_name: str, local_dir: str):
     """Move a leftover source file into the failed directory and drop its OCR file.
 
-    The original (none OCR) scan is moved into the failed directory so it stays
+    The original (non OCR) scan is moved into the failed directory so it stays
     recoverable from the web UI, while any leftover ``*_OCR.pdf`` working file is
     removed. Missing files are tolerated and only logged.
 
