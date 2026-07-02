@@ -1,7 +1,7 @@
 /* global ollama_enabled ollamaModel */
 
 let isRequestPending = false;
-const LOGS_PER_PAGE = 5;
+const LOGS_PER_PAGE = 10;
 
 document.getElementById('onedrive-settings-form').addEventListener('submit', async function(event) {
     event.preventDefault();
