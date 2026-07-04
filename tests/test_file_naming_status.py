@@ -44,26 +44,32 @@ _original_settings = sys.modules.get("scansynclib.settings")
 sys.modules["scansynclib.settings"] = _settings_stub
 
 
-def teardown_module(module):
-    if _original_sqlite_wrapper is None:
-        sys.modules.pop("scansynclib.sqlite_wrapper", None)
-    else:
-        sys.modules["scansynclib.sqlite_wrapper"] = _original_sqlite_wrapper
-    if _original_openai_helper is None:
-        sys.modules.pop("scansynclib.openai_helper", None)
-    else:
-        sys.modules["scansynclib.openai_helper"] = _original_openai_helper
-    if _original_ollama_helper is None:
-        sys.modules.pop("scansynclib.ollama_helper", None)
-    else:
-        sys.modules["scansynclib.ollama_helper"] = _original_ollama_helper
-    if _original_settings is None:
-        sys.modules.pop("scansynclib.settings", None)
-    else:
-        sys.modules["scansynclib.settings"] = _original_settings
-
-
 import file_naming_service.main as fn_main  # noqa: E402
+
+
+def _restore_scansynclib_modules():
+    """Undo the sys.modules stubbing done above.
+
+    ``file_naming_service.main`` has already bound the stubbed objects it needs,
+    so the stubs can be removed from ``sys.modules`` immediately. Restoring them
+    here (rather than in ``teardown_module``) prevents the fileless stub modules
+    from leaking into the collection/import of other test modules, which would
+    otherwise fail to import the real ``scansynclib.settings`` members.
+    """
+    for name, original in (
+        ("scansynclib.sqlite_wrapper", _original_sqlite_wrapper),
+        ("scansynclib.openai_helper", _original_openai_helper),
+        ("scansynclib.ollama_helper", _original_ollama_helper),
+        ("scansynclib.settings", _original_settings),
+    ):
+        if original is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = original
+
+
+_restore_scansynclib_modules()
+
 from scansynclib.ProcessItem import ProcessItem, ItemType, FileNamingStatus, ProcessStatus  # noqa: E402
 
 

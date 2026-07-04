@@ -1,5 +1,27 @@
+from unittest.mock import MagicMock
 from pydantic import ValidationError
 import pytest
+
+# settings.py connects to Redis at module level. Mock it so the module can be
+# imported in a unit-test environment without a live Redis instance.
+import redis as _real_redis
+_orig_from_url = _real_redis.Redis.from_url
+
+
+def _mock_from_url(*args, **kwargs):
+    mock_client = MagicMock()
+    mock_client.get.return_value = None  # No existing settings in Redis
+    mock_client.set.return_value = True
+    mock_client.publish.return_value = 0
+    mock_pubsub = MagicMock()
+    mock_pubsub.subscribe.return_value = None
+    mock_pubsub.listen.return_value = iter([])  # Empty iterator
+    mock_client.pubsub.return_value = mock_pubsub
+    return mock_client
+
+
+_real_redis.Redis.from_url = _mock_from_url
+
 from scansynclib.settings import SettingsProxy
 from scansynclib.settings_schema import FileNamingSettings, FileNamingMethod, SettingsSchema
 
