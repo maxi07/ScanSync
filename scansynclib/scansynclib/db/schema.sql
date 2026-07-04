@@ -43,3 +43,13 @@ CREATE TABLE IF NOT EXISTS file_naming_jobs (
     success Boolean NOT NULL DEFAULT 0,
     error_description TEXT
 );
+
+CREATE TABLE IF NOT EXISTS sync_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scanneddata_id INTEGER NOT NULL,
+    started DATETIME NOT NULL DEFAULT (DATETIME('now', 'localtime')),
+    finished DATETIME,
+    sync_status TEXT NOT NULL,
+    success Boolean NOT NULL DEFAULT 0,
+    error_description TEXT
+);

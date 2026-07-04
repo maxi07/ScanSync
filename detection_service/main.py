@@ -88,7 +88,12 @@ def publish_new_files(channel, queue_name, grouped_files):
 
 
 def main():
+    # Imported lazily so that importing this module (e.g. in tests) does not
+    # trigger the database initialisation performed by scansynclib.sqlite_wrapper.
+    from scansynclib.cleanup import cleanup_dangling_documents
+
     ensure_scan_directory_exists(SCAN_DIR)
+    cleanup_dangling_documents()
     client = RabbitMQClient(name="detection")
     while not client.ensure_connection():
         logger.warning("RabbitMQ is not available. Retrying detection startup in 5 seconds...")
