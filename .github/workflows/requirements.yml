@@ -49,13 +49,13 @@ jobs:
 
           echo "Compiling merged requirements..."
           set +e
-          pip-compile merged_requirements.in --output-file=requirements-dev.txt
+          pip-compile merged_requirements.in --upgrade --output-file=requirements-dev.txt
           RESULT=$?
           set -e
 
           if [ $RESULT -ne 0 ]; then
             echo "❌ Conflict detected during pip-compile:"
-            pip-compile merged_requirements.in --output-file=requirements-dev.txt || true
+            pip-compile merged_requirements.in --upgrade --output-file=requirements-dev.txt || true
             exit 1
           fi
 
