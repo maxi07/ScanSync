@@ -5,17 +5,14 @@ from scansynclib.logging import logger
 from scansynclib.ProcessItem import ItemType, ProcessItem, ProcessStatus, OneDriveDestination
 from PIL import Image
 from pypdf import PdfReader
-import pika
-import pika.exceptions
 from scansynclib.sqlite_wrapper import execute_query, update_scanneddata_database
-from scansynclib.helpers import connect_rabbitmq, move_to_failed
+from scansynclib.helpers import consume, publish, move_to_failed
 from scansynclib.config import config
 import pymupdf
 import pickle
 
 RABBITQUEUE = "metadata_queue"
 TIMEOUT_PDF_VALIDATION = 300
-channel, connection = None, None
 
 
 def on_created(filepaths: list):
@@ -165,12 +162,7 @@ def on_created(filepaths: list):
             logger.exception(f"Error reading PDF file: {item.local_file_path}")
     item.status = ProcessStatus.OCR_PENDING
     update_scanneddata_database(item, {"file_status": item.status.value})
-    channel.basic_publish(
-                    exchange="",
-                    routing_key="ocr_queue",
-                    body=pickle.dumps(item),
-                    properties=pika.BasicProperties(delivery_mode=2)
-                )
+    publish("ocr_queue", pickle.dumps(item))
     logger.info(f"Added {item.local_file_path} to OCR queue")
 
 
@@ -236,19 +228,7 @@ def callback(ch, method, properties, body):
 
 
 def start_consuming_with_reconnect():
-    global channel, connection
-    while True:
-        try:
-            connection, channel = connect_rabbitmq([RABBITQUEUE, "ocr_queue"], heartbeat=600)
-            channel.basic_consume(queue=RABBITQUEUE, on_message_callback=callback)
-            logger.info("Metadata service started, waiting for messages...")
-            channel.start_consuming()
-        except pika.exceptions.AMQPConnectionError as e:
-            logger.error(f"Connection lost: {e}. Reconnecting in 5 seconds...")
-            time.sleep(5)
-        except Exception as e:
-            logger.exception(f"Unexpected error: {e}. Restarting consumer...")
-            time.sleep(5)
+    consume([RABBITQUEUE, "ocr_queue"], callback, heartbeat=600)
 
 
 # Start the consumer with reconnect logic

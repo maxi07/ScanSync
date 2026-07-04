@@ -4,7 +4,7 @@ import hashlib
 from collections import defaultdict
 from scansynclib.logging import logger
 import pika
-from scansynclib.helpers import reconnect_rabbitmq, setup_rabbitmq_connection
+from scansynclib.rabbitmq import RabbitMQClient
 from scansynclib.config import config
 import json
 
@@ -94,7 +94,11 @@ def main():
 
     ensure_scan_directory_exists(SCAN_DIR)
     cleanup_dangling_documents()
-    connection, channel = setup_rabbitmq_connection(RABBITQUEUE)
+    client = RabbitMQClient(name="detection")
+    while not client.ensure_connection():
+        logger.warning("RabbitMQ is not available. Retrying detection startup in 5 seconds...")
+        time.sleep(5)
+    client.declare_queue(RABBITQUEUE)
 
     logger.info(f"Scanning {SCAN_DIR} for new files...")
     known_files = get_all_files(SCAN_DIR)
@@ -103,11 +107,17 @@ def main():
 
     while True:
         try:
-            # Check if the connection is still alive
-            if connection.is_closed or channel.is_closed:
-                connection, channel = reconnect_rabbitmq([RABBITQUEUE])
+            # Keep the single connection alive and reconnect if it was dropped.
+            if not client.is_open():
+                logger.warning("RabbitMQ connection lost. Reconnecting...")
+                if not client.ensure_connection():
+                    logger.warning("RabbitMQ reconnect failed. Retrying in 5 seconds...")
+                    time.sleep(5)
+                    continue
+                client.declare_queue(RABBITQUEUE)
             else:
-                connection.process_data_events(1)
+                # Give pika a chance to send heartbeats between scans.
+                client.process_events(1)
 
             current_files = get_all_files(SCAN_DIR)
             new_files = current_files - known_files
@@ -121,9 +131,10 @@ def main():
             if pending_files and last_file_time and (time.time() - last_file_time >= DUPLICATE_DETECTION_WINDOW):
                 logger.info(f"Processing {len(pending_files)} pending files after {DUPLICATE_DETECTION_WINDOW}s wait...")
                 grouped_files = group_files_by_content(pending_files)
-                publish_new_files(channel, RABBITQUEUE, grouped_files)
-                pending_files = []  # Pending-Liste leeren
-                last_file_time = None
+                if client.is_open():
+                    publish_new_files(client.channel, RABBITQUEUE, grouped_files)
+                    pending_files = []  # Pending-Liste leeren
+                    last_file_time = None
 
             known_files = current_files
 
