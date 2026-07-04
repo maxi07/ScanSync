@@ -18,10 +18,9 @@ from routes.api import api_bp
 from routes.onedrive import onedrive_bp
 from scansynclib.sqlite_wrapper import execute_query
 from scansynclib.onedrive_api import is_token_expired
-from scansynclib.config import config
 
 logger.info("Starting web service...")
-logger.info(f"App version: {os.environ.get('APP_VERSION') or config.get('version', 'Unknown')}")
+logger.info(f"App version: {os.environ.get('APP_VERSION', 'Unknown')}")
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -188,7 +187,7 @@ def inject_config():
 
     return dict(
         failed_document_count=failed_document_count,
-        version=os.environ.get("APP_VERSION") or config.get("version", "Unknown"),
+        version=os.environ.get("APP_VERSION", "Unknown"),
         onedrive_token_error=is_token_expired(),
     )
 
