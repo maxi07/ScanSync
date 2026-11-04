@@ -1,6 +1,5 @@
 import os
 import pickle
-import tempfile
 
 
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus, FileNamingStatus
@@ -70,16 +69,8 @@ def callback(ch, method, properties, body):
             logger.info("No file naming method configured. Using default filename.")
             new_filename = item.filename_without_extension
         if new_filename and os.path.exists(item.ocr_file):
-            descriptor, working_path = tempfile.mkstemp(prefix=".scansync-", suffix="_OCR.pdf", dir=item.local_directory)
-            os.close(descriptor)
-            try:
-                os.replace(item.ocr_file, working_path)
-            except OSError:
-                os.remove(working_path)
-                raise
             item.filename_without_extension = new_filename
             item.filename = new_filename + ".pdf"
-            item.ocr_file = working_path
             logger.info(f"Generated filename: {new_filename}")
 
     except FileNotFoundError:

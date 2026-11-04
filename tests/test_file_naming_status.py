@@ -188,6 +188,8 @@ def test_colliding_filenames_keep_separate_working_files(item, tmp_path, mocker,
     assert first_result.filename == second_result.filename == truncated_name + ".pdf"
     assert len(first_result.filename_without_extension) <= 30
     assert first_result.ocr_file != second_result.ocr_file
+    assert first_result.ocr_file == item.ocr_file
+    assert second_result.ocr_file == second_item.ocr_file
     assert Path(first_result.ocr_file).parent == tmp_path
     assert Path(second_result.ocr_file).parent == tmp_path
     assert Path(first_result.ocr_file).read_bytes() == first_contents
@@ -202,16 +204,37 @@ def test_colliding_filenames_keep_separate_working_files(item, tmp_path, mocker,
     assert existing_destination.read_bytes() == b"another pending document"
 
 
-def test_failed_working_file_move_removes_reservation(item, tmp_path, mocker):
+@pytest.mark.parametrize("naming_method, new_filename", [
+    (FileNamingMethod.NONE, "doc"),
+    (FileNamingMethod.OPENAI, "doc"),
+    (FileNamingMethod.OLLAMA, "doc"),
+    (FileNamingMethod.OPENAI, "renamed"),
+    (FileNamingMethod.OLLAMA, "renamed"),
+])
+def test_redelivery_after_ack_failure_preserves_ocr_path(item, tmp_path, mocker, naming_method, new_filename):
     original_contents = Path(item.ocr_file).read_bytes()
+    mocker.patch.object(fn_main.settings.file_naming, "method", naming_method)
+    mocker.patch.object(fn_main, "generate_filename_openai", return_value=new_filename)
+    mocker.patch.object(fn_main, "generate_filename_ollama", return_value=new_filename)
     mocker.patch.object(fn_main, "execute_query", return_value=11)
-    mocker.patch.object(fn_main, "get_latest_file_naming_status", return_value=FileNamingStatus.FAILED)
+    mocker.patch.object(fn_main, "get_latest_file_naming_status", return_value=FileNamingStatus.COMPLETED)
     mocker.patch.object(fn_main, "update_scanneddata_database")
-    mocker.patch.object(fn_main.os, "replace", side_effect=OSError("move failed"))
     forward = mocker.patch.object(fn_main, "forward_to_rabbitmq")
+    channel = mocker.Mock()
+    channel.basic_ack.side_effect = [pika_exceptions.AMQPError("lost connection"), None]
+    method = SimpleNamespace(delivery_tag=123)
+    body = pickle.dumps(item)
 
-    fn_main.callback(mocker.Mock(), SimpleNamespace(delivery_tag=123), None, pickle.dumps(item))
+    fn_main.callback(channel, method, None, body)
+
+    forward.assert_not_called()
+    assert Path(item.ocr_file).read_bytes() == original_contents
+
+    fn_main.callback(channel, method, None, body)
 
     assert list(tmp_path.glob(".scansync-*_OCR.pdf")) == []
     assert Path(item.ocr_file).read_bytes() == original_contents
-    assert forward.call_args.args[1].ocr_file == item.ocr_file
+    forward.assert_called_once()
+    forwarded_item = forward.call_args.args[1]
+    assert forwarded_item.ocr_file == item.ocr_file
+    assert forwarded_item.filename == new_filename + ".pdf"
