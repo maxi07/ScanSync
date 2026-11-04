@@ -1,6 +1,9 @@
 import json
 import os
 import time
+import uuid
+from datetime import datetime
+from scansynclib.analytics import elapsed_ms, file_metadata, track
 from scansynclib.logging import logger
 from scansynclib.ProcessItem import ItemType, ProcessItem, ProcessStatus, OneDriveDestination
 from PIL import Image
@@ -15,7 +18,7 @@ RABBITQUEUE = "metadata_queue"
 TIMEOUT_PDF_VALIDATION = 300
 
 
-def on_created(filepaths: list):
+def on_created(filepaths: list, analytics_id=None, received_at=None):
     # Test for valid path
     if os.path.exists(filepaths[0]) and os.path.isdir(filepaths[0]):
         logger.warning(f"Given path is a directory, will skip: {filepaths}")
@@ -54,8 +57,14 @@ def on_created(filepaths: list):
 
     logger.info(f"Gathering info about new file{"s" if len(filepaths) > 1 else ""} at {filepaths}")
     item = ProcessItem(filepaths[0], ItemType.UNKNOWN)
+    item.analytics_id = analytics_id or uuid.uuid4().hex
+    if received_at:
+        item.time_added = datetime.fromisoformat(received_at)
+    track("document.received", item=item, targets=len(filepaths), **file_metadata(item.local_file_path))
     item.db_id = execute_query('INSERT INTO scanneddata (file_name, local_filepath) VALUES (?, ?)', (item.filename, item.local_directory_above), return_last_id=True)
     logger.debug(f"Added {filepaths[0]} to database with id {item.db_id}")
+    started = time.monotonic()
+    track("metadata.started", item=item)
 
     # Now add additional smb paths to the item
     additional_smbs_str = ""
@@ -124,6 +133,7 @@ def on_created(filepaths: list):
                 item.status = ProcessStatus.INVALID_FILE
                 update_scanneddata_database(item, {"file_status": item.status.value})
                 move_to_failed(item)
+                track("document.skipped", item=item, reason="invalid_file", duration_ms=elapsed_ms(started))
                 return
 
     # Check again if file exists
@@ -131,6 +141,7 @@ def on_created(filepaths: list):
         logger.warning(f"File {filepaths[0]} does not exist anymore. Skipping.")
         item.status = ProcessStatus.DELETED
         update_scanneddata_database(item, {"file_status": item.status.value})
+        track("document.skipped", item=item, reason="source_deleted", duration_ms=elapsed_ms(started))
         return
 
     item.status = ProcessStatus.READING_METADATA
@@ -163,6 +174,7 @@ def on_created(filepaths: list):
     item.status = ProcessStatus.OCR_PENDING
     update_scanneddata_database(item, {"file_status": item.status.value})
     publish("ocr_queue", pickle.dumps(item))
+    track("metadata.completed", item=item, duration_ms=elapsed_ms(started), pages=item.pdf_pages, targets=len(item.OneDriveDestinations))
     logger.info(f"Added {item.local_file_path} to OCR queue")
 
 
@@ -216,13 +228,16 @@ def pdf_to_jpeg(pdf_path: str, output_path: str, target_height=128, compression_
 
 
 def callback(ch, method, properties, body):
+    analytics_id = getattr(properties, "message_id", None)
     try:
         data = json.loads(body)
         filepaths: list = data["file_paths"]
         logger.info(f"Received item{"s" if len(filepaths) > 1 else ""} for metadata service {filepaths}")
-        on_created(filepaths)
+        headers = getattr(properties, "headers", None) or {}
+        on_created(filepaths, analytics_id=analytics_id, received_at=headers.get("received_at"))
         ch.basic_ack(delivery_tag=method.delivery_tag)
-    except Exception:
+    except Exception as error:
+        track("metadata.failed", document_id=analytics_id, error=error)
         logger.exception(f"Failed processing {body} in metadata_service.")
         return
 

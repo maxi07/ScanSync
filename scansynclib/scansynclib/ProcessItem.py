@@ -121,6 +121,7 @@ class OneDriveDestination:
         self.remote_folder_id = remote_folder_id
         self.remote_drive_id = remote_drive_id
         self.web_url = None  # Will be set after successful upload
+        self.analytics_status_code: int | None = None
 
 
 class ProcessItem:
@@ -156,10 +157,13 @@ class ProcessItem:
         self.local_directory = os.path.dirname(local_file_path)
         self.local_directory_above = os.path.basename(os.path.dirname(local_file_path))
         self.time_added = datetime.now()
+        self.analytics_id: str | None = None
+        self.analytics_naming_retries = 0
+        self.analytics_upload_retries = 0
         self.time_ocr_started = None
         self.time_ocr_finished = None
         self.time_upload_started = None
-        self.time_finished = None
+        self.time_finished: datetime | None = None
         self.item_type = item_type
         self.ocr_status = OCRStatus.UNKNOWN
         self.ocr_file = os.path.join(self.local_directory, self.filename_without_extension + "_OCR.pdf")

@@ -1,7 +1,10 @@
 import os
 import time
 import hashlib
+import uuid
+from datetime import datetime
 from collections import defaultdict
+from scansynclib.analytics import file_metadata, track
 from scansynclib.logging import logger
 import pika
 from scansynclib.rabbitmq import RabbitMQClient
@@ -73,13 +76,19 @@ def publish_new_files(channel, queue_name, grouped_files):
             "file_hash": file_hash,
             "is_duplicate_group": len(file_paths) > 1
         })
+        analytics_id = uuid.uuid4().hex
+        received_at = datetime.now().isoformat()
 
         channel.basic_publish(
             exchange="",
             routing_key=queue_name,
             body=message,
-            properties=pika.BasicProperties(delivery_mode=2)  # Make message persistent
+            properties=pika.BasicProperties(
+                delivery_mode=2, message_id=analytics_id,
+                headers={"received_at": received_at},
+            )
         )
+        track("document.detected", document_id=analytics_id, targets=len(file_paths), **file_metadata(file_paths[0]))
 
         if len(file_paths) > 1:
             logger.info(f"Published {len(file_paths)} identical files as one group to RabbitMQ queue {queue_name}")

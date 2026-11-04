@@ -49,6 +49,29 @@ Once started:
 - Access the web server at your server's IP on port `5001`.
 - Setup your onedrive connection, add a smb share and start scanning
 
+## Optional Analytics
+
+Telemetry is **off by default**. To enable it, configure both variables in a
+`.env` file next to the Compose file, then rebuild/recreate the services:
+
+```dotenv
+ANALYTICS_URL=https://your-analytics-server.example
+ANALYTICS_API_KEY=your-scansync-project-api-key
+```
+
+If either variable is empty, nothing is sent and no analytics worker starts.
+The endpoint must implement the maexbert-analytics `POST /event` API.
+Sending is fire-and-forget: analytics failures never stop document processing,
+and events can be lost when the endpoint is unavailable or services stop.
+No document content, filenames, paths, credentials, usernames, or hostnames
+are sent. The top-level `user_id` is a random, pseudonymous installation ID
+persisted in the shared data volume, not a person or PC name. Tracebacks
+contain only module/function names and line numbers, never exception
+messages, source lines, or local variables.
+
+See the [event catalog and SQL examples](doc/analytics.md) for all available
+events, metadata, counting rules, and delivery limitations.
+
 ## 🛠 Development
 
 For development purposes, you can use the built-in Flask server:

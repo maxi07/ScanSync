@@ -85,6 +85,7 @@ def patched(mocker):
     execute_query = mocker.patch.object(ocr_main, "execute_query", return_value=99)
     update_db = mocker.patch.object(ocr_main, "update_scanneddata_database")
     forward = mocker.patch.object(ocr_main, "forward_to_rabbitmq")
+    track = mocker.patch.object(ocr_main, "track")
     fake_settings = types.SimpleNamespace(
         file_naming=types.SimpleNamespace(
             ollama_server_url="",
@@ -99,6 +100,7 @@ def patched(mocker):
         "update_db": update_db,
         "forward": forward,
         "settings": fake_settings,
+        "track": track,
     }
 
 
@@ -158,6 +160,15 @@ def test_start_processing_persists_ocr_job_status(item, patched, mocker, ocr_beh
     assert status_name == expected_status.name
     assert error == expected_error
     assert db_id == 99
+    events = [call.args[0] for call in patched["track"].call_args_list]
+    assert events[0] == "ocr.started"
+    assert events[1] == ("ocr.completed" if expected_status == OCRStatus.COMPLETED else
+                         "ocr.skipped" if expected_status == OCRStatus.UNSUPPORTED else "ocr.failed")
+    outcome = patched["track"].call_args_list[1]
+    assert outcome.kwargs["duration_ms"] >= 0
+    assert outcome.kwargs["status"] == expected_status.name
+    if "side_effect" in ocr_behavior:
+        assert outcome.kwargs["error"] is ocr_behavior["side_effect"]
 
 
 def test_start_processing_inserts_ocr_job_and_forwards_to_upload(item, patched, mocker):
@@ -184,3 +195,15 @@ def test_start_processing_forwards_to_file_naming_when_enabled(item, patched, mo
     patched["forward"].assert_called_once()
     assert patched["forward"].call_args.args[0] == "file_naming_queue"
     assert item.status == ProcessStatus.FILENAME_PENDING
+
+
+def test_ocr_no_text_is_not_reported_as_crash(item, patched, mocker):
+    mocker.patch.object(ocr_main.ocrmypdf, "ocr", return_value=0)
+    mocker.patch.object(ocr_main, "extract_text", return_value="")
+    with open(item.ocr_file, "wb") as output:
+        output.write(b"synthetic")
+    ocr_main.start_processing(item)
+    events = [call.args[0] for call in patched["track"].call_args_list]
+    assert "ocr.no_text" in events
+    assert "ocr.failed" not in events
+    assert "naming.skipped" in events

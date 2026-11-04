@@ -46,6 +46,8 @@ services:
       - ./web_service:/tests/tests/web_service
       - ./ocr_service:/tests/tests/ocr_service
       - ./file_naming_service:/tests/tests/file_naming_service
+      - ./metadata_service:/tests/metadata_service:ro
+      - ./upload_service:/tests/upload_service:ro
   
   redis:
     image: redis:latest

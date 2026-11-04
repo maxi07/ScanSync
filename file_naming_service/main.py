@@ -4,6 +4,7 @@ import pickle
 
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus, FileNamingStatus
 from scansynclib.logging import logger
+from scansynclib.analytics import track
 from scansynclib.helpers import consume, forward_to_rabbitmq
 import pika.exceptions
 from scansynclib.openai_helper import generate_filename_openai
@@ -66,6 +67,7 @@ def callback(ch, method, properties, body):
         elif method_setting == FileNamingMethod.OLLAMA:
             new_filename = generate_filename_ollama(item)
         else:
+            track("naming.skipped", item=item, provider="none", reason="disabled", fallback_used=True)
             logger.info("No file naming method configured. Using default filename.")
             new_filename = item.filename_without_extension
         if new_filename and os.path.exists(item.ocr_file):
@@ -73,10 +75,12 @@ def callback(ch, method, properties, body):
             item.filename = new_filename + ".pdf"
             logger.info(f"Generated filename: {new_filename}")
 
-    except FileNotFoundError:
+    except FileNotFoundError as error:
+        track("naming.failed", item=item, error=error, reason="no_ocr_file", fallback_used=True)
         logger.error(f"OCR file does not exist: {item.ocr_file}. Cannot generate filename.")
         execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, "OCR file does not exist", item.file_naming_db_id))
     except TypeError as e:
+        track("queue.message_rejected", error=e, queue_name=RABBITQUEUE, reason="invalid_item")
         logger.error(f"Received object is not a ProcessItem: {e}. Skipping.")
         item_file_naming_db_id = getattr(item, "file_naming_db_id", None)
         if item_file_naming_db_id:
@@ -86,6 +90,7 @@ def callback(ch, method, properties, body):
             )
         return
     except Exception as e:
+        track("service.error", item=item, error=e, operation="naming_callback")
         logger.exception(f"Failed processing {item.filename}.")
         execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
     finally:

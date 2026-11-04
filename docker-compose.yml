@@ -1,3 +1,7 @@
+x-analytics-environment: &analytics-environment
+  ANALYTICS_URL: ${ANALYTICS_URL:-}
+  ANALYTICS_API_KEY: ${ANALYTICS_API_KEY:-}
+
 services:    
   smb_service:
     build:
@@ -22,6 +26,9 @@ services:
       dockerfile: ocr_service/Dockerfile
       args:
         - APP_VERSION=${APP_VERSION:-dev}
+    environment:
+      <<: *analytics-environment
+      SCANSYNC_SERVICE: ocr_service
     restart: unless-stopped
     volumes:
       - scans:/mnt/scans
@@ -29,8 +36,10 @@ services:
     networks:
       - app-network
     depends_on:
-      - smb_service
-      - rabbitmq
+      smb_service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     deploy:
       mode: replicated
       replicas: 2
@@ -42,6 +51,9 @@ services:
       dockerfile: file_naming_service/Dockerfile
       args:
         - APP_VERSION=${APP_VERSION:-dev}
+    environment:
+      <<: *analytics-environment
+      SCANSYNC_SERVICE: file_naming_service
     restart: unless-stopped
     volumes:
       - scans:/mnt/scans
@@ -49,9 +61,12 @@ services:
     networks:
       - app-network
     depends_on:
-      - smb_service
-      - rabbitmq
-      - redis
+      smb_service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
     extra_hosts:
       - "host.docker.internal:host-gateway"
     deploy:
@@ -65,6 +80,9 @@ services:
       dockerfile: detection_service/Dockerfile
       args:
         - APP_VERSION=${APP_VERSION:-dev}
+    environment:
+      <<: *analytics-environment
+      SCANSYNC_SERVICE: detection_service
     container_name: detection_service
     restart: unless-stopped
     volumes:
@@ -73,8 +91,10 @@ services:
     networks:
       - app-network
     depends_on:
-      - smb_service
-      - rabbitmq
+      smb_service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     command: ["python", "main.py"]
   
   metadata_service:
@@ -83,6 +103,9 @@ services:
       dockerfile: metadata_service/Dockerfile
       args:
         - APP_VERSION=${APP_VERSION:-dev}
+    environment:
+      <<: *analytics-environment
+      SCANSYNC_SERVICE: metadata_service
     restart: unless-stopped
     volumes:
       - scans:/mnt/scans
@@ -91,8 +114,10 @@ services:
     networks:
       - app-network
     depends_on:
-      - smb_service
-      - rabbitmq
+      smb_service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     deploy:
       mode: replicated
       replicas: 2
@@ -104,6 +129,9 @@ services:
       dockerfile: upload_service/Dockerfile
       args:
         - APP_VERSION=${APP_VERSION:-dev}
+    environment:
+      <<: *analytics-environment
+      SCANSYNC_SERVICE: upload_service
     container_name: upload_service
     restart: unless-stopped
     volumes:
@@ -112,8 +140,10 @@ services:
     networks:
       - app-network
     depends_on:
-      - smb_service
-      - rabbitmq
+      smb_service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     command: ["python", "main.py"]
   
   web-service:
@@ -128,7 +158,14 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      - FLASK_ENV=prod # prod or development
+      <<: *analytics-environment
+      SCANSYNC_SERVICE: web_service
+      FLASK_ENV: prod # prod or development
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       # - ./web_service/src:/app/src  # Only for development!!
       - scans:/mnt/scans
@@ -147,10 +184,11 @@ services:
       - "5672:5672"
       - "15672:15672"
     healthcheck:
-      test: ["CMD", "rabbitmqctl", "status"]
-      interval: 10s
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_port_connectivity"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 12
+      start_period: 10s
     networks:
       - app-network
     volumes:

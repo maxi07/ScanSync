@@ -1,5 +1,6 @@
 import logging
 import colorlog
+from scansynclib.analytics import configure_logging, track
 
 log_colors = {
     "DEBUG": "cyan",
@@ -32,3 +33,6 @@ logger = logging.getLogger("shared_logger")
 logger.setLevel(logging.INFO)
 logger.addHandler(console_handler)
 logger.addHandler(file_handler)
+
+configure_logging()
+track("service.started")

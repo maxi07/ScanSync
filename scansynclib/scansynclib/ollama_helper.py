@@ -1,4 +1,6 @@
 import requests
+import time
+from scansynclib.analytics import elapsed_ms, track
 from tenacity import RetryError, retry, retry_if_exception, stop_after_attempt, wait_random_exponential
 import urllib3
 from scansynclib.ProcessItem import FileNamingStatus, ProcessItem
@@ -72,6 +74,10 @@ def generate_filename_ollama(item: ProcessItem) -> str:
     - str: The generated filename if successful, otherwise the original filename without extension.
     """
     logger.info(f"Generating filename using Ollama for {item.filename}")
+    started = time.monotonic()
+    telemetry = {"item": item, "provider": "ollama", "model": settings.file_naming.ollama_model}
+    item.analytics_naming_retries = 0
+    track("naming.started", **telemetry)
 
     execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, model = ?, method = ? WHERE id = ?",
@@ -79,6 +85,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
         )
 
     if not item.ocr_file:
+        track("naming.skipped", **telemetry, reason="no_ocr_file", fallback_used=True, duration_ms=elapsed_ms(started))
         logger.warning("No OCR file found. Using default filename.")
         execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
@@ -90,6 +97,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
     pdf_text = extract_text(item.ocr_file)
 
     if not pdf_text:
+        track("naming.skipped", **telemetry, reason="no_pdf_text", fallback_used=True, duration_ms=elapsed_ms(started))
         logger.warning("Failed to extract text from PDF. Using default filename.")
         execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
@@ -122,7 +130,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             "options": {"num_predict": 128},
         }
         headers = {"Content-Type": "application/json"}
-        response = post_to_ollama(payload, headers)
+        response = post_to_ollama(payload, headers, item=item)
         logger.debug(f"Ollama response status code: {response.status_code}, response text: {response.text}")
         if response.status_code == 200:
             new_filename = response.json().get('response', '').strip()
@@ -134,14 +142,17 @@ def generate_filename_ollama(item: ProcessItem) -> str:
                     "UPDATE file_naming_jobs SET file_naming_status = ?, success = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
                     (FileNamingStatus.COMPLETED.name, True, item.file_naming_db_id)
                 )
+                track("naming.completed", **telemetry, duration_ms=elapsed_ms(started), fallback_used=False, retries=item.analytics_naming_retries)
                 return sanitized_filename
             logger.warning("Ollama returned an empty filename. Using default filename.")
             execute_query(
                 "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
                 (FileNamingStatus.FAILED.name, "Ollama returned an empty filename.", item.file_naming_db_id)
             )
+            track("naming.failed", **telemetry, reason="empty_response", status_code=200, duration_ms=elapsed_ms(started), fallback_used=True)
             return item.filename_without_extension
         elif response.status_code == 404:
+            track("naming.failed", **telemetry, reason="model_not_found", status_code=404, duration_ms=elapsed_ms(started), fallback_used=True)
             # Handle 404 error specifically as it indicates the model was not found but also Page not found
             content_type = response.headers.get('Content-Type', '')
             if 'application/json' in content_type:
@@ -168,6 +179,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
                 )
             return item.filename_without_extension
         else:
+            track("naming.failed", **telemetry, reason="http_error", status_code=response.status_code, duration_ms=elapsed_ms(started), fallback_used=True)
             logger.warning("Ollama did not return a valid filename. Using default.")
             error_info = ""
             try:
@@ -181,15 +193,26 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             )
             return item.filename_without_extension
     except RetryError as retryerr:
+        track("naming.failed", **telemetry, error=retryerr.last_attempt.exception(), duration_ms=elapsed_ms(started), fallback_used=True, retries=retryerr.last_attempt.attempt_number - 1)
         logger.error(f"Error connecting to Ollama server: {str(retryerr)}")
         execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
             (FileNamingStatus.NO_SERVER_CONNECTION.name, FileNamingStatus.NO_SERVER_CONNECTION.value, item.file_naming_db_id)
         )
         return item.filename_without_extension
+    except Exception as error:
+        track("naming.failed", **telemetry, error=error, duration_ms=elapsed_ms(started), fallback_used=True)
+        raise
 
 
 def log_ollama_retry(retry_state):
+    item = retry_state.kwargs.get("item")
+    if item is not None:
+        item.analytics_naming_retries = retry_state.attempt_number
+    track(
+        "naming.retried", item=item, provider="ollama", model=settings.file_naming.ollama_model,
+        error=retry_state.outcome.exception(), attempt=retry_state.attempt_number,
+    )
     logger.warning(
         "Ollama request attempt %s/3 failed: %s. Retrying in %.1f seconds.",
         retry_state.attempt_number,
@@ -202,7 +225,7 @@ def log_ollama_retry(retry_state):
        wait=wait_random_exponential(multiplier=1, min=2, max=10),
        retry=retry_if_exception(is_retryable_exception),
        before_sleep=log_ollama_retry)
-def post_to_ollama(payload, headers):
+def post_to_ollama(payload, headers, item=None):
     url = f"{settings.file_naming.ollama_server_url}:{settings.file_naming.ollama_server_port}/api/generate"
     logger.info("Sending Ollama request to %s using model %s (timeout: 120 seconds).", url, payload.get("model"))
     response = requests.post(url, json=payload, headers=headers, timeout=120)
