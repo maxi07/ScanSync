@@ -12,14 +12,18 @@ def test_ollama_server(server_url, server_port, model):
     try:
         url = f"{server_url}:{server_port}"
         logger.info(f"Testing Ollama server at {url} with model {model}")
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         if response.status_code != 200 or "Ollama is running" not in response.text:
             logger.error(f"Failed to reach Ollama server: {response.status_code} - {response.text}")
             return False, f"Failed to reach Ollama server: {response.status_code} - {response.text}"
         logger.info("Ollama server is reachable")
 
         model_url = f"{url}/api/generate"
-        model_response = requests.post(model_url, json={"model": model, "stream": False, "prompt": "Please respond with 'it works'."})
+        model_response = requests.post(
+            model_url,
+            json={"model": model, "stream": False, "think": False, "options": {"num_predict": 128}, "prompt": "Please respond with 'it works'."},
+            timeout=120,
+        )
         if model_response.status_code == 200:
             logger.info(f"Model {model} is available on the Ollama server")
             return True, "Ollama server and model are reachable"
@@ -113,7 +117,9 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             "model": settings.file_naming.ollama_model,
             "system": system_prompt,
             "prompt": pdf_text,
-            "stream": False
+            "stream": False,
+            "think": False,
+            "options": {"num_predict": 128},
         }
         headers = {"Content-Type": "application/json"}
         response = post_to_ollama(payload, headers)
@@ -122,13 +128,19 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             new_filename = response.json().get('response', '').strip()
             if new_filename:
                 logger.info(f"Extracted filename from Ollama response: {new_filename}")
-                sanitized_filename = validate_smb_filename(new_filename)
+                sanitized_filename = validate_smb_filename(new_filename)[:30].rstrip(" ._")
                 logger.debug(f"Sanitized Ollama filename: {sanitized_filename}")
                 execute_query(
                     "UPDATE file_naming_jobs SET file_naming_status = ?, success = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
                     (FileNamingStatus.COMPLETED.name, True, item.file_naming_db_id)
                 )
                 return sanitized_filename
+            logger.warning("Ollama returned an empty filename. Using default filename.")
+            execute_query(
+                "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+                (FileNamingStatus.FAILED.name, "Ollama returned an empty filename.", item.file_naming_db_id)
+            )
+            return item.filename_without_extension
         elif response.status_code == 404:
             # Handle 404 error specifically as it indicates the model was not found but also Page not found
             content_type = response.headers.get('Content-Type', '')
@@ -177,9 +189,22 @@ def generate_filename_ollama(item: ProcessItem) -> str:
         return item.filename_without_extension
 
 
+def log_ollama_retry(retry_state):
+    logger.warning(
+        "Ollama request attempt %s/3 failed: %s. Retrying in %.1f seconds.",
+        retry_state.attempt_number,
+        retry_state.outcome.exception(),
+        retry_state.next_action.sleep,
+    )
+
+
 @retry(stop=stop_after_attempt(3),
        wait=wait_random_exponential(multiplier=1, min=2, max=10),
-       retry=retry_if_exception(is_retryable_exception))
+       retry=retry_if_exception(is_retryable_exception),
+       before_sleep=log_ollama_retry)
 def post_to_ollama(payload, headers):
     url = f"{settings.file_naming.ollama_server_url}:{settings.file_naming.ollama_server_port}/api/generate"
-    return requests.post(url, json=payload, headers=headers, timeout=120)
+    logger.info("Sending Ollama request to %s using model %s (timeout: 120 seconds).", url, payload.get("model"))
+    response = requests.post(url, json=payload, headers=headers, timeout=120)
+    logger.info("Received Ollama response: HTTP %s.", response.status_code)
+    return response

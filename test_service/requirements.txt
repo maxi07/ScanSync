@@ -1,4 +1,4 @@
-pytest
-selenium
-pytest-mock
-flask
+pytest==9.2.0
+selenium==4.52.0
+pytest-mock==3.17.0
+flask==3.1.3

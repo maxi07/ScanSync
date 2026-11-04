@@ -69,10 +69,8 @@ def callback(ch, method, properties, body):
             logger.info("No file naming method configured. Using default filename.")
             new_filename = item.filename_without_extension
         if new_filename and os.path.exists(item.ocr_file):
-            os.rename(item.ocr_file, os.path.join(item.local_directory, new_filename + "_OCR.pdf"))
             item.filename_without_extension = new_filename
             item.filename = new_filename + ".pdf"
-            item.ocr_file = os.path.join(item.local_directory, new_filename + "_OCR.pdf")
             logger.info(f"Generated filename: {new_filename}")
 
     except FileNotFoundError:

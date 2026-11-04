@@ -1,2 +1,2 @@
-pika==1.4.1
-ocrmypdf==17.8.0
+pika==1.4.4
+ocrmypdf==17.13.0
