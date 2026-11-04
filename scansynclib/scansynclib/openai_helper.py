@@ -1,4 +1,4 @@
-from openai import OpenAI, AuthenticationError, RateLimitError
+from openai import OpenAI, APIStatusError, AuthenticationError, RateLimitError
 from scansynclib.ProcessItem import FileNamingStatus, ProcessItem
 from scansynclib.logging import logger
 from tenacity import Retrying, RetryError, stop_after_attempt, wait_random_exponential, retry_if_exception_type
@@ -7,10 +7,33 @@ from scansynclib.sqlite_wrapper import execute_query
 from scansynclib.settings import settings
 
 
-OPENAI_MODEL = "gpt-4.1-nano"
+OPENAI_MODEL = "gpt-6-luna"
+MAX_FILENAME_LENGTH = 30
 TOKEN_FILE = '/app/data/token_openai.json'
 USER_PROFILE_FILE = '/app/data/user_profile_openai.json'
 USER_IMAGE_FILE = '/app/data/user_image_openai.jpeg'
+
+
+def format_api_error(error: APIStatusError) -> str:
+    body = error.body if isinstance(error.body, dict) else {}
+    details = body.get("error", body)
+    if not isinstance(details, dict):
+        details = {}
+    message = details.get("message")
+    if not isinstance(message, str):
+        message = ""
+    code = details.get("code")
+    if error.status_code == 404:
+        if any(term in message.lower() for term in ("deprecated", "retired", "shut down")):
+            summary = f"OpenAI model is deprecated: {OPENAI_MODEL}."
+        else:
+            summary = f"OpenAI model not found or inaccessible: {OPENAI_MODEL}."
+    else:
+        summary = "OpenAI request failed."
+    status = f"HTTP {error.status_code}"
+    if isinstance(code, str) and code:
+        status += f"; {code}"
+    return f"{summary} ({status}) {message}".strip()
 
 
 def test_key(key) -> tuple[int, str]:
@@ -32,6 +55,7 @@ def test_key(key) -> tuple[int, str]:
     try:
         response = client.responses.create(
             model=OPENAI_MODEL,
+            reasoning={"effort": "none"},
             input="Please respond with the words 'it works'",
         )
         if response.output_text.lower() == "it works":
@@ -44,9 +68,13 @@ def test_key(key) -> tuple[int, str]:
         return 401, "OpenAI key is invalid or wrong permissions set."
     except RateLimitError:
         return 429, "OpenAI rate limit reached! Either not enough credits or too many requests."
+    except APIStatusError as error:
+        return error.status_code, format_api_error(error)
     except Exception as e:
         logger.exception(f"An error occurred while testing OpenAI key: {e}")
         return 400, "An error occurred while testing OpenAI key"
+    finally:
+        client.close()
 
 
 def generate_filename_openai(item: ProcessItem) -> str:
@@ -104,12 +132,13 @@ def generate_filename_openai(item: ProcessItem) -> str:
             with attempt:
                 openai_filename = client.responses.create(
                     model=OPENAI_MODEL,
+                    reasoning={"effort": "none"},
                     instructions="Identify a suitable filename for the following pdf content. Keep the language of the file name in the original language and do not add any other language. Make the filename safe for SMB. Do not add a file extension. Separate words with a underscore. Have a maximum filename length of 30 characters. Only return the filename without any additional text.",
                     input=pdf_text,
                 )
-        if openai_filename:
+        if openai_filename and openai_filename.output_text.strip():
             logger.debug(f"Received OpenAI filename: {openai_filename.output_text}")
-            sanitized_filename = validate_smb_filename(openai_filename.output_text)
+            sanitized_filename = validate_smb_filename(openai_filename.output_text)[:MAX_FILENAME_LENGTH].rstrip(" ._")
             logger.debug(f"Sanitized OpenAI filename: {sanitized_filename}")
             execute_query(
                 "UPDATE file_naming_jobs SET file_naming_status = ?, success = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
@@ -135,6 +164,15 @@ def generate_filename_openai(item: ProcessItem) -> str:
         execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
             (FileNamingStatus.RATE_LIMIT_ERROR.name, f"OpenAI rate limit reached! Either not enough credits or too many requests. Tried {retryerr.last_attempt.attempt_number} times.", item.file_naming_db_id)
+        )
+        return item.filename_without_extension
+    except APIStatusError as error:
+        description = format_api_error(error)
+        status = FileNamingStatus.MODEL_NOT_FOUND if error.status_code == 404 else FileNamingStatus.FAILED
+        logger.warning(description)
+        execute_query(
+            "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
+            (status.name, description, item.file_naming_db_id)
         )
         return item.filename_without_extension
     except Exception as ex:
