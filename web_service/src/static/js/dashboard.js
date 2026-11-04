@@ -660,7 +660,7 @@ function getStepStatuses(progressStep, isFailed, isDeleted, isCompleted, pdfData
     if (isFailed) {
         // Determine which step failed based on file_status and per-step statuses
         const fileStatus = (pdfData.file_status || "").toLowerCase();
-        let failedStep = -1;
+        let failedStep;
 
         if (fileStatus.includes("invalid file")) {
             failedStep = 0; // Detection failed

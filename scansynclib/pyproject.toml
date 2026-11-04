@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "scansynclib"
 version = "0.1.0"
 description = "Shared helper library for ScanSync"
-dependencies = ["colorlog", "tenacity", "pika", "openai", "msal", "pypdf", "redis"]
+dependencies = ["colorlog==6.12.0", "tenacity==9.2.1", "pika==1.4.4", "openai==3.45.0", "msal==1.39.0", "pypdf==6.21.4", "redis==8.1.0"]
 requires-python = ">=3.13"
 
 [tool.setuptools]

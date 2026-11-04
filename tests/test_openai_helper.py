@@ -5,7 +5,7 @@ import sys
 from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock
 
-import httpx
+import httpx2 as httpx
 from openai import APIStatusError, AuthenticationError, NotFoundError, RateLimitError
 import pytest
 
