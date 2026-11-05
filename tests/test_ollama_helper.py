@@ -1,4 +1,5 @@
 import importlib.util
+import logging
 from pathlib import Path
 import sys
 from types import ModuleType, SimpleNamespace
@@ -7,6 +8,7 @@ from unittest.mock import Mock
 import pytest
 import requests
 from tenacity import RetryError, wait_fixed
+from scansynclib import analytics
 
 
 @pytest.fixture
@@ -135,3 +137,18 @@ def test_server_check_disables_thinking_and_sets_timeouts(ollama_helper, monkeyp
     assert post.call_args.kwargs["timeout"] == 120
     assert post.call_args.kwargs["json"]["think"] is False
     assert post.call_args.kwargs["json"]["options"]["num_predict"] == 128
+
+
+@pytest.mark.parametrize("status", [404, 500])
+def test_server_error_is_not_duplicated_by_logging(ollama_helper, monkeypatch, status):
+    logger = logging.getLogger("tests.ollama.analytics")
+    monkeypatch.setattr(logger, "handlers", [analytics.AnalyticsHandler()])
+    monkeypatch.setattr(ollama_helper, "logger", logger)
+    monkeypatch.setattr(analytics, "track", ollama_helper.track)
+    response = Mock(status_code=status, headers={"Content-Type": "application/json"})
+    response.json.return_value = {"error": "synthetic failure"}
+    monkeypatch.setattr(ollama_helper, "post_to_ollama", Mock(return_value=response))
+    monkeypatch.setattr(ollama_helper, "extract_text", Mock(return_value="synthetic text"))
+    item = SimpleNamespace(filename="scan.pdf", filename_without_extension="scan", ocr_file="scan_OCR.pdf", file_naming_db_id=11)
+    assert ollama_helper.generate_filename_ollama(item) == "scan"
+    assert [call.args[0] for call in ollama_helper.track.call_args_list] == ["naming.started", "naming.failed"]

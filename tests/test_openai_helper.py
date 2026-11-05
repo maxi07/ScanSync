@@ -8,6 +8,7 @@ from unittest.mock import Mock
 import httpx2 as httpx
 from openai import APIStatusError, AuthenticationError, NotFoundError, RateLimitError
 import pytest
+from scansynclib import analytics
 
 
 @pytest.mark.parametrize("input_str", [
@@ -80,6 +81,8 @@ def openai_helper(monkeypatch):
     monkeypatch.setattr(module, "OpenAI", Mock(return_value=client))
     monkeypatch.setattr(module, "extract_text", Mock(return_value="Synthetic invoice text"))
     monkeypatch.setattr(module, "track", Mock())
+    monkeypatch.setattr(analytics, "track", module.track)
+    monkeypatch.setattr(module.logger, "handlers", [analytics.AnalyticsHandler()])
     return module, client
 
 
@@ -212,3 +215,10 @@ def test_missing_text_is_skipped_not_completed(openai_helper, naming_item):
     assert helper.track.call_args.args == ("naming.skipped",)
     assert helper.track.call_args.kwargs["reason"] == "no_pdf_text"
     client.responses.create.assert_not_called()
+
+
+def test_unexpected_error_is_not_duplicated_by_logging(openai_helper, naming_item):
+    helper, client = openai_helper
+    client.responses.create.side_effect = ValueError("synthetic failure")
+    assert helper.generate_filename_openai(naming_item) == "scan"
+    assert [call.args[0] for call in helper.track.call_args_list] == ["naming.started", "naming.failed"]

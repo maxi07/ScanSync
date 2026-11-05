@@ -111,11 +111,11 @@ are bytes. Optional fields are omitted when unavailable.
 | `document.detected` | A content group was published to metadata processing, including subsequently ignored housekeeping files | `size_bytes`, `extension`, `targets` (source copies) |
 | `document.received` | Metadata accepts the group after ignoring directories, hidden/security/working files and the failed-documents folder | `size_bytes`, `extension`, `targets` (source copies) |
 | `document.skipped` | Metadata rejects invalid/deleted input | `reason`: `invalid_file` or `source_deleted`, `duration_ms` |
-| `document.failed` | Forwarding raises, OCR output is missing at upload, or upload fails | `reason`, `operation`; exception fields when available |
+| `document.failed` | Forwarding fails, OCR output is missing at upload, or upload fails | `reason`, `operation`, `queue_name` when known; exception fields when available |
 | `document.completed` | Upload to every configured destination and final job update succeeded | `total_duration_ms`, `pages`, `targets` |
 | `metadata.started` | Metadata job is created | Common document fields |
 | `metadata.completed` | Metadata is collected and OCR is queued | `duration_ms`, `pages`, `targets` (OneDrive destinations) |
-| `metadata.failed` | Metadata callback raises | Exception fields; document ID when provided by detection |
+| `metadata.failed` | Metadata callback raises or publication to OCR fails | `reason` (`queue_publish`), `queue_name`, `duration_ms` for failed handoffs; exception fields and document ID when available |
 | `ocr.started` | OCR stage begins | `pages`, `size_bytes`, `extension` |
 | `ocr.completed` | OCR succeeds and output contains extractable text | `duration_ms`, `pages`, `language` (`eng+deu`), `status`, `error_code` (0) |
 | `ocr.no_text` | OCR returns success but output has no extractable text | `duration_ms`, `pages`, `language`, `status`, `error_code` |
@@ -129,7 +129,7 @@ are bytes. Optional fields are omitted when unavailable.
 | `upload.started` | Document upload stage starts | `targets`, `size_bytes`, `extension` |
 | `upload.target_started` | One destination is about to be uploaded | `attempt` (destination ordinal, starting at 1) |
 | `upload.target_completed` | One destination upload succeeds | `attempt`, `duration_ms`, `status_code` when available |
-| `upload.target_failed` | One destination upload fails | `attempt`, `duration_ms`, `status_code` when available |
+| `upload.target_failed` | One destination upload fails | `attempt`, `duration_ms`, `status_code` from the failing request when available; omitted for failures without an HTTP response |
 | `upload.request_failed` | A OneDrive request or local upload operation fails | `method` (`small`/`chunked`), `reason`, exception/HTTP fields |
 | `upload.retried` | Upload retry is scheduled by the existing retry policy | `attempt`, exception fields |
 | `upload.completed` | All destinations succeed | `duration_ms`, `targets`, `size_bytes`, `extension`, `retries` |
@@ -152,7 +152,8 @@ document/OCR/naming/upload events for document throughput and completion rates.
 Internal Pika logs remain local: their low-level connection messages are not
 forwarded as separate `service.error` events. The shared RabbitMQ client and web
 listener report actionable structured failures instead. A failure already sent
-as a specific queue event is not sent again by the generic logging handler.
+as a specific queue or stage event is not sent again by the generic logging
+handler. Unsupported OCR input remains `ocr.skipped`, not `service.error`.
 Native Samba/RabbitMQ/Redis container logs are not forwarded; Python-side
 errors interacting with those services are.
 
@@ -186,6 +187,14 @@ included in either event payload.
 - `service.error`, stage failures, and request failures may describe the same
   incident. Do not sum them as independent failed documents. Use stage events
   for the funnel and general errors for debugging.
+- Failed publication/forwarding from metadata, OCR, or naming marks the document
+  failed and moves its source to the failed-documents folder. Metadata emits no
+  completion event when the OCR handoff returns false. Successfully completed
+  OCR/naming work remains distinguishable from a subsequent failed handoff.
+- Upload status codes belong to the current request, never a previous chunk or
+  upload attempt. A network failure without a response omits `status_code` even
+  if a previous chunk received HTTP 202; its exception remains available in the
+  corresponding `upload.request_failed` event.
 - Delivery is best-effort. Restart, network outage, saturation, and RabbitMQ
   redelivery can cause missing or duplicate events. The analytics database is
   not an audit log. A success event means the relevant application call

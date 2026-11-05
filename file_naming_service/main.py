@@ -5,7 +5,7 @@ import pickle
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus, FileNamingStatus
 from scansynclib.logging import logger
 from scansynclib.analytics import track
-from scansynclib.helpers import consume, forward_to_rabbitmq
+from scansynclib.helpers import consume, forward_to_rabbitmq, move_to_failed
 import pika.exceptions
 from scansynclib.openai_helper import generate_filename_openai
 from scansynclib.ollama_helper import generate_filename_ollama
@@ -77,11 +77,11 @@ def callback(ch, method, properties, body):
 
     except FileNotFoundError as error:
         track("naming.failed", item=item, error=error, reason="no_ocr_file", fallback_used=True)
-        logger.error(f"OCR file does not exist: {item.ocr_file}. Cannot generate filename.")
+        logger.error(f"OCR file does not exist: {item.ocr_file}. Cannot generate filename.", extra={"analytics_handled": True})
         execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, "OCR file does not exist", item.file_naming_db_id))
     except TypeError as e:
         track("queue.message_rejected", error=e, queue_name=RABBITQUEUE, reason="invalid_item")
-        logger.error(f"Received object is not a ProcessItem: {e}. Skipping.")
+        logger.error(f"Received object is not a ProcessItem: {e}. Skipping.", extra={"analytics_handled": True})
         item_file_naming_db_id = getattr(item, "file_naming_db_id", None)
         if item_file_naming_db_id:
             execute_query(
@@ -91,8 +91,10 @@ def callback(ch, method, properties, body):
         return
     except Exception as e:
         track("service.error", item=item, error=e, operation="naming_callback")
-        logger.exception(f"Failed processing {item.filename}.")
-        execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, str(e), item.file_naming_db_id))
+        logger.exception("Failed processing naming message.", extra={"analytics_handled": True})
+        item_file_naming_db_id = getattr(item, "file_naming_db_id", None)
+        if item_file_naming_db_id:
+            execute_query("UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?", (FileNamingStatus.FAILED.name, str(e), item_file_naming_db_id))
     finally:
         ack_ok = True
         try:
@@ -109,9 +111,20 @@ def callback(ch, method, properties, body):
                     item.file_naming_status = get_latest_file_naming_status(item)
                 item.status = ProcessStatus.SYNC_PENDING
                 update_scanneddata_database(item, {"file_status": item.status.value})
-                forward_to_rabbitmq("upload_queue", item)
+                forward_error = None
+                try:
+                    forwarded = forward_to_rabbitmq("upload_queue", item)
+                except Exception as error:
+                    forwarded = False
+                    forward_error = error
+                if not forwarded:
+                    item.status = ProcessStatus.FAILED
+                    track("document.failed", item=item, error=forward_error, reason="queue_publish", operation="forward", queue_name="upload_queue")
+                    logger.error("Failed to forward document to upload queue.", extra={"analytics_handled": True})
+                    update_scanneddata_database(item, {"file_status": item.status.value})
+                    move_to_failed(item)
             else:
-                logger.error("Item is None, cannot forward to upload queue.")
+                logger.error("Item is None, cannot forward to upload queue.", extra={"analytics_handled": True})
 
 
 def start_consuming_with_reconnect():

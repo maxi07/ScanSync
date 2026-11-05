@@ -6,6 +6,7 @@ from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from scansynclib import analytics
 
 
 @pytest.fixture
@@ -33,6 +34,8 @@ def metadata(monkeypatch):
         context.setitem(sys.modules, "pypdf", pypdf)
         spec.loader.exec_module(module)
     monkeypatch.setattr(module, "track", Mock())
+    monkeypatch.setattr(analytics, "track", module.track)
+    monkeypatch.setattr(module.logger, "handlers", [analytics.AnalyticsHandler()])
     return module
 
 
@@ -43,7 +46,8 @@ def test_callback_preserves_detection_identity(metadata):
     metadata.on_created.assert_called_once_with(["scan.pdf"], analytics_id="a" * 32, received_at="2026-11-04T12:00:00")
 
 
-def test_metadata_carries_identity_and_emits_completion(metadata, monkeypatch, tmp_path):
+@pytest.mark.parametrize("published", [True, False])
+def test_metadata_carries_identity_and_emits_completion(metadata, monkeypatch, tmp_path, published):
     source = tmp_path / "private.pdf"
     source.write_bytes(b"synthetic")
     monkeypatch.setattr(metadata, "is_pdf", Mock(return_value=True))
@@ -51,13 +55,22 @@ def test_metadata_carries_identity_and_emits_completion(metadata, monkeypatch, t
     monkeypatch.setattr(metadata.os, "mkdir", Mock())
     monkeypatch.setattr(metadata, "PdfReader", Mock(return_value=SimpleNamespace(pages=[1, 2])))
     metadata.execute_query.side_effect = lambda query, *args, **kwargs: [] if kwargs.get("fetchall") else 1
+    metadata.publish.return_value = published
     metadata.on_created([str(source)], analytics_id="a" * 32, received_at="2026-11-04T12:00:00")
     events = [call.args[0] for call in metadata.track.call_args_list]
-    assert events == ["document.received", "metadata.started", "metadata.completed"]
+    assert events == ["document.received", "metadata.started"] + (["metadata.completed"] if published else ["metadata.failed", "document.failed"])
     item = pickle.loads(metadata.publish.call_args.args[1])
     assert item.analytics_id == "a" * 32
     assert item.time_added.isoformat() == "2026-11-04T12:00:00"
-    assert metadata.track.call_args.kwargs["pages"] == 2
+    if published:
+        assert metadata.track.call_args.kwargs["pages"] == 2
+        metadata.move_to_failed.assert_not_called()
+    else:
+        failed_item = metadata.track.call_args.kwargs["item"]
+        assert failed_item.status == metadata.ProcessStatus.FAILED
+        assert failed_item.analytics_id == "a" * 32
+        assert metadata.update_scanneddata_database.call_args.args[1] == {"file_status": metadata.ProcessStatus.FAILED.value}
+        metadata.move_to_failed.assert_called_once_with(failed_item)
 
 
 def test_metadata_failure_is_structured(metadata):

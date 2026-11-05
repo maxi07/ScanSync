@@ -194,7 +194,7 @@ def generate_filename_openai(item: ProcessItem) -> str:
         return item.filename_without_extension
     except Exception as ex:
         track("naming.failed", **telemetry, error=ex, duration_ms=elapsed_ms(started), fallback_used=True)
-        logger.exception("An error occurred while creating a file name.")
+        logger.exception("An error occurred while creating a file name.", extra={"analytics_handled": True})
         execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
             (FileNamingStatus.FAILED.name, str(ex), item.file_naming_db_id)

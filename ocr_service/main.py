@@ -2,7 +2,7 @@ from scansynclib.logging import logger
 from scansynclib.analytics import elapsed_ms, file_metadata, track
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus, OCRStatus
 from scansynclib.sqlite_wrapper import execute_query, update_scanneddata_database
-from scansynclib.helpers import consume, forward_to_rabbitmq, extract_text
+from scansynclib.helpers import consume, forward_to_rabbitmq, extract_text, move_to_failed
 import pickle
 import ocrmypdf
 import os
@@ -27,7 +27,7 @@ def callback(ch, method, properties, body):
         ch.basic_ack(delivery_tag=method.delivery_tag)
     except Exception as error:
         track("ocr.failed", item=item, error=error, operation="callback")
-        logger.exception(f"Failed processing {body}.")
+        logger.exception(f"Failed processing {body}.", extra={"analytics_handled": True})
         if isinstance(item, ProcessItem):
             item.ocr_status = OCRStatus.FAILED
 
@@ -55,7 +55,7 @@ def start_processing(item: ProcessItem):
         logger.debug(f"OCR exited with code {result}")
 
         if result != 0:
-            logger.error(f"OCR exited with code {result}")
+            logger.error(f"OCR exited with code {result}", extra={"analytics_handled": True})
             item.ocr_status = OCRStatus.FAILED
             ocr_error = f"OCR exited with code {result}"
         else:
@@ -71,36 +71,36 @@ def start_processing(item: ProcessItem):
                     logger.warning(f"OCR verification failed: no text found in OCR output file {item.ocr_file}")
                     item.ocr_status = OCRStatus.NO_TEXT
             else:
-                logger.error(f"OCR output file not found: {item.ocr_file}")
+                logger.error(f"OCR output file not found: {item.ocr_file}", extra={"analytics_handled": True})
                 item.ocr_status = OCRStatus.OUTPUT_ERROR
     except ocrmypdf.UnsupportedImageFormatError as error:
         failure = error
-        logger.error(f"Unsupported image format: {item.local_file_path}")
+        logger.error(f"Unsupported image format: {item.local_file_path}", extra={"analytics_handled": True})
         item.ocr_status = OCRStatus.UNSUPPORTED
         ocr_error = OCRStatus.UNSUPPORTED.value
     except ocrmypdf.DpiError as dpiex:
         failure = dpiex
-        logger.error(f"DPI error: {item.local_file_path} {dpiex}")
+        logger.error(f"DPI error: {item.local_file_path} {dpiex}", extra={"analytics_handled": True})
         item.ocr_status = OCRStatus.DPI_ERROR
         ocr_error = str(dpiex)
     except ocrmypdf.InputFileError as inex:
         failure = inex
-        logger.error(f"Input error: {item.local_file_path} {inex}")
+        logger.error(f"Input error: {item.local_file_path} {inex}", extra={"analytics_handled": True})
         item.ocr_status = OCRStatus.INPUT_ERROR
         ocr_error = str(inex)
     except ocrmypdf.OutputFileAccessError as outex:
         failure = outex
-        logger.error(f"Output error: {item.local_file_path} {outex}")
+        logger.error(f"Output error: {item.local_file_path} {outex}", extra={"analytics_handled": True})
         item.ocr_status = OCRStatus.OUTPUT_ERROR
         ocr_error = str(outex)
     except ocrmypdf.MissingDependencyError as error:
         failure = error
-        logger.exception("Cannot process with OCR due to missing dependencies.")
+        logger.exception("Cannot process with OCR due to missing dependencies.", extra={"analytics_handled": True})
         item.ocr_status = OCRStatus.FAILED
         ocr_error = "Missing OCR dependency"
     except Exception as ex:
         failure = ex
-        logger.exception(f"Failed processing {item.local_file_path} with OCR: {ex}")
+        logger.exception(f"Failed processing {item.local_file_path} with OCR: {ex}", extra={"analytics_handled": True})
         item.ocr_status = OCRStatus.FAILED
         ocr_error = str(ex)
     finally:
@@ -133,16 +133,22 @@ def start_processing(item: ProcessItem):
             if openai_enabled or ollama_enabled:
                 logger.info(f"Forwarding item {item.filename} to File Naming service.")
                 item.status = ProcessStatus.FILENAME_PENDING
-                forward_to_rabbitmq("file_naming_queue", item)
+                next_queue = "file_naming_queue"
             else:
                 track("naming.skipped", item=item, provider="none", reason="disabled", fallback_used=True)
                 logger.info(f"Forwarding item {item.filename} to Upload service.")
                 item.status = ProcessStatus.SYNC_PENDING
-                forward_to_rabbitmq("upload_queue", item)
+                next_queue = "upload_queue"
+            if not forward_to_rabbitmq(next_queue, item):
+                item.status = ProcessStatus.FAILED
+                track("document.failed", item=item, reason="queue_publish", operation="forward", queue_name=next_queue)
+                logger.error("Failed to forward document to %s.", next_queue, extra={"analytics_handled": True})
+                move_to_failed(item)
         except Exception as e:
             track("document.failed", item=item, error=e, operation="forward", reason="queue_publish")
-            logger.error(f"Failed to forward item {item.filename} to the next service: {e}")
+            logger.error(f"Failed to forward item {item.filename} to the next service: {e}", extra={"analytics_handled": True})
             item.status = ProcessStatus.FAILED
+            move_to_failed(item)
         finally:
             update_scanneddata_database(item, {"file_status": item.status.value, "ocr_status": item.ocr_status.name})
         return item

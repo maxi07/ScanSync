@@ -158,13 +158,13 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             if 'application/json' in content_type:
                 try:
                     error_info = response.json()
-                    logger.error(f"Ollama model {settings.file_naming.ollama_model} not found on the server: {error_info}")
+                    logger.error(f"Ollama model {settings.file_naming.ollama_model} not found on the server: {error_info}", extra={"analytics_handled": True})
                     execute_query(
                         "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
                         (FileNamingStatus.MODEL_NOT_FOUND.name, FileNamingStatus.MODEL_NOT_FOUND.value, item.file_naming_db_id)
                     )
                 except Exception as e:
-                    logger.error(f"Failed to parse error response from Ollama: {str(e)}")
+                    logger.error(f"Failed to parse error response from Ollama: {str(e)}", extra={"analytics_handled": True})
                     execute_query(
                         "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
                         (FileNamingStatus.MODEL_NOT_FOUND.name, FileNamingStatus.MODEL_NOT_FOUND.value, item.file_naming_db_id)
@@ -172,7 +172,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
                 finally:
                     return item.filename_without_extension
             else:
-                logger.error(f"Ollama server returned a 404 error without JSON content: {response.text}. Is Ollama running?")
+                logger.error(f"Ollama server returned a 404 error without JSON content: {response.text}. Is Ollama running?", extra={"analytics_handled": True})
                 execute_query(
                     "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
                     (FileNamingStatus.FAILED.name, response.text, item.file_naming_db_id)
@@ -184,7 +184,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             error_info = ""
             try:
                 error_info = response.json()
-                logger.error(f"Ollama server returned an error: {error_info.get('error', 'Unknown error')}")
+                logger.error(f"Ollama server returned an error: {error_info.get('error', 'Unknown error')}", extra={"analytics_handled": True})
             except Exception:
                 pass
             execute_query(
@@ -194,7 +194,7 @@ def generate_filename_ollama(item: ProcessItem) -> str:
             return item.filename_without_extension
     except RetryError as retryerr:
         track("naming.failed", **telemetry, error=retryerr.last_attempt.exception(), duration_ms=elapsed_ms(started), fallback_used=True, retries=retryerr.last_attempt.attempt_number - 1)
-        logger.error(f"Error connecting to Ollama server: {str(retryerr)}")
+        logger.error(f"Error connecting to Ollama server: {str(retryerr)}", extra={"analytics_handled": True})
         execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
             (FileNamingStatus.NO_SERVER_CONNECTION.name, FileNamingStatus.NO_SERVER_CONNECTION.value, item.file_naming_db_id)

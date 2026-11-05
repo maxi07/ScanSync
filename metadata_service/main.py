@@ -173,7 +173,14 @@ def on_created(filepaths: list, analytics_id=None, received_at=None):
             logger.exception(f"Error reading PDF file: {item.local_file_path}")
     item.status = ProcessStatus.OCR_PENDING
     update_scanneddata_database(item, {"file_status": item.status.value})
-    publish("ocr_queue", pickle.dumps(item))
+    if not publish("ocr_queue", pickle.dumps(item)):
+        item.status = ProcessStatus.FAILED
+        update_scanneddata_database(item, {"file_status": item.status.value})
+        track("metadata.failed", item=item, reason="queue_publish", queue_name="ocr_queue", duration_ms=elapsed_ms(started))
+        track("document.failed", item=item, reason="queue_publish", operation="forward")
+        logger.error("Failed to publish document to OCR queue.", extra={"analytics_handled": True})
+        move_to_failed(item)
+        return
     track("metadata.completed", item=item, duration_ms=elapsed_ms(started), pages=item.pdf_pages, targets=len(item.OneDriveDestinations))
     logger.info(f"Added {item.local_file_path} to OCR queue")
 
@@ -238,7 +245,7 @@ def callback(ch, method, properties, body):
         ch.basic_ack(delivery_tag=method.delivery_tag)
     except Exception as error:
         track("metadata.failed", document_id=analytics_id, error=error)
-        logger.exception(f"Failed processing {body} in metadata_service.")
+        logger.exception(f"Failed processing {body} in metadata_service.", extra={"analytics_handled": True})
         return
 
 

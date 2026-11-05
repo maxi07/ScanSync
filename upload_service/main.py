@@ -40,7 +40,7 @@ def callback(ch, method, properties, body):
         if not os.path.exists(item.ocr_file):
             track("upload.failed", item=item, reason="no_ocr_file")
             track("document.failed", item=item, reason="no_ocr_file")
-            logger.error(f"OCR file does not exist for upload: {item.ocr_file}")
+            logger.error(f"OCR file does not exist for upload: {item.ocr_file}", extra={"analytics_handled": True})
             item.status = ProcessStatus.SYNC_FAILED
             update_scanneddata_database(item, {"file_status": item.status.value})
             finalize_sync_job(item, "OCR file does not exist for upload")
@@ -51,7 +51,7 @@ def callback(ch, method, properties, body):
     except Exception as error:
         track("upload.failed", item=item, error=error, operation="callback")
         track("document.failed", item=item, error=error, reason="upload_callback")
-        logger.exception(f"Failed processing {body}.")
+        logger.exception(f"Failed processing {body}.", extra={"analytics_handled": True})
         if item is not None and isinstance(item, ProcessItem):
             item.status = ProcessStatus.SYNC_FAILED
             update_scanneddata_database(item, {"file_status": item.status.value})
@@ -102,7 +102,7 @@ def start_processing(item: ProcessItem):
     if res is False:
         track("upload.failed", item=item, duration_ms=elapsed_ms(started), successful_targets=sum(bool(result) for result in results), failed_targets=sum(not result for result in results), targets=len(results), retries=item.analytics_upload_retries, reason="target_failed" if results else "no_targets", **telemetry)
         track("document.failed", item=item, reason="upload_failed" if results else "no_targets")
-        logger.error(f"Failed to upload {item.ocr_file}")
+        logger.error(f"Failed to upload {item.ocr_file}", extra={"analytics_handled": True})
         item.status = ProcessStatus.SYNC_FAILED
         move_to_failed(item)
         finalize_sync_job(item, "Failed to upload file to OneDrive")

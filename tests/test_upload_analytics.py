@@ -6,6 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 import requests
+from scansynclib import analytics
 
 from scansynclib.ProcessItem import ItemType, OneDriveDestination, ProcessItem, ProcessStatus
 
@@ -29,6 +30,8 @@ def upload_service(monkeypatch):
         context.setitem(sys.modules, "scansynclib.onedrive_api", api)
         spec.loader.exec_module(module)
     monkeypatch.setattr(module, "track", Mock())
+    monkeypatch.setattr(analytics, "track", module.track)
+    monkeypatch.setattr(module.logger, "handlers", [analytics.AnalyticsHandler()])
     return module
 
 
@@ -93,6 +96,8 @@ def onedrive(monkeypatch):
         context.setitem(sys.modules, "scansynclib.settings", settings)
         spec.loader.exec_module(module)
     monkeypatch.setattr(module, "track", Mock())
+    monkeypatch.setattr(analytics, "track", module.track)
+    monkeypatch.setattr(module.logger, "handlers", [analytics.AnalyticsHandler()])
     monkeypatch.setattr(module, "get_access_token", Mock(return_value="secret-token"))
     return module
 
@@ -105,8 +110,50 @@ def test_onedrive_http_error_has_status_without_response_body(onedrive, upload_i
     assert "private data" not in str(onedrive.track.call_args)
 
 
-def test_onedrive_network_error_keeps_real_exception(onedrive, upload_item, monkeypatch):
+@pytest.mark.parametrize("method", ["upload_small", "upload"])
+def test_onedrive_network_error_keeps_real_exception(onedrive, upload_item, monkeypatch, method):
     error = requests.ConnectionError("private URL")
+    destination = upload_item.OneDriveDestinations[0]
+    destination.analytics_status_code = 201
+    session = Mock(status_code=200)
+    session.json.return_value = {"uploadUrl": "https://synthetic.example.test/upload"}
+    monkeypatch.setattr(onedrive.requests, "post", Mock(return_value=session))
     monkeypatch.setattr(onedrive.requests, "put", Mock(side_effect=error))
-    assert onedrive.upload_small(upload_item, upload_item.OneDriveDestinations[0]) is False
+    assert getattr(onedrive, method)(upload_item, destination) is False
+    assert destination.analytics_status_code is None
     assert onedrive.track.call_args.kwargs["error"] is error
+
+
+def test_large_file_uses_chunked_upload_without_reporting_an_error(onedrive, upload_item, monkeypatch):
+    monkeypatch.setattr(onedrive.os.path, "getsize", Mock(return_value=251 * 1024 * 1024))
+    chunked = Mock(return_value=True)
+    monkeypatch.setattr(onedrive, "upload", chunked)
+    assert onedrive.upload_small(upload_item, upload_item.OneDriveDestinations[0]) is True
+    chunked.assert_called_once_with(upload_item, upload_item.OneDriveDestinations[0])
+    onedrive.track.assert_not_called()
+
+
+@pytest.mark.parametrize("failure", [requests.ConnectionError("private URL"), 403])
+def test_later_chunk_failure_does_not_reuse_prior_success_status(onedrive, upload_service, upload_item, monkeypatch, failure):
+    Path(upload_item.ocr_file).write_bytes(b"x" * (3276800 + 1))
+    session = Mock(status_code=200)
+    session.json.return_value = {"uploadUrl": "https://synthetic.example.test/upload"}
+    monkeypatch.setattr(onedrive.requests, "post", Mock(return_value=session))
+    failed_response = failure if isinstance(failure, Exception) else Mock(status_code=failure, text="private response")
+    put = Mock(side_effect=[Mock(status_code=202), failed_response])
+    monkeypatch.setattr(onedrive.requests, "put", put)
+    upload_service.upload_small.side_effect = onedrive.upload
+    upload_service.start_processing(upload_item)
+    failed = next(call for call in upload_service.track.call_args_list if call.args[0] == "upload.target_failed")
+    assert failed.kwargs["status_code"] == (None if isinstance(failure, Exception) else failure)
+    assert put.call_count == 2
+    assert upload_item.status == ProcessStatus.SYNC_FAILED
+
+
+@pytest.mark.parametrize("method", ["upload_small", "upload"])
+def test_missing_token_does_not_reuse_status_from_previous_upload(onedrive, upload_item, method):
+    destination = upload_item.OneDriveDestinations[0]
+    destination.analytics_status_code = 201
+    onedrive.get_access_token.return_value = None
+    assert getattr(onedrive, method)(upload_item, destination) is False
+    assert destination.analytics_status_code is None

@@ -2,6 +2,7 @@ import sys
 import types
 
 import pytest
+from scansynclib.analytics import AnalyticsHandler
 
 
 # ocrmypdf is a heavy native dependency that is not installed in the test
@@ -86,6 +87,9 @@ def patched(mocker):
     update_db = mocker.patch.object(ocr_main, "update_scanneddata_database")
     forward = mocker.patch.object(ocr_main, "forward_to_rabbitmq")
     track = mocker.patch.object(ocr_main, "track")
+    mocker.patch("scansynclib.analytics.track", track)
+    mocker.patch.object(ocr_main.logger, "handlers", [AnalyticsHandler()])
+    move = mocker.patch.object(ocr_main, "move_to_failed")
     fake_settings = types.SimpleNamespace(
         file_naming=types.SimpleNamespace(
             ollama_server_url="",
@@ -101,6 +105,7 @@ def patched(mocker):
         "forward": forward,
         "settings": fake_settings,
         "track": track,
+        "move": move,
     }
 
 
@@ -161,6 +166,7 @@ def test_start_processing_persists_ocr_job_status(item, patched, mocker, ocr_beh
     assert error == expected_error
     assert db_id == 99
     events = [call.args[0] for call in patched["track"].call_args_list]
+    assert "service.error" not in events
     assert events[0] == "ocr.started"
     assert events[1] == ("ocr.completed" if expected_status == OCRStatus.COMPLETED else
                          "ocr.skipped" if expected_status == OCRStatus.UNSUPPORTED else "ocr.failed")
@@ -207,3 +213,22 @@ def test_ocr_no_text_is_not_reported_as_crash(item, patched, mocker):
     assert "ocr.no_text" in events
     assert "ocr.failed" not in events
     assert "naming.skipped" in events
+
+
+@pytest.mark.parametrize("naming_enabled", [False, True])
+@pytest.mark.parametrize("failure", [False, RuntimeError("broker unavailable")])
+def test_failed_handoff_marks_document_failed(item, patched, mocker, naming_enabled, failure):
+    if naming_enabled:
+        patched["settings"].file_naming.openai_api_key = "synthetic-key"
+    if isinstance(failure, Exception):
+        patched["forward"].side_effect = failure
+    else:
+        patched["forward"].return_value = failure
+    mocker.patch.object(ocr_main.ocrmypdf, "ocr", return_value=0)
+    ocr_main.start_processing(item)
+    assert item.status == ProcessStatus.FAILED
+    patched["move"].assert_called_once_with(item)
+    failures = [call for call in patched["track"].call_args_list if call.args[0] == "document.failed"]
+    assert len(failures) == 1
+    assert failures[0].kwargs["reason"] == "queue_publish"
+    assert patched["update_db"].call_args.args[1]["file_status"] == ProcessStatus.FAILED.value
