@@ -202,3 +202,69 @@ def test_process_events_services_heartbeats(fake_broker):
     client.ensure_connection()
     client.process_events(1)
     assert fake_broker["connections"][0].process_data_events_calls == [1]
+
+
+@pytest.mark.parametrize("role", ["consumer", "listener", "publisher", "detection"])
+def test_transient_connect_failure_is_not_an_analytics_error(fake_broker, mocker, role):
+    track = mocker.patch.object(rabbitmq, "track")
+    factory = fake_broker["blocking"].side_effect
+    attempts = 0
+
+    def connect(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise pika.exceptions.AMQPConnectionError("broker still starting")
+        return factory(*args, **kwargs)
+
+    fake_broker["blocking"].side_effect = connect
+    if role == "listener":
+        assert rabbitmq.connect_rabbitmq() is not None
+    else:
+        assert RabbitMQClient(name=role).ensure_connection() is True
+    assert attempts == 2
+    track.assert_not_called()
+
+
+def test_exhausted_connect_emits_one_actionable_error(fake_broker, mocker):
+    track = mocker.patch.object(rabbitmq, "track")
+    error = pika.exceptions.AMQPConnectionError("private broker details")
+    fake_broker["blocking"].side_effect = error
+    assert RabbitMQClient(name="consumer").ensure_connection() is False
+    track.assert_called_once_with(
+        "queue.connection_failed", error=error, operation="consumer",
+        attempt=rabbitmq.CONNECTION_ATTEMPTS, reason="broker_unavailable",
+    )
+
+
+def test_successful_queue_operations_emit_no_events(fake_broker, mocker):
+    track = mocker.patch.object(rabbitmq, "track")
+    client = RabbitMQClient()
+    assert client.publish(b"synthetic", queue_name="ocr_queue") is True
+    mocker.patch.object(rabbitmq._publisher, "publish", return_value=True)
+    assert rabbitmq.forward_to_rabbitmq("upload_queue", _ForwardItem()) is True
+    track.assert_not_called()
+
+
+def test_successful_publish_recovery_emits_no_error(fake_broker, mocker):
+    track = mocker.patch.object(rabbitmq, "track")
+    client = RabbitMQClient()
+    assert client.publish(b"first", queue_name="ocr_queue") is True
+    fake_broker["channels"][0].publish_side_effect = pika.exceptions.StreamLostError("transient")
+    assert client.publish(b"second", queue_name="ocr_queue") is True
+    track.assert_not_called()
+
+
+def test_failed_publish_reports_only_final_failure(fake_broker, mocker):
+    track = mocker.patch.object(rabbitmq, "track")
+    factory = fake_broker["blocking"].side_effect
+    error = pika.exceptions.StreamLostError("private broker details")
+
+    def connect(*args, **kwargs):
+        connection = factory(*args, **kwargs)
+        connection.channel().publish_side_effect = error
+        return connection
+
+    fake_broker["blocking"].side_effect = connect
+    assert RabbitMQClient().publish(b"synthetic", queue_name="ocr_queue") is False
+    track.assert_called_once_with("queue.publish_failed", error=error, queue_name="ocr_queue", reason="retry_exhausted", attempt=2)

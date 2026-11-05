@@ -1,4 +1,5 @@
 import importlib.util
+import logging
 from pathlib import Path
 import sys
 from types import ModuleType, SimpleNamespace
@@ -7,6 +8,7 @@ from unittest.mock import Mock
 import pytest
 import requests
 from tenacity import RetryError, wait_fixed
+from scansynclib import analytics
 
 
 @pytest.fixture
@@ -27,6 +29,7 @@ def ollama_helper(monkeypatch):
         context.setitem(sys.modules, "scansynclib.settings", settings_stub)
         spec.loader.exec_module(module)
     monkeypatch.setattr(module, "logger", Mock())
+    monkeypatch.setattr(module, "track", Mock())
     return module
 
 
@@ -75,6 +78,7 @@ def test_retries_stop_after_three_attempts(ollama_helper, monkeypatch):
     assert error.value.last_attempt.attempt_number == 3
     assert post.call_count == 3
     assert ollama_helper.logger.warning.call_count == 2
+    assert [call.args[0] for call in ollama_helper.track.call_args_list] == ["naming.retried", "naming.retried"]
 
 
 def test_non_retryable_errors_are_not_repeated(ollama_helper, monkeypatch):
@@ -103,6 +107,9 @@ def test_filename_generation_disables_thinking_and_limits_output(ollama_helper, 
     assert payload["options"]["num_predict"] == 128
     assert payload["stream"] is False
     assert ollama_helper.execute_query.call_args.args[1] == ("COMPLETED", True, 11)
+    assert ollama_helper.track.call_args.args == ("naming.completed",)
+    assert ollama_helper.track.call_args.kwargs["model"] == "qwen3.5:2b"
+    assert ollama_helper.track.call_args.kwargs["fallback_used"] is False
 
 
 def test_empty_filename_finishes_failed_job(ollama_helper, monkeypatch):
@@ -114,6 +121,8 @@ def test_empty_filename_finishes_failed_job(ollama_helper, monkeypatch):
 
     assert ollama_helper.generate_filename_ollama(item) == "scan"
     assert ollama_helper.execute_query.call_args.args[1] == ("FAILED", "Ollama returned an empty filename.", 11)
+    assert ollama_helper.track.call_args.args == ("naming.failed",)
+    assert ollama_helper.track.call_args.kwargs["reason"] == "empty_response"
 
 
 def test_server_check_disables_thinking_and_sets_timeouts(ollama_helper, monkeypatch):
@@ -128,3 +137,18 @@ def test_server_check_disables_thinking_and_sets_timeouts(ollama_helper, monkeyp
     assert post.call_args.kwargs["timeout"] == 120
     assert post.call_args.kwargs["json"]["think"] is False
     assert post.call_args.kwargs["json"]["options"]["num_predict"] == 128
+
+
+@pytest.mark.parametrize("status", [404, 500])
+def test_server_error_is_not_duplicated_by_logging(ollama_helper, monkeypatch, status):
+    logger = logging.getLogger("tests.ollama.analytics")
+    monkeypatch.setattr(logger, "handlers", [analytics.AnalyticsHandler()])
+    monkeypatch.setattr(ollama_helper, "logger", logger)
+    monkeypatch.setattr(analytics, "track", ollama_helper.track)
+    response = Mock(status_code=status, headers={"Content-Type": "application/json"})
+    response.json.return_value = {"error": "synthetic failure"}
+    monkeypatch.setattr(ollama_helper, "post_to_ollama", Mock(return_value=response))
+    monkeypatch.setattr(ollama_helper, "extract_text", Mock(return_value="synthetic text"))
+    item = SimpleNamespace(filename="scan.pdf", filename_without_extension="scan", ocr_file="scan_OCR.pdf", file_naming_db_id=11)
+    assert ollama_helper.generate_filename_ollama(item) == "scan"
+    assert [call.args[0] for call in ollama_helper.track.call_args_list] == ["naming.started", "naming.failed"]

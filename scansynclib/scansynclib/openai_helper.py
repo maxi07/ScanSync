@@ -1,4 +1,6 @@
 from openai import OpenAI, APIStatusError, AuthenticationError, RateLimitError
+import time
+from scansynclib.analytics import elapsed_ms, track
 from scansynclib.ProcessItem import FileNamingStatus, ProcessItem
 from scansynclib.logging import logger
 from tenacity import Retrying, RetryError, stop_after_attempt, wait_random_exponential, retry_if_exception_type
@@ -64,11 +66,14 @@ def test_key(key) -> tuple[int, str]:
         else:
             logger.warning(f"OpenAI key worked, but did not return expected result. Result is: {response.output_text}")
             return 200, "OpenAI key worked, but something was off"
-    except AuthenticationError:
+    except AuthenticationError as error:
+        track("dependency.failed", error=error, provider="openai", model=OPENAI_MODEL, operation="key_test")
         return 401, "OpenAI key is invalid or wrong permissions set."
-    except RateLimitError:
+    except RateLimitError as error:
+        track("dependency.failed", error=error, provider="openai", model=OPENAI_MODEL, operation="key_test")
         return 429, "OpenAI rate limit reached! Either not enough credits or too many requests."
     except APIStatusError as error:
+        track("dependency.failed", error=error, provider="openai", model=OPENAI_MODEL, operation="key_test")
         return error.status_code, format_api_error(error)
     except Exception as e:
         logger.exception(f"An error occurred while testing OpenAI key: {e}")
@@ -91,11 +96,15 @@ def generate_filename_openai(item: ProcessItem) -> str:
     - str: The generated filename if successful, otherwise the original filename without extension.
     """
     logger.info(f"Generating filename using OpenAI for {item.filename}")
+    started = time.monotonic()
+    telemetry = {"item": item, "provider": "openai", "model": OPENAI_MODEL}
+    track("naming.started", **telemetry)
     execute_query(
         "UPDATE file_naming_jobs SET file_naming_status = ?, model = ?, method = ? WHERE id = ?",
         (FileNamingStatus.PROCESSING.name, OPENAI_MODEL, "openai", item.file_naming_db_id)
     )
     if not item.ocr_file:
+        track("naming.skipped", **telemetry, reason="no_ocr_file", fallback_used=True, duration_ms=elapsed_ms(started))
         logger.warning("No OCR file found. Using default filename.")
         execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
@@ -107,6 +116,7 @@ def generate_filename_openai(item: ProcessItem) -> str:
     pdf_text = extract_text(item.ocr_file)
 
     if not pdf_text:
+        track("naming.skipped", **telemetry, reason="no_pdf_text", fallback_used=True, duration_ms=elapsed_ms(started))
         logger.warning("Failed to extract text from PDF. Using default filename.")
         execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
@@ -120,13 +130,15 @@ def generate_filename_openai(item: ProcessItem) -> str:
 
     try:
         # Retry logic for OpenAI API calls
+        def log_retry(retry_state):
+            logger.warning("OpenAI request attempt %s failed; retrying.", retry_state.attempt_number)
+            track("naming.retried", **telemetry, error=retry_state.outcome.exception(), attempt=retry_state.attempt_number)
+
         retry_strategy = Retrying(
             stop=stop_after_attempt(3),
             wait=wait_random_exponential(multiplier=10, min=10, max=30),
             retry=retry_if_exception_type(RateLimitError),
-            after=lambda retry_state: logger.warning(
-                f"Attempt nr {retry_state.attempt_number} failed with exception: {retry_state.outcome.exception()}, waited {round(retry_state.upcoming_sleep, 1)} seconds"
-            ),
+            before_sleep=log_retry,
         )
         for attempt in retry_strategy:
             with attempt:
@@ -144,6 +156,7 @@ def generate_filename_openai(item: ProcessItem) -> str:
                 "UPDATE file_naming_jobs SET file_naming_status = ?, success = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
                 (FileNamingStatus.COMPLETED.name, True, item.file_naming_db_id)
             )
+            track("naming.completed", **telemetry, duration_ms=elapsed_ms(started), fallback_used=False, retries=attempt.retry_state.attempt_number - 1)
             return sanitized_filename
         else:
             logger.warning("OpenAI key worked, but did not return any result.")
@@ -151,8 +164,10 @@ def generate_filename_openai(item: ProcessItem) -> str:
                 "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
                 (FileNamingStatus.FAILED.name, "OpenAI key worked, but did not return any result.", item.file_naming_db_id)
             )
+            track("naming.failed", **telemetry, reason="empty_response", duration_ms=elapsed_ms(started), fallback_used=True)
             return item.filename_without_extension
-    except AuthenticationError:
+    except AuthenticationError as error:
+        track("naming.failed", **telemetry, error=error, duration_ms=elapsed_ms(started), fallback_used=True)
         logger.warning("OpenAI key is invalid or wrong permissions set.")
         execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
@@ -160,6 +175,7 @@ def generate_filename_openai(item: ProcessItem) -> str:
         )
         return item.filename_without_extension
     except RetryError as retryerr:
+        track("naming.failed", **telemetry, error=retryerr.last_attempt.exception(), duration_ms=elapsed_ms(started), fallback_used=True, retries=retryerr.last_attempt.attempt_number - 1)
         logger.warning(f"OpenAI rate limit reached! Either not enough credits or too many requests. Tried {retryerr.last_attempt.attempt_number} times.")
         execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
@@ -167,6 +183,7 @@ def generate_filename_openai(item: ProcessItem) -> str:
         )
         return item.filename_without_extension
     except APIStatusError as error:
+        track("naming.failed", **telemetry, error=error, duration_ms=elapsed_ms(started), fallback_used=True)
         description = format_api_error(error)
         status = FileNamingStatus.MODEL_NOT_FOUND if error.status_code == 404 else FileNamingStatus.FAILED
         logger.warning(description)
@@ -176,7 +193,8 @@ def generate_filename_openai(item: ProcessItem) -> str:
         )
         return item.filename_without_extension
     except Exception as ex:
-        logger.exception("An error occurred while creating a file name.")
+        track("naming.failed", **telemetry, error=ex, duration_ms=elapsed_ms(started), fallback_used=True)
+        logger.exception("An error occurred while creating a file name.", extra={"analytics_handled": True})
         execute_query(
             "UPDATE file_naming_jobs SET file_naming_status = ?, error_description = ?, finished = DATETIME('now', 'localtime') WHERE id = ?",
             (FileNamingStatus.FAILED.name, str(ex), item.file_naming_db_id)

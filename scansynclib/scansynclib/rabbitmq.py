@@ -26,6 +26,7 @@ import pika
 import pika.exceptions
 
 from scansynclib.logging import logger
+from scansynclib.analytics import track
 
 # Host of the RabbitMQ broker. All services run in the same docker network and
 # reach the broker through the ``rabbitmq`` service name.
@@ -89,6 +90,7 @@ class RabbitMQClient:
     def _connect(self) -> bool:
         """Establish the connection, retrying a bounded number of times."""
         self._close_quietly()
+        last_error = None
         for attempt in range(1, CONNECTION_ATTEMPTS + 1):
             try:
                 self._connection = pika.BlockingConnection(self._parameters)
@@ -100,9 +102,13 @@ class RabbitMQClient:
                 logger.info(f"Connected to RabbitMQ ({self._name}) on channel {self._channel.channel_number}.")
                 return True
             except _CONNECTION_ERRORS as e:
-                logger.warning(f"RabbitMQ connection attempt {attempt}/{CONNECTION_ATTEMPTS} failed: {e}")
-                time.sleep(CONNECTION_RETRY_DELAY)
-        logger.critical("Couldn't connect to RabbitMQ.")
+                last_error = e
+                self._close_quietly()
+                logger.info("RabbitMQ connection attempt %s/%s not ready (%s): %r", attempt, CONNECTION_ATTEMPTS, type(e).__name__, e)
+                if attempt < CONNECTION_ATTEMPTS:
+                    time.sleep(CONNECTION_RETRY_DELAY)
+        track("queue.connection_failed", error=last_error, operation=self._name, attempt=CONNECTION_ATTEMPTS, reason="broker_unavailable")
+        logger.error("Couldn't connect to RabbitMQ after %s attempts (%s).", CONNECTION_ATTEMPTS, type(last_error).__name__, extra={"analytics_handled": True})
         return False
 
     def _close_quietly(self):
@@ -145,6 +151,7 @@ class RabbitMQClient:
             try:
                 self._connection.process_data_events(time_limit)
             except _CONNECTION_ERRORS as e:
+                track("queue.connection_lost", error=e, operation=self._name, reason="heartbeat_failed")
                 logger.warning(f"RabbitMQ connection lost while processing events: {e}")
                 self._close_quietly()
 
@@ -206,6 +213,7 @@ class RabbitMQClient:
         with self._lock:
             # Two attempts: the first may fail on a stale connection, the retry
             # runs on a freshly established one.
+            last_error = None
             for attempt in range(2):
                 try:
                     if not self.ensure_connection():
@@ -224,12 +232,15 @@ class RabbitMQClient:
                     )
                     return True
                 except _CONNECTION_ERRORS as e:
+                    last_error = e
                     logger.warning(f"RabbitMQ publish failed ({e}); reconnecting (attempt {attempt + 1}/2).")
                     self._close_quietly()
-                except Exception:
-                    logger.exception("Unexpected error while publishing to RabbitMQ.")
+                except Exception as error:
+                    track("queue.publish_failed", error=error, queue_name=queue_name)
+                    logger.exception("Unexpected error while publishing to RabbitMQ.", extra={"analytics_handled": True})
                     return False
-            logger.error("Failed to publish message to RabbitMQ after reconnecting.")
+            track("queue.publish_failed", error=last_error, queue_name=queue_name, reason="retry_exhausted", attempt=2)
+            logger.error("Failed to publish message to RabbitMQ after reconnecting.", extra={"analytics_handled": True})
             return False
 
     def consume(self, queue_names, on_message_callback, prefetch_count: int = 1, auto_ack: bool = False):
@@ -262,11 +273,13 @@ class RabbitMQClient:
                 logger.info(f"Consuming from queue '{consume_queue}', waiting for messages...")
                 self._channel.start_consuming()
             except _CONNECTION_ERRORS as e:
-                logger.error(f"RabbitMQ connection lost: {e}. Reconnecting in {RECONNECT_DELAY} seconds...")
+                track("queue.connection_lost", error=e, queue_name=consume_queue, operation=self._name, reason="consumer_disconnected")
+                logger.error(f"RabbitMQ connection lost: {e}. Reconnecting in {RECONNECT_DELAY} seconds...", extra={"analytics_handled": True})
                 self._close_quietly()
                 time.sleep(RECONNECT_DELAY)
             except Exception as e:
-                logger.exception(f"Unexpected error in consumer: {e}. Restarting consumer...")
+                track("queue.consumer_failed", error=e, queue_name=consume_queue, operation=self._name)
+                logger.exception(f"Unexpected error in consumer: {e}. Restarting consumer...", extra={"analytics_handled": True})
                 self._close_quietly()
                 time.sleep(RECONNECT_DELAY)
 
@@ -302,7 +315,8 @@ def forward_to_rabbitmq(queue_name: str, item) -> bool:
     if ok:
         logger.info(f"Item {getattr(item, 'filename', item)} forwarded to {queue_name}.")
     else:
-        logger.error(f"Failed to forward item {getattr(item, 'filename', item)} to RabbitMQ queue {queue_name}.")
+        track("queue.forward_failed", item=item, queue_name=queue_name, reason="publish_failed")
+        logger.error(f"Failed to forward item {getattr(item, 'filename', item)} to RabbitMQ queue {queue_name}.", extra={"analytics_handled": True})
     return ok
 
 
@@ -335,18 +349,11 @@ def connect_rabbitmq(queue_names: list = None, heartbeat: int = DEFAULT_HEARTBEA
     :func:`consume`. This helper is retained for callers that need direct
     access to a pika connection/channel (e.g. exclusive fanout queues).
     """
-    for _ in range(CONNECTION_ATTEMPTS):
-        try:
-            connection = pika.BlockingConnection(
-                pika.ConnectionParameters(host=RABBITMQ_HOST, heartbeat=heartbeat)
-            )
-            channel = connection.channel()
-            if queue_names:
-                for queue_name in queue_names:
-                    channel.queue_declare(queue=queue_name, durable=True)
-            channel.basic_qos(prefetch_count=1)
-            return connection, channel
-        except (socket.gaierror, pika.exceptions.AMQPConnectionError):
-            time.sleep(CONNECTION_RETRY_DELAY)
-    logger.critical("Couldn't connect to RabbitMQ.")
-    return None
+    client = RabbitMQClient(heartbeat=heartbeat, name="listener")
+    if not client.ensure_connection():
+        return None
+    for queue_name in queue_names or []:
+        if not client.declare_queue(queue_name):
+            client.close()
+            return None
+    return client.connection, client.channel

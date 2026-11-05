@@ -1,5 +1,6 @@
 from scansynclib.ProcessItem import ProcessItem, OneDriveDestination
 from scansynclib.logging import logger
+from scansynclib.analytics import track
 import json
 import os
 import time
@@ -116,8 +117,9 @@ def get_access_token():
                 save_token(result)
                 return result["access_token"]
             else:
+                track("dependency.failed", provider="onedrive", operation="token_refresh", reason="token_rejected")
                 error_description = result.get('error_description', 'Unknown error')
-                logger.error(f"Failed to refresh Microsoft token: {result}")
+                logger.error(f"Failed to refresh Microsoft token: {result}", extra={"analytics_handled": True})
                 if result.get('error') == 'invalid_grant':
                     save_token_error(error_description)
         return None
@@ -250,15 +252,22 @@ def get_user_shared_drive_items(driveid: str, folderid: str):
     return result
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=10, min=10, max=60))
+def log_upload_retry(retry_state):
+    item = retry_state.args[0]
+    item.analytics_upload_retries = getattr(item, "analytics_upload_retries", 0) + 1
+    track("upload.retried", item=item, error=retry_state.outcome.exception(), attempt=retry_state.attempt_number)
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=10, min=10, max=60), before_sleep=log_upload_retry)
 def upload_small(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
+    onedriveitem.analytics_status_code = None
     try:
         logger.info(f"Uploading file {item.ocr_file} to OneDrive: {onedriveitem.remote_file_path}")
 
         # Check if file is smaller than 250MB
         file_size = os.path.getsize(item.ocr_file)
         if file_size > 250 * 1024 * 1024:
-            logger.error(f"File {item.ocr_file} is larger than 250MB, using chunked upload")
+            logger.info(f"File {item.ocr_file} is larger than 250MB, using chunked upload")
             return upload(item, onedriveitem)
         file_size_kb = file_size / 1024
         file_size_mb = file_size_kb / 1024
@@ -266,7 +275,8 @@ def upload_small(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
 
         access_token = get_access_token()
         if not access_token:
-            logger.error("No access token available to upload file")
+            track("upload.request_failed", item=item, reason="no_access_token", method="small")
+            logger.error("No access token available to upload file", extra={"analytics_handled": True})
             return False
 
         upload_url = f"https://graph.microsoft.com/v1.0/drives/{onedriveitem.remote_drive_id}/items/{onedriveitem.remote_folder_id}:/{item.filename}:/content?@microsoft.graph.conflictBehavior=rename"
@@ -274,6 +284,7 @@ def upload_small(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
 
         with open(item.ocr_file, 'rb') as file:
             response = requests.put(upload_url, headers=headers, data=file)
+        onedriveitem.analytics_status_code = response.status_code
         logger.debug(f"Received response {response.text} with status code {response.status_code} for upload to {upload_url}")
         if response.status_code == 201:
             logger.debug("Upload completed successfully")
@@ -289,22 +300,28 @@ def upload_small(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
                 )
             return True
         else:
-            logger.error(f"Failed to upload file: {response.status_code} - {response.text}")
+            track("upload.request_failed", item=item, status_code=response.status_code, reason="http_error", method="small")
+            logger.error(f"Failed to upload file: {response.status_code} - {response.text}", extra={"analytics_handled": True})
             return False
     except requests.exceptions.RequestException as e:
-        logger.error(f"Request exception occurred during upload: {str(e)}")
+        onedriveitem.analytics_status_code = getattr(e.response, "status_code", None)
+        track("upload.request_failed", item=item, error=e, method="small")
+        logger.error(f"Request exception occurred during upload: {str(e)}", extra={"analytics_handled": True})
     except Exception as e:
-        logger.exception(f"An unexpected error occurred during upload: {str(e)}")
+        track("upload.request_failed", item=item, error=e, method="small")
+        logger.exception(f"An unexpected error occurred during upload: {str(e)}", extra={"analytics_handled": True})
     return False
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=10, min=10, max=60))
+@retry(stop=stop_after_attempt(3), wait=wait_random_exponential(multiplier=10, min=10, max=60), before_sleep=log_upload_retry)
 def upload(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
+    onedriveitem.analytics_status_code = None
     try:
         logger.info(f"Uploading file {item.ocr_file} to OneDrive: {onedriveitem.remote_file_path}")
         access_token = get_access_token()
         if not access_token:
-            logger.error("No access token available to upload file")
+            track("upload.request_failed", item=item, reason="no_access_token", method="chunked")
+            logger.error("No access token available to upload file", extra={"analytics_handled": True})
             return False
 
         file_size = os.path.getsize(item.ocr_file)
@@ -317,14 +334,17 @@ def upload(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
             headers={'Authorization': 'Bearer ' + access_token},
             json={"item": {"@microsoft.graph.conflictBehavior": "rename"}}
         )
+        onedriveitem.analytics_status_code = session_response.status_code
 
         if session_response.status_code != 200:
-            logger.error(f"Failed to create upload session: {session_response.status_code} - {session_response.text}")
+            track("upload.request_failed", item=item, status_code=session_response.status_code, reason="session_failed", method="chunked")
+            logger.error(f"Failed to create upload session: {session_response.status_code} - {session_response.text}", extra={"analytics_handled": True})
             return False
 
         upload_url = session_response.json().get("uploadUrl")
         if not upload_url:
-            logger.error("No upload URL returned in session response")
+            track("upload.request_failed", item=item, reason="no_upload_url", method="chunked")
+            logger.error("No upload URL returned in session response", extra={"analytics_handled": True})
             return False
         short_url = upload_url[:50] + "..."
         logger.debug(f"Upload session created successfully, upload URL: {short_url}")
@@ -333,6 +353,7 @@ def upload(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
         chunk_size = 3276800  # 3.2 MB
         with open(item.ocr_file, 'rb') as file:
             for start in range(0, file_size, chunk_size):
+                onedriveitem.analytics_status_code = None
                 end = min(start + chunk_size - 1, file_size - 1)
                 file.seek(start)
                 chunk_data = file.read(end - start + 1)
@@ -346,11 +367,15 @@ def upload(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
                 try:
                     chunk_response = requests.put(upload_url, headers=headers, data=chunk_data)
                 except requests.exceptions.RequestException as e:
-                    logger.error(f"Request exception during chunk upload: {str(e)}")
+                    onedriveitem.analytics_status_code = getattr(e.response, "status_code", None)
+                    track("upload.request_failed", item=item, error=e, method="chunked")
+                    logger.error(f"Request exception during chunk upload: {str(e)}", extra={"analytics_handled": True})
                     return False
 
+                onedriveitem.analytics_status_code = chunk_response.status_code
                 if chunk_response.status_code not in (200, 201, 202):
-                    logger.error(f"Failed to upload chunk: {chunk_response.status_code} - {chunk_response.text}")
+                    track("upload.request_failed", item=item, status_code=chunk_response.status_code, reason="http_error", method="chunked")
+                    logger.error(f"Failed to upload chunk: {chunk_response.status_code} - {chunk_response.text}", extra={"analytics_handled": True})
                     return False
                 if chunk_response.status_code == 201:
                     logger.debug("Upload completed successfully")
@@ -368,7 +393,10 @@ def upload(item: ProcessItem, onedriveitem: OneDriveDestination) -> bool:
         logger.info(f"File {item.ocr_file} uploaded successfully to {onedriveitem.remote_file_path}")
         return True
     except requests.exceptions.RequestException as e:
-        logger.error(f"Request exception occurred during upload: {str(e)}")
+        onedriveitem.analytics_status_code = getattr(e.response, "status_code", None)
+        track("upload.request_failed", item=item, error=e, method="chunked")
+        logger.error(f"Request exception occurred during upload: {str(e)}", extra={"analytics_handled": True})
     except Exception as e:
-        logger.exception(f"An unexpected error occurred during upload: {str(e)}")
+        track("upload.request_failed", item=item, error=e, method="chunked")
+        logger.exception(f"An unexpected error occurred during upload: {str(e)}", extra={"analytics_handled": True})
     return False

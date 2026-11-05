@@ -11,6 +11,7 @@ sys.path.append('/app/src')
 from scansynclib.ProcessItem import ProcessItem, StatusProgressBar
 from scansynclib.helpers import connect_rabbitmq, format_time_difference
 from scansynclib.logging import logger
+from scansynclib.analytics import configure_flask, track
 from routes.dashboard import dashboard_bp
 from routes.sync import sync_bp
 from routes.settings import settings_bp
@@ -23,6 +24,7 @@ logger.info("Starting web service...")
 logger.info(f"App version: {os.environ.get('APP_VERSION', 'Unknown')}")
 
 app = Flask(__name__)
+configure_flask(app)
 app.secret_key = os.urandom(24)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(sync_bp)
@@ -111,10 +113,12 @@ def rabbitmq_listener():
             channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
             channel.start_consuming()
         except pika.exceptions.AMQPError as e:
-            logger.error(f"RabbitMQ SSE listener connection lost: {e}. Reconnecting in 5 seconds...")
+            track("queue.connection_lost", error=e, operation="listener", reason="listener_disconnected")
+            logger.error(f"RabbitMQ SSE listener connection lost: {e}. Reconnecting in 5 seconds...", extra={"analytics_handled": True})
             time.sleep(5)
         except Exception as e:
-            logger.exception(f"Unexpected error in SSE listener: {e}. Reconnecting in 5 seconds...")
+            track("queue.consumer_failed", error=e, operation="listener")
+            logger.exception(f"Unexpected error in SSE listener: {e}. Reconnecting in 5 seconds...", extra={"analytics_handled": True})
             time.sleep(5)
         finally:
             try:

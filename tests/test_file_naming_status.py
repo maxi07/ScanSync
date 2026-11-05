@@ -8,6 +8,7 @@ import pytest
 from pika import exceptions as pika_exceptions
 
 from scansynclib.settings_schema import FileNamingMethod
+from scansynclib.analytics import AnalyticsHandler
 
 
 # Importing the service pulls in scansynclib.sqlite_wrapper, which initializes a
@@ -120,6 +121,9 @@ def test_callback_with_non_processitem_does_not_crash(mocker):
     execute_query = mocker.patch.object(fn_main, "execute_query")
     forward = mocker.patch.object(fn_main, "forward_to_rabbitmq")
     mocker.patch.object(fn_main, "update_scanneddata_database")
+    track = mocker.patch.object(fn_main, "track")
+    mocker.patch("scansynclib.analytics.track", track)
+    mocker.patch.object(fn_main.logger, "handlers", [AnalyticsHandler()])
 
     ch = mocker.Mock()
     method = mocker.Mock()
@@ -131,6 +135,7 @@ def test_callback_with_non_processitem_does_not_crash(mocker):
     ch.basic_ack.assert_called_once_with(delivery_tag=123)
     execute_query.assert_not_called()
     forward.assert_not_called()
+    assert [call.args[0] for call in track.call_args_list] == ["queue.message_rejected"]
 
 
 def test_callback_skips_followup_when_ack_fails(item, mocker):
@@ -238,3 +243,55 @@ def test_redelivery_after_ack_failure_preserves_ocr_path(item, tmp_path, mocker,
     forwarded_item = forward.call_args.args[1]
     assert forwarded_item.ocr_file == item.ocr_file
     assert forwarded_item.filename == new_filename + ".pdf"
+
+
+@pytest.mark.parametrize("failure", [False, RuntimeError("broker unavailable")])
+def test_callback_marks_failed_upload_handoff(item, mocker, failure):
+    mocker.patch.object(fn_main.settings.file_naming, "method", FileNamingMethod.NONE)
+    mocker.patch.object(fn_main, "execute_query", return_value=11)
+    mocker.patch.object(fn_main, "get_latest_file_naming_status", return_value=FileNamingStatus.SKIPPED)
+    update = mocker.patch.object(fn_main, "update_scanneddata_database")
+    forward = mocker.patch.object(fn_main, "forward_to_rabbitmq", return_value=failure)
+    if isinstance(failure, Exception):
+        forward.side_effect = failure
+    move = mocker.patch.object(fn_main, "move_to_failed")
+    track = mocker.patch.object(fn_main, "track")
+    fn_main.callback(mocker.Mock(), SimpleNamespace(delivery_tag=1), None, pickle.dumps(item))
+    forwarded_item = forward.call_args.args[1]
+    assert forwarded_item.status == ProcessStatus.FAILED
+    assert update.call_args.args[1] == {"file_status": ProcessStatus.FAILED.value}
+    move.assert_called_once_with(forwarded_item)
+    assert track.call_args.args == ("document.failed",)
+    assert track.call_args.kwargs["reason"] == "queue_publish"
+
+
+@pytest.mark.parametrize("missing_ocr", [False, True])
+def test_callback_error_is_tracked_once(item, mocker, missing_ocr):
+    mocker.patch.object(fn_main.settings.file_naming, "method", FileNamingMethod.OPENAI)
+    mocker.patch.object(fn_main.settings.file_naming, "openai_api_key", "synthetic-key")
+    mocker.patch.object(fn_main, "execute_query", return_value=11)
+    mocker.patch.object(fn_main, "get_latest_file_naming_status", return_value=FileNamingStatus.FAILED)
+    mocker.patch.object(fn_main, "generate_filename_openai", side_effect=ValueError("synthetic failure"))
+    if missing_ocr:
+        Path(item.ocr_file).unlink()
+    mocker.patch.object(fn_main, "update_scanneddata_database")
+    mocker.patch.object(fn_main, "forward_to_rabbitmq", return_value=True)
+    track = mocker.patch.object(fn_main, "track")
+    mocker.patch("scansynclib.analytics.track", track)
+    mocker.patch.object(fn_main.logger, "handlers", [AnalyticsHandler()])
+    fn_main.callback(mocker.Mock(), SimpleNamespace(delivery_tag=1), None, pickle.dumps(item))
+    assert [call.args[0] for call in track.call_args_list] == ["naming.failed" if missing_ocr else "service.error"]
+
+
+def test_corrupt_message_is_acknowledged_and_tracked_once(mocker):
+    execute_query = mocker.patch.object(fn_main, "execute_query")
+    forward = mocker.patch.object(fn_main, "forward_to_rabbitmq")
+    track = mocker.patch.object(fn_main, "track")
+    mocker.patch("scansynclib.analytics.track", track)
+    mocker.patch.object(fn_main.logger, "handlers", [AnalyticsHandler()])
+    channel = mocker.Mock()
+    fn_main.callback(channel, SimpleNamespace(delivery_tag=1), None, b"not a pickle")
+    channel.basic_ack.assert_called_once_with(delivery_tag=1)
+    execute_query.assert_not_called()
+    forward.assert_not_called()
+    assert [call.args[0] for call in track.call_args_list] == ["service.error"]

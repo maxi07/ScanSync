@@ -187,6 +187,7 @@ def test_publish_new_files(mocker):
     mock_channel = mocker.Mock()
     file_paths = ["/path/to/new_file.txt"]
     mock_message = json.dumps({"file_paths": file_paths, "file_hash": "12345", "is_duplicate_group": len(file_paths) > 1})
+    track = mocker.patch("detection_service.main.track")
 
     # Call the function
     publish_new_files(mock_channel, "test_queue", {"12345": file_paths})
@@ -198,3 +199,9 @@ def test_publish_new_files(mocker):
         body=mock_message,
         properties=mocker.ANY  # Ignore delivery_mode for this test
     )
+    properties = mock_channel.basic_publish.call_args.kwargs["properties"]
+    assert len(properties.message_id) == 32
+    assert properties.headers["received_at"]
+    assert track.call_args.args == ("document.detected",)
+    assert track.call_args.kwargs["document_id"] == properties.message_id
+    assert "new_file" not in str(track.call_args)

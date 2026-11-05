@@ -2,11 +2,13 @@ from datetime import datetime
 import pickle
 from scansynclib.ProcessItem import ProcessItem, ProcessStatus
 from scansynclib.logging import logger
+from scansynclib.analytics import elapsed_ms, file_metadata, track
 from scansynclib.helpers import consume, move_to_failed
 from scansynclib.sqlite_wrapper import update_scanneddata_database, execute_query
 from scansynclib.onedrive_api import upload_small
 from scansynclib.config import config
 import os
+import time
 
 logger.info("Starting Upload service...")
 RABBITQUEUE = "upload_queue"
@@ -26,6 +28,7 @@ def callback(ch, method, properties, body):
     try:
         item: ProcessItem = pickle.loads(body)
         if not isinstance(item, ProcessItem):
+            track("queue.message_rejected", queue_name=RABBITQUEUE, reason="invalid_item")
             logger.warning("Received object, that is not of type ProcessItem. Skipping.")
             return
         logger.info(f"Received PDF for Upload: {item.filename}")
@@ -35,7 +38,9 @@ def callback(ch, method, properties, body):
             return_last_id=True
         )
         if not os.path.exists(item.ocr_file):
-            logger.error(f"OCR file does not exist for upload: {item.ocr_file}")
+            track("upload.failed", item=item, reason="no_ocr_file")
+            track("document.failed", item=item, reason="no_ocr_file")
+            logger.error(f"OCR file does not exist for upload: {item.ocr_file}", extra={"analytics_handled": True})
             item.status = ProcessStatus.SYNC_FAILED
             update_scanneddata_database(item, {"file_status": item.status.value})
             finalize_sync_job(item, "OCR file does not exist for upload")
@@ -43,8 +48,10 @@ def callback(ch, method, properties, body):
         else:
             start_processing(item)
         ch.basic_ack(delivery_tag=method.delivery_tag)
-    except Exception:
-        logger.exception(f"Failed processing {body}.")
+    except Exception as error:
+        track("upload.failed", item=item, error=error, operation="callback")
+        track("document.failed", item=item, error=error, reason="upload_callback")
+        logger.exception(f"Failed processing {body}.", extra={"analytics_handled": True})
         if item is not None and isinstance(item, ProcessItem):
             item.status = ProcessStatus.SYNC_FAILED
             update_scanneddata_database(item, {"file_status": item.status.value})
@@ -53,6 +60,10 @@ def callback(ch, method, properties, body):
 
 
 def start_processing(item: ProcessItem):
+    started = time.monotonic()
+    item.analytics_upload_retries = 0
+    telemetry = file_metadata(item.ocr_file)
+    track("upload.started", item=item, targets=len(item.OneDriveDestinations), **telemetry)
     item.status = ProcessStatus.SYNC
     update_scanneddata_database(item, {"file_status": item.status.value})
     item.time_upload_started = datetime.now()
@@ -64,8 +75,15 @@ def start_processing(item: ProcessItem):
         item.current_uploading = i
         item.current_upload_target = targets[i - 1] if i - 1 < len(targets) else None
         update_scanneddata_database(item, {"file_status": item.status.value})
+        target_started = time.monotonic()
+        track("upload.target_started", item=item, attempt=i)
         res = upload_small(item, onedriveitem)
         results.append(res)
+        track(
+            "upload.target_completed" if res else "upload.target_failed",
+            item=item, attempt=i, duration_ms=elapsed_ms(target_started),
+            status_code=getattr(onedriveitem, "analytics_status_code", None),
+        )
 
     # Collect all web URLs in the correct order after all uploads are completed
     web_urls = []
@@ -80,13 +98,16 @@ def start_processing(item: ProcessItem):
         update_scanneddata_database(item, {'web_url': ",".join(web_urls)})
         logger.debug(f"Updated web URLs in correct order: {web_urls}")
 
-    res = all(results)
+    res = bool(results) and all(results)
     if res is False:
-        logger.error(f"Failed to upload {item.ocr_file}")
+        track("upload.failed", item=item, duration_ms=elapsed_ms(started), successful_targets=sum(bool(result) for result in results), failed_targets=sum(not result for result in results), targets=len(results), retries=item.analytics_upload_retries, reason="target_failed" if results else "no_targets", **telemetry)
+        track("document.failed", item=item, reason="upload_failed" if results else "no_targets")
+        logger.error(f"Failed to upload {item.ocr_file}", extra={"analytics_handled": True})
         item.status = ProcessStatus.SYNC_FAILED
         move_to_failed(item)
         finalize_sync_job(item, "Failed to upload file to OneDrive")
     else:
+        track("upload.completed", item=item, duration_ms=elapsed_ms(started), targets=len(results), retries=item.analytics_upload_retries, **telemetry)
         logger.info(f"Upload completed: {item.filename}")
 
         # Delete ocr file
@@ -113,7 +134,9 @@ def start_processing(item: ProcessItem):
                 logger.exception(f"Failed to delete additional local file {additional_path}")
 
         item.status = ProcessStatus.COMPLETED
+        item.time_finished = datetime.now()
         finalize_sync_job(item)
+        track("document.completed", item=item, total_duration_ms=max(0, round((item.time_finished - item.time_added).total_seconds() * 1000)), pages=item.pdf_pages, targets=len(results))
     update_scanneddata_database(item, {"file_status": item.status.value})
 
 

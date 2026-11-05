@@ -8,6 +8,7 @@ from unittest.mock import Mock
 import httpx2 as httpx
 from openai import APIStatusError, AuthenticationError, NotFoundError, RateLimitError
 import pytest
+from scansynclib import analytics
 
 
 @pytest.mark.parametrize("input_str", [
@@ -79,6 +80,9 @@ def openai_helper(monkeypatch):
     client = Mock()
     monkeypatch.setattr(module, "OpenAI", Mock(return_value=client))
     monkeypatch.setattr(module, "extract_text", Mock(return_value="Synthetic invoice text"))
+    monkeypatch.setattr(module, "track", Mock())
+    monkeypatch.setattr(analytics, "track", module.track)
+    monkeypatch.setattr(module.logger, "handlers", [analytics.AnalyticsHandler()])
     return module, client
 
 
@@ -110,6 +114,10 @@ def test_generate_filename_enforces_length_after_sanitizing(openai_helper, namin
     assert request["reasoning"] == {"effort": "none"}
     assert helper.execute_query.call_args_list[0].args[1] == ("PROCESSING", "gpt-6-luna", "openai", 11)
     assert helper.execute_query.call_args.args[1] == ("COMPLETED", True, 11)
+    assert helper.track.call_args.args == ("naming.completed",)
+    assert helper.track.call_args.kwargs["provider"] == "openai"
+    assert helper.track.call_args.kwargs["model"] == "gpt-6-luna"
+    assert helper.track.call_args.kwargs["fallback_used"] is False
     client.close.assert_called_once()
 
 
@@ -141,6 +149,9 @@ def test_model_errors_preserve_cause_and_fallback(openai_helper, naming_item, bo
     assert message in description
     assert "{'" not in description
     assert job_id == 11
+    assert helper.track.call_args.args == ("naming.failed",)
+    assert helper.track.call_args.kwargs["error"].status_code == 404
+    assert helper.track.call_args.kwargs["fallback_used"] is True
     client.responses.create.assert_called_once()
     client.close.assert_called_once()
 
@@ -194,3 +205,20 @@ def test_empty_response_keeps_original_filename(openai_helper, naming_item):
 
     assert helper.generate_filename_openai(naming_item) == "scan"
     assert helper.execute_query.call_args.args[1][0] == "FAILED"
+    assert helper.track.call_args.kwargs["reason"] == "empty_response"
+
+
+def test_missing_text_is_skipped_not_completed(openai_helper, naming_item):
+    helper, client = openai_helper
+    helper.extract_text.return_value = ""
+    assert helper.generate_filename_openai(naming_item) == "scan"
+    assert helper.track.call_args.args == ("naming.skipped",)
+    assert helper.track.call_args.kwargs["reason"] == "no_pdf_text"
+    client.responses.create.assert_not_called()
+
+
+def test_unexpected_error_is_not_duplicated_by_logging(openai_helper, naming_item):
+    helper, client = openai_helper
+    client.responses.create.side_effect = ValueError("synthetic failure")
+    assert helper.generate_filename_openai(naming_item) == "scan"
+    assert [call.args[0] for call in helper.track.call_args_list] == ["naming.started", "naming.failed"]
