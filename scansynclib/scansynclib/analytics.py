@@ -3,12 +3,15 @@ import logging
 import os
 from pathlib import Path
 import re
+import socket
+import ssl
 import sys
 import tempfile
 import threading
 import time
 import uuid
 from urllib.parse import urlsplit
+from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
@@ -24,6 +27,8 @@ _fields = {
 }
 _identifier = re.compile(r"^[A-Za-z0-9_.<>:/@+\-]+$")
 _installation_id_path = Path("/app/data/analytics-installation-id")
+_delivery_warning_lock = threading.Lock()
+_delivery_warning_logged = False
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -118,6 +123,56 @@ def _get_installation_id():
     return None
 
 
+def _warn_delivery_once(url, *, error=None, status_code=None):
+    global _delivery_warning_logged
+    with _delivery_warning_lock:
+        if _delivery_warning_logged:
+            return
+        _delivery_warning_logged = True
+    try:
+        parsed = urlsplit(url)
+        host = parsed.hostname or "invalid-host"
+        if ":" in host:
+            host = f"[{host}]"
+        origin = f"{parsed.scheme}://{host}"
+        if parsed.port is not None:
+            origin += f":{parsed.port}"
+        if isinstance(error, HTTPError):
+            status_code = error.code
+        if status_code is not None:
+            reason = f"HTTP {status_code}"
+            if 300 <= status_code < 400:
+                reason += "; redirects are disabled, configure the final endpoint URL"
+            elif status_code == 401:
+                reason += "; check the analytics API key"
+            elif status_code == 403:
+                reason += "; access denied, check reverse-proxy and firewall rules"
+        else:
+            cause = error.reason if isinstance(error, URLError) else error
+            if isinstance(cause, ssl.SSLCertVerificationError):
+                reason = "TLS certificate verification failed"
+            elif isinstance(cause, ssl.SSLError):
+                reason = "TLS negotiation failed"
+            elif isinstance(cause, socket.gaierror):
+                reason = "DNS resolution failed"
+            elif isinstance(cause, TimeoutError):
+                reason = "request timed out"
+            elif isinstance(cause, ConnectionRefusedError):
+                reason = "connection refused"
+            else:
+                reason = type(cause).__name__
+            code = getattr(cause, "verify_code", None) or getattr(cause, "errno", None)
+            if isinstance(code, int):
+                reason += f"; code={code}"
+        logging.getLogger("shared_logger").warning(
+            "Analytics delivery failed for %s (%s). Further delivery failures are suppressed "
+            "until process restart; document processing continues.",
+            origin, reason, extra={"analytics_handled": True},
+        )
+    except Exception:
+        _logger.debug("Analytics delivery warning could not be logged")
+
+
 def _send(payload, url, key):
     try:
         import json
@@ -128,14 +183,17 @@ def _send(payload, url, key):
         request = Request(
             url.rstrip("/") + "/event",
             data=json.dumps(payload, allow_nan=False).encode("utf-8"),
-            headers={"Content-Type": "application/json", "X-API-KEY": key},
+            headers={
+                "Content-Type": "application/json", "X-API-KEY": key,
+                "User-Agent": f"ScanSync/{payload.get('app_version', 'dev')}",
+            },
             method="POST",
         )
         with urlopen(request, timeout=1.5) as response:
             if response.status != 200:
-                _logger.debug("Analytics event rejected: HTTP %s", response.status)
-    except Exception:
-        _logger.debug("Analytics event could not be delivered")
+                _warn_delivery_once(url, status_code=response.status)
+    except Exception as error:
+        _warn_delivery_once(url, error=error)
     finally:
         _slots.release()
 

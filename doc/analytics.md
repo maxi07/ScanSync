@@ -25,12 +25,29 @@ event reports the client role, attempt count, and exception details.
 
 The transport follows maexbert-analytics' JSON API, using only Python's standard
 library so deployments do not need access to the private analytics repository.
-Requests use `POST <ANALYTICS_URL>/event` with `X-API-KEY`, a 1.5-second socket
-timeout and daemon threads. HTTP redirects are not followed, so API keys are
+Requests use `POST <ANALYTICS_URL>/event` with `X-API-KEY`, the identifying
+`User-Agent: ScanSync/<app_version>`, a 1.5-second socket timeout and daemon
+threads. HTTP redirects are not followed, so API keys are
 not forwarded to a redirect target. Each process permits at most 16 concurrent
 sends; events beyond that limit are dropped immediately. No event queue, persistence, retry,
-shutdown flush, or ordering guarantee is provided. Endpoint failures are only
-logged locally at DEBUG and never generate recursive analytics errors.
+shutdown flush, or ordering guarantee is provided.
+
+The first delivery failure logs a local WARNING, at most once per Python
+process until restart, even if several sends fail concurrently. The startup
+`service.started` event normally exposes configuration problems immediately.
+The warning contains only the endpoint origin and a technical reason, such as
+HTTP 403, DNS resolution failure, TLS certificate verification failure, or a
+timeout. It never includes API keys, URL paths/query strings, response bodies,
+or raw exception messages. The warning is not sent to analytics and cannot
+create a recursive error loop. Document processing and subsequent delivery
+attempts continue; repeated delivery warnings are suppressed.
+
+If the LAN endpoint works but the public HTTPS endpoint returns 403, check
+the reverse proxy/WAF. Some bot-protection rules reject Python's default
+User-Agent; ScanSync identifies itself explicitly rather than impersonating a
+browser. If access remains blocked, allow backend requests to `POST /event`
+without a browser challenge, while retaining API-key authentication and TLS
+certificate verification. HTTP 401 instead indicates a rejected project key.
 
 ## Privacy And Correlation
 

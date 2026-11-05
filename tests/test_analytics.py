@@ -3,11 +3,14 @@ from datetime import datetime
 import importlib.util
 import json
 import logging
+import socket
+import ssl
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 from unittest.mock import Mock
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -18,6 +21,7 @@ from scansynclib import analytics
 def installation_storage(monkeypatch, tmp_path):
     path = tmp_path / "data" / "analytics-installation-id"
     monkeypatch.setattr(analytics, "_installation_id_path", path)
+    monkeypatch.setattr(analytics, "_delivery_warning_logged", False)
     return path
 
 
@@ -124,18 +128,73 @@ def test_network_failure_does_not_escape(monkeypatch):
     analytics._send({"event_name": "ocr.started"}, "https://analytics.example.test", "test-key")
 
 
-def test_http_contract(monkeypatch):
+@pytest.mark.parametrize("error, expected", [
+    (HTTPError("https://secret-host/private?key=secret", 403, "secret response", {}, None), "HTTP 403"),
+    (HTTPError("https://secret-host", 302, "secret response", {}, None), "redirects are disabled"),
+    (URLError(socket.gaierror(-2, "private DNS details")), "DNS resolution failed"),
+    (URLError(ssl.SSLCertVerificationError("private certificate details")), "TLS certificate verification failed"),
+    (URLError(TimeoutError("private timeout details")), "request timed out"),
+    (URLError(ConnectionRefusedError(111, "private connection details")), "connection refused"),
+])
+def test_delivery_failure_warns_once_without_secrets_or_recursion(monkeypatch, caplog, error, expected):
+    post = Mock(side_effect=error)
+    monkeypatch.setattr(analytics, "urlopen", post)
+    track = Mock()
+    monkeypatch.setattr(analytics, "track", track)
+    root = logging.getLogger()
+    monkeypatch.setattr(root, "handlers", [analytics.AnalyticsHandler(), caplog.handler])
+    with caplog.at_level(logging.WARNING):
+        for attempt in range(3):
+            assert analytics._slots.acquire(blocking=False)
+            analytics._send({"event_name": "service.started"}, "https://analytics.example.test/private?key=secret", "secret-api-key")
+    warnings = [record for record in caplog.records if record.getMessage().startswith("Analytics delivery failed")]
+    assert len(warnings) == 1
+    message = warnings[0].getMessage()
+    assert "https://analytics.example.test" in message
+    assert expected in message
+    assert "process restart" in message
+    assert warnings[0].analytics_handled is True
+    for sensitive in ["secret", "private", "secret-api-key"]:
+        assert sensitive not in message
+    assert post.call_count == 3
+    track.assert_not_called()
+
+
+def test_concurrent_delivery_failures_warn_only_once(caplog):
+    with caplog.at_level(logging.WARNING), ThreadPoolExecutor(max_workers=8) as executor:
+        list(executor.map(lambda attempt: analytics._warn_delivery_once("https://analytics.example.test", status_code=403), range(32)))
+    assert sum(record.getMessage().startswith("Analytics delivery failed") for record in caplog.records) == 1
+
+
+def test_non_200_response_warns_once(monkeypatch, caplog):
+    response = Mock(status=503)
+    response.__enter__ = Mock(return_value=response)
+    response.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(analytics, "urlopen", Mock(return_value=response))
+    with caplog.at_level(logging.WARNING):
+        for attempt in range(2):
+            assert analytics._slots.acquire(blocking=False)
+            analytics._send({"event_name": "service.started"}, "https://analytics.example.test", "secret-api-key")
+    warnings = [record.getMessage() for record in caplog.records if record.getMessage().startswith("Analytics delivery failed")]
+    assert len(warnings) == 1
+    assert "HTTP 503" in warnings[0]
+
+
+@pytest.mark.parametrize("app_version", ["dev", "v1.2.3"])
+def test_http_contract(monkeypatch, app_version):
     response = Mock(status=200)
     response.__enter__ = Mock(return_value=response)
     response.__exit__ = Mock(return_value=False)
     post = Mock(return_value=response)
     monkeypatch.setattr(analytics, "urlopen", post)
     assert analytics._slots.acquire(blocking=False)
-    analytics._send({"event_name": "ocr.started"}, "https://analytics.example.test/", "test-key")
+    payload = {"event_name": "ocr.started", "app_version": app_version}
+    analytics._send(payload, "https://analytics.example.test/", "test-key")
     request = post.call_args.args[0]
     assert request.full_url == "https://analytics.example.test/event"
     assert request.get_header("X-api-key") == "test-key"
-    assert json.loads(request.data) == {"event_name": "ocr.started", "user_id": analytics._get_installation_id()}
+    assert request.get_header("User-agent") == f"ScanSync/{app_version}"
+    assert json.loads(request.data) == {**payload, "user_id": analytics._get_installation_id()}
     assert post.call_args.kwargs["timeout"] == 1.5
 
 

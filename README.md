@@ -63,6 +63,8 @@ If either variable is empty, nothing is sent and no analytics worker starts.
 The endpoint must implement the maexbert-analytics `POST /event` API.
 Sending is fire-and-forget: analytics failures never stop document processing,
 and events can be lost when the endpoint is unavailable or services stop.
+The first delivery failure is logged locally once per process, with an HTTP
+status or technical reason. It never generates a recursive analytics event.
 No document content, filenames, paths, credentials, usernames, or hostnames
 are sent. The top-level `user_id` is a random, pseudonymous installation ID
 persisted in the shared data volume, not a person or PC name. Tracebacks
