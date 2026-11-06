@@ -1,4 +1,4 @@
-FROM selenium/standalone-chromium:4.52.0
+FROM selenium/standalone-chromium:155.0.8059.39
 
 # Switch to the root user to install dependencies
 USER root
