@@ -1,4 +1,4 @@
 pika==1.4.4
 pillow==13.0.0
-pypdf==6.21.4
+pypdf==7.0.0
 PyMuPDF==2.1

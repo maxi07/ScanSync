@@ -1,7 +1,5 @@
-FROM alpine:latest
+FROM alpine:3.24
 ENV TZ=Europe/Berlin
-ARG APP_VERSION=dev
-ENV APP_VERSION=${APP_VERSION}
 RUN apk add --no-cache samba samba-common-tools
 
 RUN adduser -D ocr && echo -e "ocr\nocr" | smbpasswd -a -s ocr && \
@@ -20,4 +18,6 @@ COPY smb.conf /etc/samba/smb.conf
 
 EXPOSE 137/udp 138/udp 139/tcp 445/tcp
 
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 CMD ["smbd", "-F", "--no-process-group"]

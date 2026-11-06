@@ -1,0 +1,54 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directories:
+      - /
+      - /scansynclib
+      - /detection_service
+      - /file_naming_service
+      - /metadata_service
+      - /ocr_service
+      - /upload_service
+      - /web_service
+      - /test_service
+      - /tests
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns:
+          - "*"
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      javascript:
+        patterns:
+          - "*"
+  - package-ecosystem: docker
+    directories:
+      - "/*_service"
+      - /smb_service
+    schedule:
+      interval: weekly
+    groups:
+      images:
+        patterns:
+          - "*"
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      services:
+        patterns:
+          - "*"
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"

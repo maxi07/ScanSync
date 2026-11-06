@@ -7,6 +7,8 @@ on:
     paths:
       - '**/*.py'
       - '**/requirements.txt'
+      - 'scansynclib/pyproject.toml'
+      - 'Makefile'
   workflow_dispatch:
   
 permissions:
@@ -18,12 +20,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
@@ -35,32 +37,8 @@ jobs:
 
       - name: Find and merge all requirements.txt files
         run: |
-          echo "Searching for requirements.txt files..."
-          find . -name "requirements.txt" > requirements_files.txt
-
-          echo "Merging requirements..."
-          > merged_requirements.in
-
-          while read -r file; do
-            echo "# From $file" >> merged_requirements.in
-            cat "$file" >> merged_requirements.in
-            echo "" >> merged_requirements.in
-          done < requirements_files.txt
-
-          echo "Compiling merged requirements..."
-          set +e
-          pip-compile merged_requirements.in --upgrade --output-file=requirements-dev.txt
-          RESULT=$?
-          set -e
-
-          if [ $RESULT -ne 0 ]; then
-            echo "❌ Conflict detected during pip-compile:"
-            pip-compile merged_requirements.in --upgrade --output-file=requirements-dev.txt || true
-            exit 1
-          fi
-
-          echo "✅ requirements-dev.txt successfully created:"
-          cat requirements-dev.txt
+          make deps-lock PYTHON=python
+          pip install --dry-run -r requirements-dev.txt
 
       - name: Commit and push requirements-dev.txt
         run: |

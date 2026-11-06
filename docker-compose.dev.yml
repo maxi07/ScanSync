@@ -1,0 +1,41 @@
+x-dev-environment: &dev-environment
+  PYTHONPATH: /app/scansynclib
+
+services:
+  web-service:
+    environment:
+      <<: *dev-environment
+      FLASK_ENV: development
+    volumes:
+      - ./web_service/src:/app/src:ro
+      - ./scansynclib:/app/scansynclib:ro
+
+  detection_service:
+    environment: *dev-environment
+    volumes:
+      - ./detection_service/main.py:/app/main.py:ro
+      - ./scansynclib:/app/scansynclib:ro
+
+  metadata_service:
+    environment: *dev-environment
+    volumes:
+      - ./metadata_service/main.py:/app/main.py:ro
+      - ./scansynclib:/app/scansynclib:ro
+
+  ocr_service:
+    environment: *dev-environment
+    volumes:
+      - ./ocr_service/main.py:/app/main.py:ro
+      - ./scansynclib:/app/scansynclib:ro
+
+  file_naming_service:
+    environment: *dev-environment
+    volumes:
+      - ./file_naming_service/main.py:/app/main.py:ro
+      - ./scansynclib:/app/scansynclib:ro
+
+  upload_service:
+    environment: *dev-environment
+    volumes:
+      - ./upload_service/main.py:/app/main.py:ro
+      - ./scansynclib:/app/scansynclib:ro

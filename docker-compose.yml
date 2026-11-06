@@ -154,7 +154,7 @@ services:
       args:
         - APP_VERSION=${APP_VERSION:-dev}
     ports:
-      - 5001:5001
+      - "${WEB_PORT:-5001}:5001"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -167,7 +167,6 @@ services:
       redis:
         condition: service_started
     volumes:
-      # - ./web_service/src:/app/src  # Only for development!!
       - scans:/mnt/scans
       - data:/app/data
       - preview-images:/app/src/static/images/pdfpreview
@@ -175,7 +174,7 @@ services:
       - app-network
 
   rabbitmq:
-    image: "rabbitmq:4-management"
+    image: "rabbitmq:4.4.0-management"
     restart: unless-stopped
     container_name: "rabbitmq"
     environment:
@@ -195,7 +194,7 @@ services:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
 
   redis:
-    image: redis:latest
+    image: redis:8.10.3
     restart: unless-stopped
     container_name: redis
     ports:

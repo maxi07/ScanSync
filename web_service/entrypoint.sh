@@ -1,7 +1,7 @@
 #!/bin/sh
 
 echo "Fixing permissions for mounted volumes..."
-chown -R appuser /app/data /mnt/scans /app/src/static/images/pdfpreview /app
+chown -R appuser /app/data /mnt/scans /app/src/static/images/pdfpreview
 
 cd /app
 export FLASK_APP=src.main:app

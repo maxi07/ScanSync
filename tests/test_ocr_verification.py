@@ -5,6 +5,76 @@ from unittest.mock import Mock, patch, MagicMock
 from scansynclib.ProcessItem import ProcessItem, ItemType, OCRStatus, ProcessStatus
 
 
+def test_pdfa_preserves_multicharacter_tounicode(tmp_path, caplog, recwarn):
+    import shutil
+    import subprocess
+
+    import pytest
+    from pypdf import PdfReader, PdfWriter
+    from pypdf.generic import DecodedStreamObject, NameObject
+
+    ocrmypdf = pytest.importorskip("ocrmypdf")
+    pikepdf = pytest.importorskip("pikepdf")
+    if not shutil.which("gs"):
+        pytest.skip("Run this regression test in the OCR image with Ghostscript installed")
+    version = subprocess.check_output(["gs", "--version"], text=True).strip()
+    assert tuple(int(part) for part in version.split(".")) >= (10, 7, 0)
+
+    from fontTools.fontBuilder import FontBuilder
+    from fontTools.pens.ttGlyphPen import TTGlyphPen
+    from fpdf import FPDF
+
+    glyph_names = [".notdef", "fi", "fl"]
+    pen = TTGlyphPen(None)
+    pen.moveTo((50, 0))
+    pen.lineTo((550, 0))
+    pen.lineTo((550, 700))
+    pen.lineTo((50, 700))
+    pen.closePath()
+    builder = FontBuilder(1000, isTTF=True)
+    builder.setupGlyphOrder(glyph_names)
+    builder.setupGlyf({name: pen.glyph() for name in glyph_names})
+    builder.setupHorizontalMetrics({name: (600, 0) for name in glyph_names})
+    builder.setupHorizontalHeader(ascent=800, descent=-200)
+    builder.setupCharacterMap({0xFB01: "fi", 0xFB02: "fl"})
+    builder.setupNameTable({
+        "familyName": "Regression", "styleName": "Regular",
+        "uniqueFontIdentifier": "Regression", "fullName": "Regression Regular",
+        "psName": "Regression-Regular",
+    })
+    builder.setupOS2(sTypoAscender=800, sTypoDescender=-200, usWinAscent=800, usWinDescent=200)
+    builder.setupPost()
+    builder.setupMaxp()
+    font_path = tmp_path / "regression.ttf"
+    builder.save(font_path)
+    document = FPDF()
+    document.add_font("Regression", fname=font_path)
+    document.add_page()
+    document.set_font("Regression", size=24)
+    document.text(20, 40, "\ufb01\ufb02")
+    original = tmp_path / "embedded-font.pdf"
+    document.output(original)
+    writer = PdfWriter(original)
+    for reference in writer.pages[0]["/Resources"]["/Font"].values():
+        font = reference.get_object()
+        mappings = font["/ToUnicode"].get_data()
+        assert b"<FB01>" in mappings and b"<FB02>" in mappings
+        cmap = DecodedStreamObject()
+        cmap.set_data(mappings.replace(b"<FB01>", b"<00660069>").replace(b"<FB02>", b"<0066006C>"))
+        font[NameObject("/ToUnicode")] = writer._add_object(cmap)
+    source = tmp_path / "multicharacter.pdf"
+    output = tmp_path / "multicharacter-pdfa.pdf"
+    writer.write(source)
+
+    assert PdfReader(source).pages[0].extract_text() == "fifl"
+    assert ocrmypdf.ocr(source, output, output_type="pdfa", pdfa_backend="ghostscript", skip_text=True, optimize=2, jpeg_quality=80) == 0
+    assert not any("jpg_quality" in str(warning.message) for warning in recwarn)
+    assert PdfReader(output).pages[0].extract_text().strip() == "fifl"
+    with pikepdf.open(output) as pdf:
+        assert pdf.open_metadata()["pdfaid:part"] in ("1", "2", "3")
+    assert not any("drops ToUnicode" in record.message or "jpg_quality" in record.message for record in caplog.records)
+
+
 class TestOCRTextVerification:
     """Test OCR text verification functionality without importing the main OCR service."""
 
@@ -187,6 +257,9 @@ class TestStartProcessing:
             assert item.ocr_status == OCRStatus.COMPLETED
             final_call = mock_update_db.call_args_list[-1][0][1]
             assert final_call.get("ocr_status") == OCRStatus.COMPLETED.name
+            mock_ocr_mod.ocr.assert_called_once()
+            assert mock_ocr_mod.ocr.call_args.kwargs["jpeg_quality"] == 80
+            assert "jpg_quality" not in mock_ocr_mod.ocr.call_args.kwargs
 
     def test_ocr_success_no_text_sets_no_text(self):
         """When OCR succeeds but no text found, ocr_status should be NO_TEXT."""

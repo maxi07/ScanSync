@@ -1,59 +1,46 @@
-FROM python:3.13-slim
+FROM python:3.13-slim-trixie AS native-build
+
 ENV TZ=Europe/Berlin
-ARG APP_VERSION=dev
-ENV APP_VERSION=${APP_VERSION}
-# Install ocrmypdf requirements
-RUN apt-get update && apt-get install -y \
-    unpaper \
-    libjpeg-dev \
-    wget \
-    libpng-dev \
-    libtiff-dev \
-    libffi-dev \
-    qpdf \
-    pngquant \
-    tesseract-ocr \
-    tesseract-ocr-eng \
-    tesseract-ocr-deu \
-    curl \
-    build-essential \
-    automake \
-    autoconf \
-    libtool \
-    pkg-config \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+ARG GHOSTSCRIPT_VERSION=10.08.0
+ARG GHOSTSCRIPT_SHA256=caf199e3f233f1290b27d0972d636f66c303355f2353309b7bfddf1edda06b3d
+ARG JBIG2_COMMIT=4553595aa094cad7d55c4efc9657ea31db23c742
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl build-essential automake autoconf libtool pkg-config \
+    libleptonica-dev && rm -rf /var/lib/apt/lists/*
 
-# Install Ghostscript 10.02.1 from source, as from APT 10.0 to 10.02 is unsupported
 WORKDIR /tmp
-RUN wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10051/ghostscript-10.05.1.tar.gz && \
-    tar -xzf ghostscript-10.05.1.tar.gz && \
-    cd ghostscript-10.05.1 && \
-    ./configure && \
-    make -j$(nproc) && \
-    make install && \
-    cd .. && rm -rf ghostscript-10.05.1 ghostscript-10.05.1.tar.gz
+RUN curl -fsSL "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs$(echo "$GHOSTSCRIPT_VERSION" | tr -d .)/ghostscript-${GHOSTSCRIPT_VERSION}.tar.gz" -o ghostscript.tar.gz && \
+    echo "${GHOSTSCRIPT_SHA256}  ghostscript.tar.gz" | sha256sum -c - && \
+    tar -xzf ghostscript.tar.gz && \
+    cd "ghostscript-${GHOSTSCRIPT_VERSION}" && \
+    ./configure --without-x --disable-cups && \
+    make -j"$(nproc)" && make install
 
-# Dependency for JBig2
-RUN apt-get update && apt-get install -y \
-    libleptonica-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN curl -fsSL "https://github.com/agl/jbig2enc/archive/${JBIG2_COMMIT}.tar.gz" -o jbig2enc.tar.gz && \
+    tar -xzf jbig2enc.tar.gz && cd "jbig2enc-${JBIG2_COMMIT}" && \
+    autoreconf -fi && ./configure && make -j"$(nproc)" && make install
 
-# JBIG2 Encoder
-RUN git clone https://github.com/agl/jbig2enc.git && \
-    cd jbig2enc && \
-    autoreconf -fi && \
-    ./configure && \
-    make && make install && \
-    cd .. && rm -rf jbig2enc
+FROM python:3.13-slim-trixie AS runtime
+
+ENV TZ=Europe/Berlin \
+    CONFIG_PATH=/app/scansynclib/scansynclib/config.json
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    unpaper qpdf pngquant tesseract-ocr tesseract-ocr-eng tesseract-ocr-deu \
+    libleptonica6 libstdc++6 && rm -rf /var/lib/apt/lists/*
+COPY --from=native-build /usr/local/bin/gs /usr/local/bin/gs
+COPY --from=native-build /usr/local/share/ghostscript/ /usr/local/share/ghostscript/
+COPY --from=native-build /usr/local/bin/jbig2 /usr/local/bin/jbig2
+RUN gs --version && jbig2 --version
 
 WORKDIR /app
-ENV CONFIG_PATH=/app/scansynclib/scansynclib/config.json
 COPY ocr_service/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY ocr_service/ /app/
+COPY requirements-dev.txt /tmp/constraints.txt
 COPY scansynclib/ /app/scansynclib/
-RUN pip install /app/scansynclib
+RUN --mount=type=cache,target=/root/.cache/pip pip install -c /tmp/constraints.txt -r requirements.txt /app/scansynclib && pip check
+COPY ocr_service/ /app/
 
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 CMD ["python", "main.py"]

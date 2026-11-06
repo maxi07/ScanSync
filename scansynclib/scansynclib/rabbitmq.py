@@ -2,22 +2,26 @@
 
 This module centralises every RabbitMQ interaction so that services no longer
 each build and tear down their own connections. A single, long-lived
-connection per process is established lazily and kept alive. Publishing and
-consuming both transparently reconnect when the broker drops the connection,
-which prevents the "missed heartbeats from client" churn where a new
-connection was opened for every message.
+publisher connection per process is established lazily and serviced by its own
+I/O thread, including while document processing is idle or blocked. Publishing
+and consuming transparently reconnect when the broker drops the connection.
 
-Two building blocks are provided:
+Three building blocks are provided:
 
 * :class:`RabbitMQClient` – a resilient wrapper around a single pika
   ``BlockingConnection``. It reconnects automatically and re-declares queues
   and exchanges after a reconnect.
+* :class:`RabbitMQPublisher` – a shared publisher whose I/O thread services
+    heartbeats independently of document processing and serialises callers.
 * Module level helpers (:func:`publish`, :func:`forward_to_rabbitmq`,
   :func:`consume`, ...) that operate on a shared, process-wide publisher
   client so callers can keep the previous simple function based API.
 """
 
+import atexit
+from concurrent.futures import Future
 import pickle
+import queue
 import socket
 import threading
 import time
@@ -32,11 +36,10 @@ from scansynclib.analytics import track
 # reach the broker through the ``rabbitmq`` service name.
 RABBITMQ_HOST = "rabbitmq"
 
-# A generous heartbeat keeps the connection alive across the long, blocking
-# operations (OCR, uploads, AI file naming) that happen between two AMQP
-# interactions. The previous default of 30/60 seconds caused the broker to
-# close idle-looking connections while a service was busy.
+# Consumer callbacks can perform long operations; publishers service heartbeats
+# independently instead of relying on the timeout to cover idle periods.
 DEFAULT_HEARTBEAT = 600
+PUBLISHER_EVENT_INTERVAL = 1.0
 
 # Number of connection attempts (and delay between them) before giving up on
 # the initial connect.
@@ -64,7 +67,8 @@ class RabbitMQClient:
     The client owns a single connection and channel. Both are created lazily on
     first use and automatically recreated whenever the broker drops them, so a
     connection is established once and then kept alive for the lifetime of the
-    process.
+    process. Pika operations must stay on the connection's owning thread;
+    concurrent publishers should use RabbitMQPublisher instead.
     """
 
     def __init__(self, heartbeat: int = DEFAULT_HEARTBEAT, host: str = RABBITMQ_HOST, name: str = "rabbitmq"):
@@ -75,8 +79,6 @@ class RabbitMQClient:
         self._channel = None
         self._declared_queues = set()
         self._declared_exchanges = set()
-        # BlockingConnection is not thread safe; serialise access so the client
-        # can be shared between e.g. Flask request threads.
         self._lock = threading.RLock()
 
     @property
@@ -292,10 +294,82 @@ class RabbitMQClient:
 # Shared, process-wide publisher client and function based helpers.
 # ---------------------------------------------------------------------------
 
-_publisher = RabbitMQClient(name="publisher")
+class RabbitMQPublisher:
+    """Keep the shared publisher connection on one heartbeat-servicing thread."""
+
+    def __init__(self, heartbeat: int = DEFAULT_HEARTBEAT, host: str = RABBITMQ_HOST, name: str = "publisher"):
+        self._client = RabbitMQClient(heartbeat=heartbeat, host=host, name=name)
+        self._requests = queue.Queue()
+        self._lock = threading.Lock()
+        self._thread = None
+
+    def _run(self):
+        try:
+            while True:
+                try:
+                    request = self._requests.get(timeout=PUBLISHER_EVENT_INTERVAL)
+                except queue.Empty:
+                    self._client.process_events(0)
+                    continue
+                if request is None:
+                    return
+                future, body, kwargs = request
+                try:
+                    result = self._client.publish(body, **kwargs)
+                except Exception as error:
+                    future.set_exception(error)
+                else:
+                    future.set_result(result)
+                self._client.process_events(0)
+        finally:
+            self._client.close()
+            while True:
+                try:
+                    request = self._requests.get_nowait()
+                except queue.Empty:
+                    break
+                if request is not None:
+                    request[0].set_exception(RuntimeError("RabbitMQ publisher stopped before publishing"))
+
+    def publish(
+        self,
+        body: bytes,
+        queue_name: str = "",
+        exchange: str = "",
+        routing_key: str | None = None,
+        persistent: bool = True,
+        declare_queue: bool = True,
+        exchange_type: str | None = None,
+    ) -> bool:
+        future = Future()
+        with self._lock:
+            if self._thread is None or not self._thread.is_alive():
+                self._thread = threading.Thread(target=self._run, name="rabbitmq-publisher", daemon=True)
+                self._thread.start()
+            self._requests.put((future, body, {
+                "queue_name": queue_name,
+                "exchange": exchange,
+                "routing_key": routing_key,
+                "persistent": persistent,
+                "declare_queue": declare_queue,
+                "exchange_type": exchange_type,
+            }))
+        return future.result()
+
+    def close(self):
+        with self._lock:
+            if self._thread is not None:
+                if self._thread.is_alive():
+                    self._requests.put(None)
+                self._thread.join()
+                self._thread = None
 
 
-def get_publisher() -> RabbitMQClient:
+_publisher = RabbitMQPublisher()
+atexit.register(_publisher.close)
+
+
+def get_publisher() -> RabbitMQPublisher:
     """Return the shared publisher client for the current process."""
     return _publisher
 
