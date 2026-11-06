@@ -110,7 +110,7 @@ def callback(ch, method, properties, body):
                 if item_file_naming_db_id:
                     item.file_naming_status = get_latest_file_naming_status(item)
                 item.status = ProcessStatus.SYNC_PENDING
-                update_scanneddata_database(item, {"file_status": item.status.value})
+                update_scanneddata_database(item, {"file_status": item.status.value, "file_name": item.filename})
                 forward_error = None
                 try:
                     forwarded = forward_to_rabbitmq("upload_queue", item)

@@ -1,5 +1,13 @@
 #!/bin/sh
 
+python - <<'PY'
+import json
+import os
+from pathlib import Path
+
+config = json.loads(Path(os.environ['CONFIG_PATH']).read_text())
+os.makedirs(os.path.join(config['smb']['path'], config['failedDir']), exist_ok=True)
+PY
 echo "Fixing permissions for mounted volumes..."
 chown -R appuser /app/data /mnt/scans /app/src/static/images/pdfpreview
 

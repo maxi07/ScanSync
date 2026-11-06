@@ -32,7 +32,7 @@ app.register_blueprint(settings_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(onedrive_bp)
 
-sse_queue = queue.Queue()
+sse_clients: set[queue.Queue] = set()
 connected_clients = 0
 
 
@@ -88,7 +88,9 @@ def rabbitmq_listener():
                 file_naming_status=item.file_naming_status.name if getattr(item, "file_naming_status", None) else None,
             )
             payload["dashboard_data"] = get_dashboard_info()  # Nur bei Bedarf abrufen
-            sse_queue.put(json.dumps(payload, default=str))  # Ensure all objects are serializable
+            data = json.dumps(payload, default=str)
+            for client_queue in tuple(sse_clients):
+                client_queue.put(data)
             logger.debug(f"Received update from RabbitMQ: {payload}")
         else:
             logger.debug("No connected clients. Skipping SSE queue update.")
@@ -200,19 +202,22 @@ def inject_config():
 def stream():
     def event_stream():
         global connected_clients
+        client_queue = queue.Queue()
+        sse_clients.add(client_queue)
         connected_clients += 1
         logger.info(f"Client connected. Total connected clients: {connected_clients}")
         try:
             yield 'data: {"status": "connected"}\n\n'
             while True:
                 try:
-                    data = sse_queue.get(timeout=2)
+                    data = client_queue.get(timeout=2)
                     logger.debug(f"Data retrieved from SSE queue: {data}")
                     time.sleep(0.2)
                     yield f"data: {data}\n\n"
                 except queue.Empty:
                     yield ": keep-alive\n\n"
         finally:
+            sse_clients.discard(client_queue)
             connected_clients -= 1
             logger.info(f"Client disconnected. Total connected clients: {connected_clients}")
 

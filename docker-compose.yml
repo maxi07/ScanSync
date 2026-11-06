@@ -36,6 +36,8 @@ services:
     networks:
       - app-network
     depends_on:
+      web-service:
+        condition: service_healthy
       smb_service:
         condition: service_started
       rabbitmq:
@@ -61,6 +63,8 @@ services:
     networks:
       - app-network
     depends_on:
+      web-service:
+        condition: service_healthy
       smb_service:
         condition: service_started
       rabbitmq:
@@ -91,6 +95,8 @@ services:
     networks:
       - app-network
     depends_on:
+      web-service:
+        condition: service_healthy
       smb_service:
         condition: service_started
       rabbitmq:
@@ -114,6 +120,8 @@ services:
     networks:
       - app-network
     depends_on:
+      web-service:
+        condition: service_healthy
       smb_service:
         condition: service_started
       rabbitmq:
@@ -140,6 +148,8 @@ services:
     networks:
       - app-network
     depends_on:
+      web-service:
+        condition: service_healthy
       smb_service:
         condition: service_started
       rabbitmq:
@@ -161,6 +171,11 @@ services:
       <<: *analytics-environment
       SCANSYNC_SERVICE: web_service
       FLASK_ENV: prod # prod or development
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/')"]
+      interval: 3s
+      timeout: 10s
+      retries: 40
     depends_on:
       rabbitmq:
         condition: service_healthy

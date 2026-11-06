@@ -115,6 +115,21 @@ def test_get_latest_status_falls_back_on_unknown_value(item, mocker):
     assert fn_main.get_latest_file_naming_status(item) == FileNamingStatus.PROCESSING
 
 
+def test_generated_name_is_saved_before_upload(item, mocker):
+    mocker.patch.object(fn_main.settings.file_naming, "method", FileNamingMethod.OPENAI)
+    mocker.patch.object(fn_main, "generate_filename_openai", return_value="renamed")
+    mocker.patch.object(fn_main, "execute_query", return_value=11)
+    mocker.patch.object(fn_main, "get_latest_file_naming_status", return_value=FileNamingStatus.COMPLETED)
+    update = mocker.patch.object(fn_main, "update_scanneddata_database")
+    forward = mocker.patch.object(fn_main, "forward_to_rabbitmq", return_value=True)
+
+    fn_main.callback(mocker.Mock(), SimpleNamespace(delivery_tag=1), None, pickle.dumps(item))
+
+    update.assert_called_once()
+    assert update.call_args.args[1] == {"file_status": ProcessStatus.SYNC_PENDING.value, "file_name": "renamed.pdf"}
+    assert forward.call_args.args[1].filename == "renamed.pdf"
+
+
 def test_callback_with_non_processitem_does_not_crash(mocker):
     """A message that does not deserialize to a ProcessItem must be acknowledged
     and skipped without touching the database or forwarding to the next queue."""
