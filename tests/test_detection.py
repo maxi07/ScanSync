@@ -38,6 +38,19 @@ def test_get_all_files_empty_directory(mocker):
     mock_os_walk.assert_called_once_with("/path/to/empty_dir")
 
 
+def test_failed_original_is_not_grouped_with_resubmitted_scan(tmp_path):
+    failed = tmp_path / "failed-documents"
+    failed.mkdir()
+    (failed / "original.pdf").write_bytes(b"same document")
+    target = tmp_path / "Invoices"
+    target.mkdir()
+    resubmitted = target / "retry.pdf"
+    resubmitted.write_bytes(b"same document")
+
+    assert get_all_files(str(tmp_path)) == {str(resubmitted)}
+    assert (failed / "original.pdf").read_bytes() == b"same document"
+
+
 def test_get_all_files_no_files(mocker):
     # Mock os.walk to return a directory with no files
     mock_os_walk = mocker.patch("os.walk")

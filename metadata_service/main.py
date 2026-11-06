@@ -88,7 +88,7 @@ def on_created(filepaths: list, analytics_id=None, received_at=None):
     except Exception as e:
         logger.exception(f"Error fetching SMB target IDs for {item.local_directory_above}: {e}")
         item.smb_target_ids = []
-    update_scanneddata_database(item, {"file_status": item.status.value, "additional_smb": additional_smbs_str, "local_filepath": item.local_directory_above, "file_name": item.filename})
+    update_scanneddata_database(item, {"file_status": item.status.value, "additional_smb": additional_smbs_str, "local_filepath": item.local_directory_above, "file_name": item.filename, "source_file_name": item.filename})
 
     # Match remote destinations in the correct order
     smb_names = [item.local_directory_above] + item.additional_remote_paths

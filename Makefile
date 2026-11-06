@@ -42,6 +42,7 @@ help:
 	@echo "  clean-all     - Full cleanup (containers, images, volumes)"
 	@echo "  test          - Run the tests"
 	@echo "  test-ocr      - Run the real Ghostscript/PDF-A regression test"
+	@echo "  test-e2e      - Run real browser/SMB/OCR end-to-end scenarios"
 	@echo ""
 
 # Production
@@ -118,5 +119,9 @@ test: test-ocr
 
 .PHONY: test-ocr
 test-ocr:
-	docker build -f ocr_service/Dockerfile -t $(OCR_TEST_IMAGE) .
+	@if test "$(SCANSYNC_PREBUILT)" != "1"; then docker build -f ocr_service/Dockerfile -t $(OCR_TEST_IMAGE) .; fi
 	docker run --rm --entrypoint sh -v "$(CURDIR)/tests:/tests:ro" -w /tmp $(OCR_TEST_IMAGE) -c 'pip install -c /tmp/constraints.txt pytest && pytest /tests/test_ocr_verification.py::test_pdfa_preserves_multicharacter_tounicode -q -p no:cacheprovider'
+
+.PHONY: test-e2e
+test-e2e:
+	bash ./run-e2e-tests.sh $(E2E_ARGS)

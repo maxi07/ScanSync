@@ -124,6 +124,11 @@ def upgrade_sql_database():
             cursor.execute("PRAGMA table_info(scanneddata)")
             columns = [row[1] for row in cursor.fetchall()]
 
+            if "source_file_name" not in columns:
+                logger.info("Migration: Adding 'source_file_name' column to scanneddata table")
+                cursor.execute("ALTER TABLE scanneddata ADD COLUMN source_file_name TEXT")
+                conn.commit()
+
             if "additional_smb" not in columns:
                 logger.info("Migration: Adding 'additional_smb' column to scanneddata table")
                 cursor.execute("ALTER TABLE scanneddata ADD COLUMN additional_smb TEXT")

@@ -9,7 +9,7 @@ USER root
 # claim /usr/lib/*/ossl-modules/legacy.so.
 RUN apt-get update && \
     apt-get install -y -o Dpkg::Options::="--force-overwrite" \
-        python3 python3-pip python3-venv && \
+        python3 python3-pip python3-venv smbclient && \
     rm -rf /var/lib/apt/lists/*
 
 # Create a Python virtual environment

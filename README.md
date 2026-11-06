@@ -162,6 +162,76 @@ ports; their volumes are removed on success and failure. `make test-ocr` runs on
 the real Ghostscript test, including synthetic embedded fonts with `fi`/`fl`
 multi-character ToUnicode mappings and a check of the output PDF/A declaration.
 
+#### End-to-end scenarios
+
+Run `make test-e2e` with Docker Compose 2.24.4 or newer and Docker running. No
+Python, browser, SMB client, provider account or real API key is required on the
+host. The same command runs for every pull request in the **End-to-End Tests**
+workflow. To make it a merge requirement, select **Browser, SMB and OCR** in the
+repository's branch protection or ruleset settings.
+
+The runner creates a new, empty Compose project per invocation, publishes no host
+ports, and removes its containers and volumes even after a failure. It does not
+use the development or production volumes. Allow several minutes for image
+builds, plus approximately seven minutes for the scenarios on a warm build.
+`invalid.pdf` intentionally exercises the unchanged five-minute incomplete-file
+validation timeout.
+
+Chromium runs headlessly and performs the setup, Microsoft device-code approval,
+folder selection, status observation, log inspection, failed-document download
+and deletion through the UI. Documents enter via real SMB3, followed by the real
+RabbitMQ, metadata, OCRmyPDF, naming and upload workers. SQLite and the scan volume
+are mounted read-only in the test runner for additional integrity checks; tests
+do not seed settings, tokens, jobs or application database rows.
+
+Only Microsoft identity/Graph and OpenAI HTTP responses are simulated. The actual
+MSAL and OpenAI clients still execute. Workers have no external network route;
+the browser runner has internet access for the application's existing CDN assets.
+The simulator rejects unexpected provider endpoints and retains actual uploaded
+PDF bytes for content checks. No real credentials or GitHub Actions secrets are
+used. The HTTP redirection hook is mounted only in the E2E stack, never included
+in a production service image.
+
+| Scenario | Assertions |
+| --- | --- |
+| SZ1 | Empty installation, navigation/settings tabs, OneDrive login, OpenAI key validation and two folder mappings |
+| SZ2 | `cardinal.pdf`: four searchable PDF/A pages, generated filename, upload, local cleanup and live completion in two browser tabs |
+| SZ3 | Identical SMB input in two targets produces one OCR/naming job and byte-identical uploads to both folders |
+| SZ4 | `aspect.pdf` (one searchable page), `blank.pdf` (one page, `NO_TEXT`, original name), `graph_ocred.pdf` (existing text), `multipage.pdf` (six searchable pages), `invalid.pdf` (rejected, retained and downloadable, no upload) |
+| SZ5 | OpenAI HTTP 500, SDK retries, original-name fallback, successful upload and visible error log |
+| SZ6 | Upload HTTP 503, `Sync Failed`, byte-identical retained original, removed OCR intermediate, real browser download, successful SMB resubmission and explicit UI deletion of the old failure |
+
+There is currently no retry button. SZ6 deliberately exercises the available
+recovery path: download the original and resubmit it to SMB. The failed original
+remains available until explicitly deleted; the OCR intermediate is removed.
+
+Select a subset with `make test-e2e E2E_ARGS='-k sz6'`. Every invocation still
+performs the complete first-start configuration, so subsets do not depend on a
+previous test run. Tests are sequential and share only that configured application;
+provider faults and recorded uploads reset between scenarios.
+
+Diagnostics are written to `tests/e2e/artifacts/` (overwritten on the next run):
+JUnit XML, screenshots, service logs, and on failure browser HTML/console logs,
+provider call history and pipeline job snapshots. CI uploads these for seven
+days. These generated files are excluded from Git and Docker build contexts.
+The six PDFs in `tests/resources/` must be included in the repository checkout.
+
+#### CI build caches
+
+Both Docker test workflows build with Buildx/Bake and a GitHub Actions layer
+cache per image, configured in `docker-bake.ci.hcl`. `mode=max` retains the native
+Ghostscript/JBIG2 intermediate stages as well as Python dependency layers. The
+Python and E2E jobs share caches for identical images. Prepared images are loaded
+into Docker, then `SCANSYNC_PREBUILT=1` prevents the test commands from rebuilding
+them. Local runs still build normally by default.
+
+The E2E workflow uses `E2E_PROJECT_NAME=scansync-e2e-ci` so the prepared image tags
+match Compose. Its volumes are still created from scratch and removed afterward.
+Only build layers and npm/pip downloads are cached, never test results, scan
+volumes, SQLite databases or provider tokens. The first run populates the caches;
+later runs reuse unchanged layers. The real five-minute invalid-PDF validation
+timeout is intentionally unaffected.
+
 Ghostscript 10.08.0 fixes the warning about versions before 10.7.0. The regression
 confirms preservation of the tested two-character ligature mappings. A separate
 synthetic three-character `ffi` mapping was still rewritten incorrectly by 10.08.0;

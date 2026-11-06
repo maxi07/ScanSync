@@ -16,6 +16,10 @@ npm run test:js
 
 echo "🧪 Starting tests with Docker Compose..."
 
-docker compose -f "$COMPOSE_FILE" up --build --abort-on-container-exit --exit-code-from "$TEST_SERVICE_NAME"
+BUILD_FLAG=--build
+if [[ "${SCANSYNC_PREBUILT:-0}" == "1" ]]; then
+  BUILD_FLAG=--no-build
+fi
+docker compose -f "$COMPOSE_FILE" up "$BUILD_FLAG" --abort-on-container-exit --exit-code-from "$TEST_SERVICE_NAME"
 
 echo "Tests successful!"

@@ -5,7 +5,7 @@ from scansynclib.ProcessItem import ProcessStatus, StatusProgressBar
 from scansynclib.sqlite_wrapper import execute_query
 
 
-def _move_leftover_to_failed(file_name: str, local_dir: str):
+def _move_leftover_to_failed(file_name: str, local_dir: str, failed_name: str | None = None):
     """Move a leftover source file into the failed directory and drop its OCR file.
 
     The original (non OCR) scan is moved into the failed directory so it stays
@@ -13,8 +13,9 @@ def _move_leftover_to_failed(file_name: str, local_dir: str):
     removed. Missing files are tolerated and only logged.
 
     Args:
-        file_name (str): The base file name of the scan (as stored in the DB).
+        file_name (str): The original base file name of the scan.
         local_dir (str): The SMB share sub directory the scan lives in.
+        failed_name (str): The visible file name used by the download endpoint.
     """
     if not file_name:
         logger.warning("Cannot move leftover file to failed directory: missing file name.")
@@ -22,6 +23,7 @@ def _move_leftover_to_failed(file_name: str, local_dir: str):
 
     smb_path = config.get("smb.path")
     failed_dir = os.path.join(smb_path, config.get("failedDir"))
+    moved_name = None
 
     if not os.path.exists(failed_dir):
         try:
@@ -34,11 +36,15 @@ def _move_leftover_to_failed(file_name: str, local_dir: str):
         source_path = os.path.join(smb_path, local_dir, file_name)
         if os.path.exists(source_path):
             try:
-                dest_path = os.path.join(failed_dir, file_name)
-                if os.path.exists(dest_path):
-                    base, ext = os.path.splitext(file_name)
-                    dest_path = os.path.join(failed_dir, f"{base}_{local_dir}{ext}")
+                destination_name = failed_name or file_name
+                dest_path = os.path.join(failed_dir, destination_name)
+                base, ext = os.path.splitext(destination_name)
+                suffix = 0
+                while os.path.exists(dest_path):
+                    suffix += 1
+                    dest_path = os.path.join(failed_dir, f"{base}_{local_dir}_{suffix}{ext}")
                 os.rename(source_path, dest_path)
+                moved_name = os.path.basename(dest_path)
                 logger.info(f"Moved leftover file {source_path} to failed directory {dest_path}")
             except Exception:
                 logger.exception(f"Failed to move leftover file {source_path} to failed directory {failed_dir}")
@@ -55,6 +61,7 @@ def _move_leftover_to_failed(file_name: str, local_dir: str):
                 logger.exception(f"Failed to remove leftover OCR file {ocr_file}")
     else:
         logger.warning(f"No source directory recorded for {file_name}, cannot move it to failed directory.")
+    return moved_name
 
 
 def cleanup_dangling_documents():
@@ -67,7 +74,7 @@ def cleanup_dangling_documents():
     directory so they remain recoverable from the web UI.
     """
     pending = execute_query(
-        "SELECT id, file_name, local_filepath FROM scanneddata WHERE status_code BETWEEN 0 AND 4",
+        "SELECT id, file_name, source_file_name, local_filepath FROM scanneddata WHERE status_code BETWEEN 0 AND 4",
         fetchall=True,
     )
     if pending is None:
@@ -83,16 +90,18 @@ def cleanup_dangling_documents():
     for row in pending:
         doc_id = row.get("id")
         file_name = row.get("file_name")
+        source_name = row.get("source_file_name") or file_name
         local_dir = row.get("local_filepath")
+        recovered_name = None
         try:
-            _move_leftover_to_failed(file_name, local_dir)
+            recovered_name = _move_leftover_to_failed(source_name, local_dir, failed_name=file_name)
         except Exception:
             logger.exception(f"Failed moving leftover file for document id {doc_id} to failed directory.")
 
         try:
             execute_query(
-                "UPDATE scanneddata SET file_status = ?, status_code = ?, modified = DATETIME('now', 'localtime') WHERE id = ?",
-                (ProcessStatus.FAILED.value, StatusProgressBar.get_progress(ProcessStatus.FAILED), doc_id),
+                "UPDATE scanneddata SET file_status = ?, status_code = ?, file_name = ?, modified = DATETIME('now', 'localtime') WHERE id = ?",
+                (ProcessStatus.FAILED.value, StatusProgressBar.get_progress(ProcessStatus.FAILED), recovered_name or file_name, doc_id),
             )
             logger.info(f"Startup cleanup: marked document id {doc_id} ({file_name}) as failed.")
         except Exception:

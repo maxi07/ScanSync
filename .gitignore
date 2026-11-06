@@ -13,3 +13,4 @@ shared/db/scansync.db
 logfile.log
 *.db
 node_modules/
+tests/e2e/artifacts/

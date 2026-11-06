@@ -1,0 +1,151 @@
+x-mock-environment: &mock-environment
+  PYTHONPATH: /e2e/hooks
+  E2E_API_URL: http://mock-api:8080
+  OPENAI_BASE_URL: http://mock-api:8080/openai/v1
+  ANALYTICS_URL: ""
+  ANALYTICS_API_KEY: ""
+
+x-worker: &worker
+  environment: *mock-environment
+  volumes:
+    - ./tests/e2e:/e2e:ro
+  restart: "no"
+
+services:
+  smb_service:
+    extends:
+      file: docker-compose.yml
+      service: smb_service
+    container_name: !reset null
+    ports: !reset []
+    restart: "no"
+
+  rabbitmq:
+    extends:
+      file: docker-compose.yml
+      service: rabbitmq
+    container_name: !reset null
+    ports: !reset []
+    restart: "no"
+
+  redis:
+    extends:
+      file: docker-compose.yml
+      service: redis
+    container_name: !reset null
+    ports: !reset []
+    restart: "no"
+
+  mock-api:
+    image: scansync-e2e-web:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: web_service/Dockerfile
+    entrypoint: ["python", "/e2e/mock_server.py"]
+    volumes:
+      - ./tests/e2e:/e2e:ro
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  web-service:
+    <<: *worker
+    extends:
+      file: docker-compose.yml
+      service: web-service
+    image: scansync-e2e-web:${APP_VERSION:-dev}
+    ports: !reset []
+    depends_on:
+      mock-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/')"]
+      interval: 3s
+      timeout: 10s
+      retries: 40
+
+  detection_service:
+    <<: *worker
+    extends:
+      file: docker-compose.yml
+      service: detection_service
+    container_name: !reset null
+
+  metadata_service:
+    <<: *worker
+    extends:
+      file: docker-compose.yml
+      service: metadata_service
+    deploy:
+      replicas: 1
+
+  ocr_service:
+    <<: *worker
+    extends:
+      file: docker-compose.yml
+      service: ocr_service
+    deploy:
+      replicas: 1
+
+  file_naming_service:
+    <<: *worker
+    extends:
+      file: docker-compose.yml
+      service: file_naming_service
+
+  upload_service:
+    <<: *worker
+    extends:
+      file: docker-compose.yml
+      service: upload_service
+    container_name: !reset null
+
+  e2e:
+    build:
+      context: .
+      dockerfile: test_service/Dockerfile
+    entrypoint: ["pytest", "tests/e2e", "-v", "--tb=short", "-p", "no:cacheprovider", "--junitxml=/artifacts/junit.xml"]
+    shm_size: 2gb
+    environment:
+      E2E: "1"
+      E2E_BASE_URL: http://web-service:5001
+      E2E_API_URL: http://mock-api:8080
+    volumes:
+      - ./tests:/tests/tests:ro
+      - ./pytest.ini:/tests/pytest.ini:ro
+      - ./tests/e2e/artifacts:/artifacts
+      - scans:/mnt/scans:ro
+      - data:/app/data:ro
+    depends_on:
+      web-service:
+        condition: service_healthy
+      smb_service:
+        condition: service_started
+      detection_service:
+        condition: service_started
+      metadata_service:
+        condition: service_started
+      ocr_service:
+        condition: service_started
+      file_naming_service:
+        condition: service_started
+      upload_service:
+        condition: service_started
+    networks:
+      - app-network
+      - browser-network
+
+volumes:
+  scans:
+  data:
+  preview-images:
+  redis_data:
+
+networks:
+  app-network:
+    internal: true
+  browser-network:

@@ -28,6 +28,47 @@ test("getStepStatuses exists after loading dashboard.js", () => {
     assert.equal(typeof getStepStatuses, "function");
 });
 
+test("SSE overflow reset closes the stream before reloading the dashboard", () => {
+    let ready;
+    let stream;
+    const listeners = new Map();
+    const actions = [];
+    class EventSource {
+        constructor(url) {
+            assert.equal(url, "/stream");
+            stream = this;
+        }
+        addEventListener(name, callback) {
+            listeners.set(name, callback);
+        }
+        close() {
+            actions.push("close");
+        }
+    }
+    const context = {
+        document: {
+            addEventListener(name, callback) {
+                if (name === "DOMContentLoaded") ready = callback;
+            },
+            getElementById() {
+                return { style: {} };
+            }
+        },
+        console: sandbox.console,
+        current_page: 1,
+        pdfsData: [],
+        EventSource,
+        window: { location: { reload() { actions.push("reload"); } } }
+    };
+    vm.runInNewContext(dashboardSource, context);
+    ready();
+
+    assert.ok(stream);
+    listeners.get("reset")();
+
+    assert.deepEqual(actions, ["close", "reload"]);
+});
+
 test("failed OCR is failed while file naming becomes the active (current) step", () => {
     // file_status "File Name Pending" maps to progressStep 2, the same index as
     // the OCR step. Processing continues after a non-fatal OCR failure, so the

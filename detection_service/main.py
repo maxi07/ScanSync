@@ -44,7 +44,9 @@ def group_files_by_content(file_paths):
 def get_all_files(directory):
     """Rekursiv alle Dateien in einem Verzeichnis und Unterverzeichnissen abrufen"""
     all_files = set()
-    for root, _, files in os.walk(directory):
+    failed_directory = os.path.normpath(os.path.join(directory, config.get("failedDir")))
+    for root, directories, files in os.walk(directory):
+        directories[:] = [name for name in directories if os.path.normpath(os.path.join(root, name)) != failed_directory]
         for file in files:
             if file.startswith('.'):
                 # Ignore hidden files
