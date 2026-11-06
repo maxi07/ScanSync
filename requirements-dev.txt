@@ -186,7 +186,7 @@ pypdf==7.0.0
     # via
     #   -r metadata_service/requirements.txt
     #   scansynclib (scansynclib/pyproject.toml)
-pypdfium2==5.14.0
+pypdfium2==5.15.0
     # via ocrmypdf
 pysocks==1.7.1
     # via urllib3
