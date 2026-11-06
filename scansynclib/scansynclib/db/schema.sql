@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS scanneddata (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     file_name TEXT NOT NULL,
+    source_file_name TEXT,
     created DATETIME NOT NULL DEFAULT (DATETIME('now', 'localtime')),
     modified DATETIME NOT NULL DEFAULT (DATETIME('now', 'localtime')),
     file_status TEXT NOT NULL DEFAULT 'Pending',

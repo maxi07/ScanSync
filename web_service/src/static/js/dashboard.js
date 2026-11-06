@@ -33,6 +33,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // connection alive on every paginated page wastes a long-lived server worker.
     if (current_page === 1) {
         let eventSource = new EventSource("/stream");
+        eventSource.addEventListener("reset", function() {
+            eventSource.close();
+            window.location.reload();
+        });
         eventSource.onmessage = function(event) {
             const data = JSON.parse(event.data);
             console.log("Received data:", data);

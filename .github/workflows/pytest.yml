@@ -11,6 +11,7 @@ on:
       - 'scansynclib/pyproject.toml'
       - 'requirements-dev.txt'
       - 'docker-compose*.yml'
+      - 'docker-bake.ci.hcl'
       - 'Makefile'
       - 'run-tests.sh'
       - '.dockerignore'
@@ -26,6 +27,7 @@ on:
       - 'scansynclib/pyproject.toml'
       - 'requirements-dev.txt'
       - 'docker-compose*.yml'
+      - 'docker-bake.ci.hcl'
       - 'Makefile'
       - 'run-tests.sh'
       - '.dockerignore'
@@ -35,10 +37,34 @@ on:
 jobs:
   run-tests:
     runs-on: ubuntu-latest
+    env:
+      APP_VERSION: ci
+      COMPOSE_PROJECT_NAME: scansync-test
+      SCANSYNC_PREBUILT: "1"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and cache test images
+        uses: docker/bake-action@v7
+        with:
+          files: |
+            docker-compose.yml
+            docker-compose.test.yml
+            docker-bake.ci.hcl
+          targets: |
+            web-service
+            test_service
+            ocr_service
+          load: true
+          set: |
+            web-service.tags=scansync-test-web-service:latest
+            test_service.tags=scansync-test-test_service:latest
+            ocr_service.tags=scansync-ocr-regression:latest
 
       - name: Set execute permission for run-tests.sh
         run: chmod +x ./run-tests.sh

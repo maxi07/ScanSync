@@ -66,6 +66,7 @@ def assert_success(browser, item, source_name, targets=('Invoices',), pages=4, h
         assert b'pdfaid:part' in content
         assert upload['size'] == len(content)
     assert completed['pdf_pages'] == pages
+    assert completed['source_file_name'] == source_name
     assert completed['ocr_status'] == ocr_status
     jobs = rows('SELECT * FROM ocr_jobs WHERE scanneddata_id = ?', (item['id'],))
     assert len(jobs) == 1 and jobs[0]['ocr_status'] == ocr_status and jobs[0]['finished']

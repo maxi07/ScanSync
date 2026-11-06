@@ -19,6 +19,7 @@ from routes.api import api_bp
 from routes.onedrive import onedrive_bp
 from scansynclib.sqlite_wrapper import execute_query
 from scansynclib.onedrive_api import is_token_expired
+from sse import SSEBroker
 
 logger.info("Starting web service...")
 logger.info(f"App version: {os.environ.get('APP_VERSION', 'Unknown')}")
@@ -32,8 +33,7 @@ app.register_blueprint(settings_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(onedrive_bp)
 
-sse_clients: set[queue.Queue] = set()
-connected_clients = 0
+sse_clients = SSEBroker()
 
 
 def start_rabbitmq_listener():
@@ -48,7 +48,7 @@ def rabbitmq_listener():
     exchange_name = "sse_updates_fanout"
 
     def callback(ch, method, properties, body):
-        if connected_clients > 0:
+        if sse_clients:
             item: ProcessItem = pickle.loads(body)
 
             # Import unified badge generator
@@ -89,8 +89,7 @@ def rabbitmq_listener():
             )
             payload["dashboard_data"] = get_dashboard_info()  # Nur bei Bedarf abrufen
             data = json.dumps(payload, default=str)
-            for client_queue in tuple(sse_clients):
-                client_queue.put(data)
+            sse_clients.publish(data)
             logger.debug(f"Received update from RabbitMQ: {payload}")
         else:
             logger.debug("No connected clients. Skipping SSE queue update.")
@@ -201,25 +200,23 @@ def inject_config():
 @app.route("/stream")
 def stream():
     def event_stream():
-        global connected_clients
-        client_queue = queue.Queue()
-        sse_clients.add(client_queue)
-        connected_clients += 1
-        logger.info(f"Client connected. Total connected clients: {connected_clients}")
+        client_queue = sse_clients.subscribe()
+        logger.info(f"Client connected. Total connected clients: {len(sse_clients)}")
         try:
             yield 'data: {"status": "connected"}\n\n'
             while True:
                 try:
                     data = client_queue.get(timeout=2)
+                    if data is None:
+                        yield 'event: reset\ndata: {}\n\n'
+                        return
                     logger.debug(f"Data retrieved from SSE queue: {data}")
-                    time.sleep(0.2)
                     yield f"data: {data}\n\n"
                 except queue.Empty:
                     yield ": keep-alive\n\n"
         finally:
-            sse_clients.discard(client_queue)
-            connected_clients -= 1
-            logger.info(f"Client disconnected. Total connected clients: {connected_clients}")
+            sse_clients.unsubscribe(client_queue)
+            logger.info(f"Client disconnected. Total connected clients: {len(sse_clients)}")
 
     return Response(event_stream(), mimetype="text/event-stream")
 

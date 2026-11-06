@@ -18,14 +18,44 @@ jobs:
     name: Browser, SMB and OCR
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      APP_VERSION: ci
+      E2E_PROJECT_NAME: scansync-e2e-ci
+      SCANSYNC_PREBUILT: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Build and cache service images
+        uses: docker/bake-action@v7
+        with:
+          files: |
+            docker-compose.e2e.yml
+            docker-bake.ci.hcl
+          targets: |
+            web-service
+            smb_service
+            detection_service
+            metadata_service
+            ocr_service
+            file_naming_service
+            upload_service
+            e2e
+          load: true
+          set: |
+            smb_service.tags=scansync-e2e-ci-smb_service:latest
+            detection_service.tags=scansync-e2e-ci-detection_service:latest
+            metadata_service.tags=scansync-e2e-ci-metadata_service:latest
+            ocr_service.tags=scansync-e2e-ci-ocr_service:latest
+            file_naming_service.tags=scansync-e2e-ci-file_naming_service:latest
+            upload_service.tags=scansync-e2e-ci-upload_service:latest
+            e2e.tags=scansync-e2e-ci-e2e:latest
       - name: Run isolated end-to-end scenarios
         run: make test-e2e
       - name: Upload diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-diagnostics
           path: tests/e2e/artifacts/

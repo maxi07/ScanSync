@@ -64,10 +64,11 @@ def test_cleanup_marks_pending_documents_as_failed(smb, mocker):
 
     update_calls = [c for c in execute_query.call_args_list if "UPDATE scanneddata" in c.args[0]]
     assert len(update_calls) == 1
-    status_value, status_code, doc_id = update_calls[0].args[1]
+    status_value, status_code, file_name, doc_id = update_calls[0].args[1]
     assert status_value == ProcessStatus.FAILED.value
     assert status_code == StatusProgressBar.get_progress(ProcessStatus.FAILED)
     assert status_code < 0
+    assert file_name == "scan.pdf"
     assert doc_id == 7
 
 
@@ -102,7 +103,7 @@ def test_cleanup_marks_failed_even_when_file_missing(smb, mocker):
 
     update_calls = [c for c in execute_query.call_args_list if "UPDATE scanneddata" in c.args[0]]
     assert len(update_calls) == 1
-    assert update_calls[0].args[1][2] == 3
+    assert update_calls[0].args[1][3] == 3
 
 
 def test_cleanup_noop_when_no_pending_documents(smb, mocker):
@@ -112,3 +113,29 @@ def test_cleanup_noop_when_no_pending_documents(smb, mocker):
 
     update_calls = [c for c in execute_query.call_args_list if "UPDATE scanneddata" in c.args[0]]
     assert update_calls == []
+
+
+@pytest.mark.parametrize("collision", [False, True])
+def test_cleanup_after_naming_uses_original_source_and_downloadable_name(smb, mocker, collision):
+    source = smb / "ShareA" / "scanner_original.pdf"
+    source.write_bytes(b"original scan")
+    ocr = smb / "ShareA" / "scanner_original_OCR.pdf"
+    ocr.write_bytes(b"OCR output")
+    failed = smb / "failed-documents"
+    failed.mkdir()
+    if collision:
+        (failed / "Invoice.pdf").write_bytes(b"another failed scan")
+    execute_query = mocker.patch.object(cleanup, "execute_query", return_value=[{
+        "id": 9, "file_name": "Invoice.pdf", "source_file_name": source.name, "local_filepath": "ShareA",
+    }])
+
+    cleanup.cleanup_dangling_documents()
+
+    update = [call for call in execute_query.call_args_list if "UPDATE scanneddata" in call.args[0]][0]
+    stored_name = update.args[1][2]
+    assert (failed / stored_name).read_bytes() == b"original scan"
+    assert stored_name == ("Invoice_ShareA_1.pdf" if collision else "Invoice.pdf")
+    assert not source.exists()
+    assert not ocr.exists()
+    if collision:
+        assert (failed / "Invoice.pdf").read_bytes() == b"another failed scan"

@@ -216,6 +216,22 @@ provider call history and pipeline job snapshots. CI uploads these for seven
 days. These generated files are excluded from Git and Docker build contexts.
 The six PDFs in `tests/resources/` must be included in the repository checkout.
 
+#### CI build caches
+
+Both Docker test workflows build with Buildx/Bake and a GitHub Actions layer
+cache per image, configured in `docker-bake.ci.hcl`. `mode=max` retains the native
+Ghostscript/JBIG2 intermediate stages as well as Python dependency layers. The
+Python and E2E jobs share caches for identical images. Prepared images are loaded
+into Docker, then `SCANSYNC_PREBUILT=1` prevents the test commands from rebuilding
+them. Local runs still build normally by default.
+
+The E2E workflow uses `E2E_PROJECT_NAME=scansync-e2e-ci` so the prepared image tags
+match Compose. Its volumes are still created from scratch and removed afterward.
+Only build layers and npm/pip downloads are cached, never test results, scan
+volumes, SQLite databases or provider tokens. The first run populates the caches;
+later runs reuse unchanged layers. The real five-minute invalid-PDF validation
+timeout is intentionally unaffected.
+
 Ghostscript 10.08.0 fixes the warning about versions before 10.7.0. The regression
 confirms preservation of the tested two-character ligature mappings. A separate
 synthetic three-character `ffi` mapping was still rewritten incorrectly by 10.08.0;

@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 cd "$(dirname "$0")"
 
-project="scansync-e2e-$$"
+project="${E2E_PROJECT_NAME:-scansync-e2e-$$}"
 artifacts="$PWD/tests/e2e/artifacts"
 compose=(docker compose -p "$project" -f docker-compose.e2e.yml)
 
@@ -23,5 +23,9 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 "${compose[@]}" config --quiet
-"${compose[@]}" up --build -d --wait --wait-timeout 180 --scale e2e=0
+build_flag=--build
+if [[ "${SCANSYNC_PREBUILT:-0}" == "1" ]]; then
+    build_flag=--no-build
+fi
+"${compose[@]}" up "$build_flag" -d --wait --wait-timeout 180 --scale e2e=0
 "${compose[@]}" run --rm --no-deps e2e "$@"

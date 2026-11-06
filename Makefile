@@ -119,7 +119,7 @@ test: test-ocr
 
 .PHONY: test-ocr
 test-ocr:
-	docker build -f ocr_service/Dockerfile -t $(OCR_TEST_IMAGE) .
+	@if test "$(SCANSYNC_PREBUILT)" != "1"; then docker build -f ocr_service/Dockerfile -t $(OCR_TEST_IMAGE) .; fi
 	docker run --rm --entrypoint sh -v "$(CURDIR)/tests:/tests:ro" -w /tmp $(OCR_TEST_IMAGE) -c 'pip install -c /tmp/constraints.txt pytest && pytest /tests/test_ocr_verification.py::test_pdfa_preserves_multicharacter_tounicode -q -p no:cacheprovider'
 
 .PHONY: test-e2e

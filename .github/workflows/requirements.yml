@@ -28,6 +28,11 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: '3.13'
+          cache: pip
+          cache-dependency-path: |
+            **/requirements.txt
+            scansynclib/pyproject.toml
+            requirements-dev.txt
 
       - name: Install system dependencies
         run: sudo apt-get install -y libxml2-dev libxslt-dev
