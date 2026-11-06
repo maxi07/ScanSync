@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch, MagicMock
 from scansynclib.ProcessItem import ProcessItem, ItemType, OCRStatus, ProcessStatus
 
 
-def test_pdfa_preserves_multicharacter_tounicode(tmp_path, caplog):
+def test_pdfa_preserves_multicharacter_tounicode(tmp_path, caplog, recwarn):
     import shutil
     import subprocess
 
@@ -68,6 +68,7 @@ def test_pdfa_preserves_multicharacter_tounicode(tmp_path, caplog):
 
     assert PdfReader(source).pages[0].extract_text() == "fifl"
     assert ocrmypdf.ocr(source, output, output_type="pdfa", pdfa_backend="ghostscript", skip_text=True, optimize=2, jpeg_quality=80) == 0
+    assert not any("jpg_quality" in str(warning.message) for warning in recwarn)
     assert PdfReader(output).pages[0].extract_text().strip() == "fifl"
     with pikepdf.open(output) as pdf:
         assert pdf.open_metadata()["pdfaid:part"] in ("1", "2", "3")
