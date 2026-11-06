@@ -57,6 +57,12 @@ collector. The management UI and live queue totals remain available on port
 `15672`, but historical charts and detailed rate statistics are disabled.
 The startup notice about disabled metrics collection is expected.
 
+The shared publisher uses a dedicated I/O thread to process heartbeats even when
+no documents arrive or a service is busy with OCR, AI, or uploads. All operations
+on that connection stay on the same thread, while publishing helpers still wait
+for their result. Increasing the heartbeat timeout alone does not prevent idle
+disconnects when Pika's event loop is not being serviced.
+
 A message about rebuilding message-store indices can occur during initialisation
 or recovery; it does not by itself prove message loss. Repeated rebuilding after
 normal, clean restarts warrants checking storage and shutdown behaviour.
