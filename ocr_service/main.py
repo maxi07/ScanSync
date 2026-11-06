@@ -51,7 +51,7 @@ def start_processing(item: ProcessItem):
     result = None
 
     try:
-        result = ocrmypdf.ocr(item.local_file_path, item.ocr_file, output_type='pdfa', skip_text=True, rotate_pages=True, jpg_quality=80, png_quality=80, optimize=2, language=["eng", "deu"], tesseract_timeout=120)
+        result = ocrmypdf.ocr(item.local_file_path, item.ocr_file, output_type='pdfa', skip_text=True, rotate_pages=True, jpeg_quality=80, png_quality=80, optimize=2, language=["eng", "deu"], tesseract_timeout=120)
         logger.debug(f"OCR exited with code {result}")
 
         if result != 0:

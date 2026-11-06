@@ -5,12 +5,32 @@ on:
     branches:
       - main
     paths:
-      - '**.py'
+      - '**/*.py'
+      - '**/requirements.txt'
+      - '**/Dockerfile'
+      - 'scansynclib/pyproject.toml'
+      - 'requirements-dev.txt'
+      - 'docker-compose*.yml'
+      - 'Makefile'
+      - 'run-tests.sh'
+      - '.dockerignore'
+      - 'web_service/src/templates/**'
+      - '.github/workflows/pytest.yml'
   pull_request:
     branches:
       - main
     paths:
-      - '**.py'
+      - '**/*.py'
+      - '**/requirements.txt'
+      - '**/Dockerfile'
+      - 'scansynclib/pyproject.toml'
+      - 'requirements-dev.txt'
+      - 'docker-compose*.yml'
+      - 'Makefile'
+      - 'run-tests.sh'
+      - '.dockerignore'
+      - 'web_service/src/templates/**'
+      - '.github/workflows/pytest.yml'
 
 jobs:
   run-tests:
@@ -18,10 +38,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set execute permission for run-tests.sh
         run: chmod +x ./run-tests.sh
 
       - name: Run tests
-        run: ./run-tests.sh
+        run: make test

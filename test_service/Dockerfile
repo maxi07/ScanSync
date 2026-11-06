@@ -1,8 +1,4 @@
-# Use the latest Seleniarm standalone Chromium image as the base image
-FROM seleniarm/standalone-chromium:latest
-
-ARG APP_VERSION=dev
-ENV APP_VERSION=${APP_VERSION}
+FROM selenium/standalone-chromium:4.52.0
 
 # Switch to the root user to install dependencies
 USER root
@@ -28,14 +24,14 @@ WORKDIR /tests
 
 # Copy the requirements file and install dependencies
 COPY test_service/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-dev.txt /tmp/constraints.txt
+COPY scansynclib/ ./scansynclib/
+RUN --mount=type=cache,target=/root/.cache/pip pip install -c /tmp/constraints.txt -r requirements.txt ./scansynclib && pip check
 
 # Copy the test files and the library to the container
 COPY tests/ ./tests
-COPY scansynclib/ ./scansynclib/
-
-# Install the scansynclib package
-RUN pip install ./scansynclib
 
 # Set the entry point to run pytest on the tests directory
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 ENTRYPOINT ["pytest", "tests/"]
