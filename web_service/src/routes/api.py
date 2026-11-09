@@ -10,6 +10,11 @@ from scansynclib.ProcessItem import OCRStatus
 api_bp = Blueprint('api', __name__)
 
 
+@api_bp.get('/health')
+def health():
+    return jsonify(ok=True)
+
+
 @api_bp.post('/api/onedrive-settings')
 def save_onedrive_settings():
     logger.info("Received request to save OneDrive settings")

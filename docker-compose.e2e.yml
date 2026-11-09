@@ -62,11 +62,6 @@ services:
     depends_on:
       mock-api:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/')"]
-      interval: 3s
-      timeout: 10s
-      retries: 40
 
   detection_service:
     <<: *worker

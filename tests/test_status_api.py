@@ -1,4 +1,4 @@
-"""Tests for the enhanced /api/status endpoint."""
+"""Tests for the web health and document status endpoints."""
 
 import json
 import pytest
@@ -49,6 +49,15 @@ def app():
 def client(app):
     """Create a Flask test client."""
     return app.test_client()
+
+
+def test_health_returns_ok_without_database_queries(client):
+    with patch('routes.api.execute_query') as mock_query:
+        response = client.get('/health')
+
+    assert response.status_code == 200
+    assert response.get_json() == {'ok': True}
+    mock_query.assert_not_called()
 
 
 class TestStatusAPI:

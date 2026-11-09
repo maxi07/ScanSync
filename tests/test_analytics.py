@@ -375,6 +375,24 @@ def test_successful_background_requests_do_not_count_as_page_views(sender, metho
     sender.assert_not_called()
 
 
+@pytest.mark.parametrize("method", ["GET", "HEAD"])
+@pytest.mark.parametrize("status", [200, 503])
+@pytest.mark.parametrize("mimetype", ["application/json", "text/html"])
+def test_health_requests_do_not_emit_analytics(sender, method, status, mimetype):
+    from flask import Flask, Response, g
+
+    app = Flask(__name__)
+    analytics.configure_flask(app)
+
+    @app.get("/health")
+    def health():
+        assert not hasattr(g, "analytics_started")
+        return Response("synthetic", status=status, mimetype=mimetype)
+
+    assert app.test_client().open("/health?probe=1", method=method).status_code == status
+    sender.assert_not_called()
+
+
 @pytest.mark.parametrize("status", [400, 403, 404, 429, 500])
 def test_failed_asset_requests_are_still_reported(sender, status):
     from flask import Flask, Response

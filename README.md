@@ -241,6 +241,14 @@ integrity for every possible complex-script mapping.
 
 ## 📡 API
 
+### `GET /health`
+
+Returns HTTP 200 with `{"ok": true}` when the web process can serve requests,
+without database queries, template rendering, or downstream service checks.
+Compose probes this endpoint every 60 seconds, or every 3 seconds during the
+30-second startup grace period. Health probes do not produce HTTP analytics
+events.
+
 ### `GET /api/status`
 
 Returns aggregated document processing status including per-stage breakdowns, currently processing items, and recent completion history.

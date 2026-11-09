@@ -153,7 +153,7 @@ are bytes. Optional fields are omitted when unavailable.
 | `upload.failed` | A destination fails, no destinations exist, input is missing, or callback raises | `duration_ms`, `targets`, `successful_targets`, `failed_targets`, `size_bytes`, `extension`, `retries`, `reason`, `operation`; exception fields when available |
 | `dependency.failed` | OpenAI key check or OneDrive token refresh fails | `provider`, `model`, `operation`, `reason`, exception/HTTP fields |
 | `http.request_completed` | A top-level HTML page GET finishes with a 2xx status | `route` (Flask endpoint name), `method`, `status_code`, `duration_ms` |
-| `http.request_failed` | Web request finishes with status 400 or above | Same fields; expected 4xx responses are not crashes |
+| `http.request_failed` | Web request other than `/health` finishes with status 400 or above | Same fields; expected 4xx responses are not crashes |
 | `queue.connection_failed` | RabbitMQ remains unreachable after all 10 connection attempts | `operation` (client role), `attempt` (10), `reason` (`broker_unavailable`), exception fields |
 | `queue.connection_lost` | An established connection is lost during heartbeats or consumption | `operation`, `queue_name` when known, `reason` (`heartbeat_failed`, `consumer_disconnected`, `listener_disconnected`), exception fields |
 | `queue.consumer_failed` | Consumer or web listener raises an unexpected error | `operation`, `queue_name` when known, exception fields |
@@ -179,9 +179,10 @@ Static assets, icons, SSE streams, JSON/API polling, AJAX/fetch requests,
 HEAD/POST requests, redirects, and 304 responses do not produce success events.
 `Sec-Fetch-Dest` must be `document` when present; requests without that header
 use the HTML GET response as the fallback, unless marked `XMLHttpRequest`.
-All HTTP responses with status 400 or above still produce `http.request_failed`,
-including failed asset and background requests. No request URLs or headers are
-included in either event payload.
+Health probes to `/health` are excluded from request timing and both HTTP events,
+regardless of their response status. Other HTTP responses with status 400 or above
+still produce `http.request_failed`, including failed asset and background
+requests. No request URLs or headers are included in either event payload.
 
 ## Counting Rules And Limitations
 

@@ -172,10 +172,12 @@ services:
       SCANSYNC_SERVICE: web_service
       FLASK_ENV: prod # prod or development
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/')"]
-      interval: 3s
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
+      interval: 60s
       timeout: 10s
-      retries: 40
+      retries: 2
+      start_period: 30s
+      start_interval: 3s
     depends_on:
       rabbitmq:
         condition: service_healthy
