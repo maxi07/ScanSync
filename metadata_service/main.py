@@ -15,7 +15,9 @@ import pymupdf
 import pickle
 
 RABBITQUEUE = "metadata_queue"
-TIMEOUT_PDF_VALIDATION = 300
+TIMEOUT_PDF_VALIDATION = int(os.environ.get("PDF_VALIDATION_TIMEOUT", "300"))
+if TIMEOUT_PDF_VALIDATION <= 0:
+    raise ValueError("PDF_VALIDATION_TIMEOUT must be a positive number of seconds")
 
 
 def on_created(filepaths: list, analytics_id=None, received_at=None):
@@ -52,7 +54,7 @@ def on_created(filepaths: list, analytics_id=None, received_at=None):
         return
 
     # Test if file is PDF or image. if neither can be opened, wait five seconds and try again.
-    # Repeat this process until a maximum TIMEOUT_PDF_VALIDATION of three minutes is reached
+    # Allow incomplete scanner uploads to finish within the configured timeout.
     start_time = time.time()
 
     logger.info(f"Gathering info about new file{"s" if len(filepaths) > 1 else ""} at {filepaths}")
@@ -128,7 +130,7 @@ def on_created(filepaths: list, analytics_id=None, received_at=None):
         else:
             logger.debug(f"Waiting for {filepaths[0]} for another {int(round(TIMEOUT_PDF_VALIDATION - (time.time() - start_time), 0))} seconds")
             time.sleep(5)
-            if time.time() - start_time > TIMEOUT_PDF_VALIDATION:
+            if time.time() - start_time >= TIMEOUT_PDF_VALIDATION:
                 logger.warning(f"File {filepaths[0]} is neither a PDF or image file. Skipping.")
                 item.status = ProcessStatus.INVALID_FILE
                 update_scanneddata_database(item, {"file_status": item.status.value})

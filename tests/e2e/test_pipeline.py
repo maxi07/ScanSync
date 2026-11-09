@@ -30,10 +30,12 @@ def deliver(browser, source, targets=('Invoices',), label='scan'):
         text=True, capture_output=True, timeout=60,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    found = WebDriverWait(browser, 45).until(lambda driver: rows('SELECT * FROM scanneddata WHERE id > ? ORDER BY id', (last_id,)))
+    found = WebDriverWait(browser, 45).until(
+        lambda driver: rows('SELECT * FROM scanneddata WHERE id > ? AND source_file_name = ? ORDER BY id', (last_id, name))
+    )
     assert len(found) == 1, found
     item = found[0]
-    assert item['file_name'] == name
+    assert item['source_file_name'] == name
     WebDriverWait(browser, 30).until(EC.visibility_of_element_located((By.ID, f'{item["id"]}_col')))
     return item, name
 
@@ -145,7 +147,7 @@ def test_sz3_same_document_to_two_targets(scenario):
 def test_sz4_other_pdfs(scenario, resource, pages, has_text):
     item, name = deliver(scenario, RESOURCES / resource, label=f'sz4_{Path(resource).stem}')
     if resource == 'invalid.pdf':
-        failed = wait_status(scenario, item, 'Invalid File', timeout=360)
+        failed = wait_status(scenario, item, 'Invalid File', timeout=30)
         assert mock_state()['uploads'] == []
         assert not rows('SELECT * FROM ocr_jobs WHERE scanneddata_id = ?', (item['id'],))
         assert not rows('SELECT * FROM file_naming_jobs WHERE scanneddata_id = ?', (item['id'],))

@@ -6,8 +6,24 @@ from scansynclib.ollama_helper import test_ollama_server
 from scansynclib.settings import settings
 from scansynclib.settings_schema import FileNamingMethod, FileNamingSettings
 from scansynclib.ProcessItem import OCRStatus
+from scansynclib.health import get_service_health
 
 api_bp = Blueprint('api', __name__)
+
+
+@api_bp.get('/health')
+def health():
+    return jsonify(ok=True)
+
+
+@api_bp.get('/health/services')
+def service_health():
+    try:
+        result = get_service_health()
+    except ValueError:
+        logger.exception("Invalid service health configuration", extra={"analytics_handled": True})
+        return jsonify(ok=False, error="Invalid service health configuration"), 503
+    return jsonify(result), 200 if result['ok'] else 503
 
 
 @api_bp.post('/api/onedrive-settings')

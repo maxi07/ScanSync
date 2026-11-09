@@ -310,12 +310,14 @@ def configure_flask(app):
 
     @app.before_request
     def analytics_request_started():
-        if enabled():
+        if request.path not in {"/health", "/health/services"} and enabled():
             g.analytics_started = time.monotonic()
 
     @app.after_request
     def analytics_request_finished(response):
         started = getattr(g, "analytics_started", None)
+        if started is None:
+            return response
         is_failure = response.status_code >= 400
         is_page_view = (
             request.method == "GET"
@@ -325,7 +327,7 @@ def configure_flask(app):
             and request.headers.get("Sec-Fetch-Dest", "document") == "document"
             and request.headers.get("X-Requested-With") != "XMLHttpRequest"
         )
-        if started is not None and (is_failure or is_page_view):
+        if is_failure or is_page_view:
             track(
                 "http.request_failed" if is_failure else "http.request_completed",
                 route=request.url_rule.endpoint if request.url_rule else "unmatched",

@@ -173,9 +173,10 @@ repository's branch protection or ruleset settings.
 The runner creates a new, empty Compose project per invocation, publishes no host
 ports, and removes its containers and volumes even after a failure. It does not
 use the development or production volumes. Allow several minutes for image
-builds, plus approximately seven minutes for the scenarios on a warm build.
-`invalid.pdf` intentionally exercises the unchanged five-minute incomplete-file
-validation timeout.
+builds, plus approximately two to three minutes for the scenarios on a warm build.
+For `invalid.pdf`, the E2E metadata worker sets `PDF_VALIDATION_TIMEOUT=5` to test
+rejection after five seconds, rather than waiting five minutes. Production keeps
+the default 300-second incomplete-file validation timeout.
 
 Chromium runs headlessly and performs the setup, Microsoft device-code approval,
 folder selection, status observation, log inspection, failed-document download
@@ -229,8 +230,16 @@ The E2E workflow uses `E2E_PROJECT_NAME=scansync-e2e-ci` so the prepared image t
 match Compose. Its volumes are still created from scratch and removed afterward.
 Only build layers and npm/pip downloads are cached, never test results, scan
 volumes, SQLite databases or provider tokens. The first run populates the caches;
-later runs reuse unchanged layers. The real five-minute invalid-PDF validation
-timeout is intentionally unaffected.
+later runs reuse unchanged layers. The E2E-only five-second invalid-PDF validation
+timeout does not alter production behavior.
+
+Layer reuse also requires unchanged inputs: floating base-image tags can resolve
+to new digests, invalidating all downstream layers, including the native OCR
+build. Changes to `requirements-dev.txt` or `scansynclib/` rerun Python installation
+in the affected images. A successful cache import therefore does not imply a
+fully cached build. Even on a warm build, image loading, service startup and the
+real E2E scenarios still run; use the workflow step timings and `CACHED` entries
+to distinguish these costs.
 
 Ghostscript 10.08.0 fixes the warning about versions before 10.7.0. The regression
 confirms preservation of the tested two-character ligature mappings. A separate
@@ -240,6 +249,40 @@ integrity for every possible complex-script mapping.
 
 
 ## 📡 API
+
+### `GET /health`
+
+Returns HTTP 200 with `{"ok": true}` when the web process can serve requests,
+without database queries, template rendering, or downstream service checks.
+Compose probes this endpoint every 60 seconds, or every 3 seconds during the
+30-second startup grace period. Health probes do not produce HTTP analytics
+events.
+
+### `GET /health/services`
+
+Returns `{"ok": true, "services": {...}, "checked_at": ...}` with HTTP 200
+when all configured services are available, or HTTP 503 with per-service details
+otherwise. Results are cached for 30 seconds; this endpoint also emits no HTTP
+analytics. It is not used as the web container's healthcheck, because workers
+wait for the web service during startup.
+
+- Workers publish one atomic heartbeat file per container in the existing data
+  volume under `health/`, every 15 seconds. A worker is ready while its main
+  thread is alive and its RabbitMQ connection/channel is open. Records expire
+  after 60 seconds; idle workers and long-running jobs remain healthy. This is
+  an availability check, not a document-progress or deadlock detector.
+- Worker Docker healthchecks read only their own heartbeat. The overview checks
+  every expected replica, ignoring expired records from previous containers.
+  Compose sets `HEALTH_WORKER_REPLICAS` to `{"ocr_service":2,"metadata_service":2}`;
+  other workers default to one instance. Update this JSON mapping when scaling.
+  The E2E configuration overrides both counts to one.
+- Redis is checked with `PING`. The overview checks RabbitMQ and SMB TCP
+  listeners, not queue processing, SMB credentials, or share permissions.
+  Their local Docker checks use RabbitMQ diagnostics and `smbcontrol smbd ping`.
+- New container checks run every 60 seconds, with shorter startup intervals.
+  RabbitMQ retains its existing check interval. No external cloud APIs are called.
+
+Docker marks failed checks as `unhealthy`; that alone does not restart a container.
 
 ### `GET /api/status`
 
