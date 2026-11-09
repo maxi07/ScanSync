@@ -173,9 +173,10 @@ repository's branch protection or ruleset settings.
 The runner creates a new, empty Compose project per invocation, publishes no host
 ports, and removes its containers and volumes even after a failure. It does not
 use the development or production volumes. Allow several minutes for image
-builds, plus approximately seven minutes for the scenarios on a warm build.
-`invalid.pdf` intentionally exercises the unchanged five-minute incomplete-file
-validation timeout.
+builds, plus approximately two to three minutes for the scenarios on a warm build.
+For `invalid.pdf`, the E2E metadata worker sets `PDF_VALIDATION_TIMEOUT=5` to test
+rejection after five seconds, rather than waiting five minutes. Production keeps
+the default 300-second incomplete-file validation timeout.
 
 Chromium runs headlessly and performs the setup, Microsoft device-code approval,
 folder selection, status observation, log inspection, failed-document download
@@ -229,8 +230,16 @@ The E2E workflow uses `E2E_PROJECT_NAME=scansync-e2e-ci` so the prepared image t
 match Compose. Its volumes are still created from scratch and removed afterward.
 Only build layers and npm/pip downloads are cached, never test results, scan
 volumes, SQLite databases or provider tokens. The first run populates the caches;
-later runs reuse unchanged layers. The real five-minute invalid-PDF validation
-timeout is intentionally unaffected.
+later runs reuse unchanged layers. The E2E-only five-second invalid-PDF validation
+timeout does not alter production behavior.
+
+Layer reuse also requires unchanged inputs: floating base-image tags can resolve
+to new digests, invalidating all downstream layers, including the native OCR
+build. Changes to `requirements-dev.txt` or `scansynclib/` rerun Python installation
+in the affected images. A successful cache import therefore does not imply a
+fully cached build. Even on a warm build, image loading, service startup and the
+real E2E scenarios still run; use the workflow step timings and `CACHED` entries
+to distinguish these costs.
 
 Ghostscript 10.08.0 fixes the warning about versions before 10.7.0. The regression
 confirms preservation of the tested two-character ligature mappings. A separate

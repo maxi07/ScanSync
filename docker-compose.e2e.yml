@@ -75,6 +75,9 @@ services:
 
   metadata_service:
     <<: *worker
+    environment:
+      <<: *mock-environment
+      PDF_VALIDATION_TIMEOUT: "5"
     extends:
       file: docker-compose.yml
       service: metadata_service

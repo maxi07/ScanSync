@@ -10,7 +10,17 @@ from scansynclib import analytics
 
 
 @pytest.fixture
-def metadata(monkeypatch):
+def validation_timeout(monkeypatch, request):
+    value = getattr(request, "param", None)
+    if value is None:
+        monkeypatch.delenv("PDF_VALIDATION_TIMEOUT", raising=False)
+    else:
+        monkeypatch.setenv("PDF_VALIDATION_TIMEOUT", value)
+    return 300 if value is None else int(value)
+
+
+@pytest.fixture
+def metadata(monkeypatch, validation_timeout):
     sqlite = ModuleType("scansynclib.sqlite_wrapper")
     sqlite.execute_query = Mock(return_value=1)
     sqlite.update_scanneddata_database = Mock()
@@ -83,3 +93,26 @@ def test_metadata_failure_is_structured(metadata):
 def test_internal_failed_files_do_not_count_as_new_documents(metadata):
     metadata.on_created(["/mnt/scans/failed-documents/private.pdf"], analytics_id="a" * 32)
     metadata.track.assert_not_called()
+
+
+@pytest.mark.parametrize("validation_timeout", [None, "5"], indirect=True)
+def test_invalid_pdf_waits_for_configured_timeout(metadata, validation_timeout, monkeypatch, tmp_path):
+    assert metadata.TIMEOUT_PDF_VALIDATION == validation_timeout
+    source = tmp_path / "invalid.pdf"
+    source.write_bytes(b"synthetic invalid PDF")
+    monkeypatch.setattr(metadata, "is_pdf", Mock(return_value=False))
+    monkeypatch.setattr(metadata, "is_image", Mock(return_value=False))
+    clock = [0]
+    monkeypatch.setattr(metadata.time, "time", lambda: clock[0])
+    sleep = Mock(side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds))
+    monkeypatch.setattr(metadata.time, "sleep", sleep)
+    metadata.execute_query.side_effect = lambda query, *args, **kwargs: [] if kwargs.get("fetchall") else 1
+
+    metadata.on_created([str(source)])
+
+    assert clock[0] == validation_timeout
+    item = metadata.move_to_failed.call_args.args[0]
+    assert item.status == metadata.ProcessStatus.INVALID_FILE
+    assert metadata.update_scanneddata_database.call_args.args[1] == {"file_status": metadata.ProcessStatus.INVALID_FILE.value}
+    metadata.publish.assert_not_called()
+    sleep.assert_called_with(5)
