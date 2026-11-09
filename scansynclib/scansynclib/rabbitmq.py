@@ -31,6 +31,7 @@ import pika.exceptions
 
 from scansynclib.logging import logger
 from scansynclib.analytics import track
+from scansynclib.health import start_worker_health
 
 # Host of the RabbitMQ broker. All services run in the same docker network and
 # reach the broker through the ``rabbitmq`` service name.
@@ -126,11 +127,12 @@ class RabbitMQClient:
         self._declared_exchanges.clear()
 
     def is_open(self) -> bool:
+        connection, channel = self._connection, self._channel
         return (
-            self._connection is not None
-            and self._connection.is_open
-            and self._channel is not None
-            and self._channel.is_open
+            connection is not None
+            and connection.is_open
+            and channel is not None
+            and channel.is_open
         )
 
     @property
@@ -413,6 +415,7 @@ def consume(queue_names, on_message_callback, prefetch_count: int = 1, auto_ack:
     long running message callbacks do not interfere with publishing.
     """
     client = RabbitMQClient(heartbeat=heartbeat, name="consumer")
+    start_worker_health(client.is_open)
     client.consume(queue_names, on_message_callback, prefetch_count=prefetch_count, auto_ack=auto_ack)
 
 

@@ -2,6 +2,14 @@ x-analytics-environment: &analytics-environment
   ANALYTICS_URL: ${ANALYTICS_URL:-}
   ANALYTICS_API_KEY: ${ANALYTICS_API_KEY:-}
 
+x-worker-healthcheck: &worker-healthcheck
+  test: ["CMD", "python", "-m", "scansynclib.health"]
+  interval: 60s
+  timeout: 5s
+  retries: 2
+  start_period: 60s
+  start_interval: 3s
+
 services:    
   smb_service:
     build:
@@ -9,6 +17,13 @@ services:
       args:
         - APP_VERSION=${APP_VERSION:-dev}
     container_name: smb_service
+    healthcheck:
+      test: ["CMD", "smbcontrol", "smbd", "ping"]
+      interval: 60s
+      timeout: 5s
+      retries: 2
+      start_period: 30s
+      start_interval: 3s
     ports:
       - "137:137/udp"
       - "138:138/udp"
@@ -21,6 +36,7 @@ services:
       - app-network
 
   ocr_service:
+    healthcheck: *worker-healthcheck
     build:
       context: .
       dockerfile: ocr_service/Dockerfile
@@ -48,6 +64,7 @@ services:
     command: ["python", "main.py"]
 
   file_naming_service:
+    healthcheck: *worker-healthcheck
     build:
       context: .
       dockerfile: file_naming_service/Dockerfile
@@ -79,6 +96,7 @@ services:
     command: ["python", "main.py"]
 
   detection_service:
+    healthcheck: *worker-healthcheck
     build:
       context: .
       dockerfile: detection_service/Dockerfile
@@ -104,6 +122,7 @@ services:
     command: ["python", "main.py"]
   
   metadata_service:
+    healthcheck: *worker-healthcheck
     build:
       context: .
       dockerfile: metadata_service/Dockerfile
@@ -132,6 +151,7 @@ services:
     command: ["python", "main.py"]
   
   upload_service:
+    healthcheck: *worker-healthcheck
     build:
       context: .
       dockerfile: upload_service/Dockerfile
@@ -170,6 +190,7 @@ services:
     environment:
       <<: *analytics-environment
       SCANSYNC_SERVICE: web_service
+      HEALTH_WORKER_REPLICAS: '{"ocr_service":2,"metadata_service":2}'
       FLASK_ENV: prod # prod or development
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
@@ -212,6 +233,13 @@ services:
 
   redis:
     image: redis:8.10.3
+    healthcheck:
+      test: ["CMD", "redis-cli", "-e", "ping"]
+      interval: 60s
+      timeout: 5s
+      retries: 2
+      start_period: 30s
+      start_interval: 3s
     restart: unless-stopped
     container_name: redis
     ports:

@@ -54,6 +54,9 @@ services:
 
   web-service:
     <<: *worker
+    environment:
+      <<: *mock-environment
+      HEALTH_WORKER_REPLICAS: '{"ocr_service":1,"metadata_service":1}'
     extends:
       file: docker-compose.yml
       service: web-service

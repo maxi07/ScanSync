@@ -60,6 +60,24 @@ def test_health_returns_ok_without_database_queries(client):
     mock_query.assert_not_called()
 
 
+@pytest.mark.parametrize("ok, status", [(True, 200), (False, 503)])
+def test_service_health_returns_aggregate_status_without_database_queries(client, ok, status):
+    result = {'ok': ok, 'services': {'ocr_service': {'ok': ok}}}
+    with patch('routes.api.get_service_health', return_value=result), patch('routes.api.execute_query') as query:
+        response = client.get('/health/services')
+        assert client.get('/health').status_code == 200
+    assert response.status_code == status
+    assert response.get_json() == result
+    query.assert_not_called()
+
+
+def test_service_health_reports_invalid_configuration(client):
+    with patch('routes.api.get_service_health', side_effect=ValueError("Invalid replicas")):
+        response = client.get('/health/services')
+    assert response.status_code == 503
+    assert response.get_json()['ok'] is False
+
+
 class TestStatusAPI:
     """Test cases for the enhanced /api/status endpoint."""
 

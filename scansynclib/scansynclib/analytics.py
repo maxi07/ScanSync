@@ -310,7 +310,7 @@ def configure_flask(app):
 
     @app.before_request
     def analytics_request_started():
-        if request.path != "/health" and enabled():
+        if request.path not in {"/health", "/health/services"} and enabled():
             g.analytics_started = time.monotonic()
 
     @app.after_request

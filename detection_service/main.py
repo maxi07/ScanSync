@@ -8,6 +8,7 @@ from scansynclib.analytics import file_metadata, track
 from scansynclib.logging import logger
 import pika
 from scansynclib.rabbitmq import RabbitMQClient
+from scansynclib.health import start_worker_health
 from scansynclib.config import config
 import json
 
@@ -106,6 +107,7 @@ def main():
     ensure_scan_directory_exists(SCAN_DIR)
     cleanup_dangling_documents()
     client = RabbitMQClient(name="detection")
+    start_worker_health(client.is_open)
     while not client.ensure_connection():
         logger.warning("RabbitMQ is not available. Retrying detection startup in 5 seconds...")
         time.sleep(5)

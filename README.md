@@ -249,6 +249,32 @@ Compose probes this endpoint every 60 seconds, or every 3 seconds during the
 30-second startup grace period. Health probes do not produce HTTP analytics
 events.
 
+### `GET /health/services`
+
+Returns `{"ok": true, "services": {...}, "checked_at": ...}` with HTTP 200
+when all configured services are available, or HTTP 503 with per-service details
+otherwise. Results are cached for 30 seconds; this endpoint also emits no HTTP
+analytics. It is not used as the web container's healthcheck, because workers
+wait for the web service during startup.
+
+- Workers publish one atomic heartbeat file per container in the existing data
+  volume under `health/`, every 15 seconds. A worker is ready while its main
+  thread is alive and its RabbitMQ connection/channel is open. Records expire
+  after 60 seconds; idle workers and long-running jobs remain healthy. This is
+  an availability check, not a document-progress or deadlock detector.
+- Worker Docker healthchecks read only their own heartbeat. The overview checks
+  every expected replica, ignoring expired records from previous containers.
+  Compose sets `HEALTH_WORKER_REPLICAS` to `{"ocr_service":2,"metadata_service":2}`;
+  other workers default to one instance. Update this JSON mapping when scaling.
+  The E2E configuration overrides both counts to one.
+- Redis is checked with `PING`. The overview checks RabbitMQ and SMB TCP
+  listeners, not queue processing, SMB credentials, or share permissions.
+  Their local Docker checks use RabbitMQ diagnostics and `smbcontrol smbd ping`.
+- New container checks run every 60 seconds, with shorter startup intervals.
+  RabbitMQ retains its existing check interval. No external cloud APIs are called.
+
+Docker marks failed checks as `unhealthy`; that alone does not restart a container.
+
 ### `GET /api/status`
 
 Returns aggregated document processing status including per-stage breakdowns, currently processing items, and recent completion history.
