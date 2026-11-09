@@ -28,7 +28,7 @@ charset-normalizer==3.5.2
     # via
     #   pdfminer-six
     #   requests
-click==8.5.0
+click==8.5.1
     # via flask
 colorlog==6.12.0
     # via scansynclib (scansynclib/pyproject.toml)
@@ -134,7 +134,7 @@ pika==1.4.4
     #   -r upload_service/requirements.txt
     #   -r web_service/requirements.txt
     #   scansynclib (scansynclib/pyproject.toml)
-pikepdf==10.17.0
+pikepdf==10.18.0
     # via
     #   img2pdf
     #   ocrmypdf
@@ -186,7 +186,7 @@ pypdf==7.0.0
     # via
     #   -r metadata_service/requirements.txt
     #   scansynclib (scansynclib/pyproject.toml)
-pypdfium2==5.15.0
+pypdfium2==5.15.2
     # via ocrmypdf
 pysocks==1.7.1
     # via urllib3
