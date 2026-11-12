@@ -104,7 +104,7 @@ numpy==2.5.4
     # via
     #   onnxruntime
     #   pymupdf
-ocrmypdf==17.13.0
+ocrmypdf==17.14.0
     # via -r ocr_service/requirements.txt
 onnxruntime==1.31.1
     # via pymupdf
