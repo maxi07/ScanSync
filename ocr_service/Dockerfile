@@ -1,4 +1,4 @@
-FROM python:3.13-slim-trixie AS native-build
+FROM python:3.15-slim-trixie AS native-build
 
 ENV TZ=Europe/Berlin
 ARG GHOSTSCRIPT_VERSION=10.08.0
@@ -21,7 +21,7 @@ RUN curl -fsSL "https://github.com/agl/jbig2enc/archive/${JBIG2_COMMIT}.tar.gz" 
     tar -xzf jbig2enc.tar.gz && cd "jbig2enc-${JBIG2_COMMIT}" && \
     autoreconf -fi && ./configure && make -j"$(nproc)" && make install
 
-FROM python:3.13-slim-trixie AS runtime
+FROM python:3.15-slim-trixie AS runtime
 
 ENV TZ=Europe/Berlin \
     CONFIG_PATH=/app/scansynclib/scansynclib/config.json
