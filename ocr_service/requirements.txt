@@ -1,2 +1,2 @@
 pika==1.4.4
-ocrmypdf==17.13.0
+ocrmypdf==17.14.0
